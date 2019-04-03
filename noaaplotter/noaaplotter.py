@@ -2,8 +2,10 @@
 # -*- coding: utf-8 -*-
 
 ########################
-#  Credits here
-
+# Credits here
+# author: Ingmar Nitze, Alfred Wegener Institute for Polar and Marine Research
+# contact: ingmar.nitze@awi.de
+# version: 2019-04-03
 
 ########################
 import pandas as pd
@@ -33,6 +35,7 @@ class NOAAPlotter(object):
         self.remove_feb29 = remove_feb29
         self.df_ = self._load_file()
         self._update_datatypes()
+        self._get_datestring()
         self._get_tmean()
         self._remove_feb29()
         self.df_clim_ = self._filter_to_climate()
@@ -48,6 +51,9 @@ class NOAAPlotter(object):
     def _update_datatypes(self):
         self.df_['DATE'] = pd.to_datetime(self.df_['DATE'])
 
+    def _get_datestring(self):
+        self.df_['DATE_MD'] = self.df_.apply(lambda x: x['DATE'].strftime('%m-%d'), axis=1)
+
     def _get_tmean(self):
         """
         calculate mean daily temperature from min and max
@@ -61,7 +67,7 @@ class NOAAPlotter(object):
         :return:
         """
         if self.remove_feb29:
-            self.df_ = self.df_[~self.df_.apply(lambda x: str(x.DATE).endswith('02-29'), axis=1)]
+            self.df_ = self.df_[~self.df_['DATE_MD'] != '02-29']
 
     def _filter_to_climate(self):
         """
@@ -87,12 +93,23 @@ class NOAAPlotter(object):
         df_out['tmin_doy_std'] = df[['DATE', 'TMIN']].groupby(df.DATE.dt.dayofyear).std().TMIN
         df_out['snow_doy_mean'] = df[['DATE', 'SNOW']].groupby(df.DATE.dt.dayofyear).mean().SNOW
         return df_out
+    @staticmethod
+    def _parse_dates(date):
+        if isinstance(date, str):
+            return pd.datetime.strptime(date, '%Y-%m-%d')
+        elif isinstance(date, pd.datetime):
+            return date
+        else:
+            raise('Wrong date format. Either use native datetime format or "YYYY-mm-dd"')
 
     def plot_weather_series(self, start_date, end_date, plot_tmax=22, plot_tmin=-45):
         """
         Plotting Function to show observed vs climate temperatures and snowfall
         """
         # make dynamic end date within the function
+        start_date = self._parse_dates(start_date)
+        end_date = self._parse_dates(end_date)
+
         if self.df_.DATE.max() >= end_date:
             x_dates_short = pd.date_range(start=start_date, end=end_date)
         else:
