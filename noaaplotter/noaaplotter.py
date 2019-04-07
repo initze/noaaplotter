@@ -85,14 +85,15 @@ class NOAAPlotter(object):
         :return:
         """
         df_out = pd.DataFrame()
-        df_out['tmean_doy_mean'] = df[['DATE', 'TMEAN']].groupby(df.DATE.dt.dayofyear).mean().TMEAN
-        df_out['tmean_doy_std'] = df[['DATE', 'TMEAN']].groupby(df.DATE.dt.dayofyear).std().TMEAN
-        df_out['tmax_doy_max'] = df[['DATE', 'TMAX']].groupby(df.DATE.dt.dayofyear).max().TMAX
-        df_out['tmax_doy_std'] = df[['DATE', 'TMAX']].groupby(df.DATE.dt.dayofyear).std().TMAX
-        df_out['tmin_doy_min'] = df[['DATE', 'TMIN']].groupby(df.DATE.dt.dayofyear).min().TMIN
-        df_out['tmin_doy_std'] = df[['DATE', 'TMIN']].groupby(df.DATE.dt.dayofyear).std().TMIN
-        df_out['snow_doy_mean'] = df[['DATE', 'SNOW']].groupby(df.DATE.dt.dayofyear).mean().SNOW
+        df_out['tmean_doy_mean'] = df[['DATE', 'TMEAN']].groupby(df['DATE_MD']).mean().TMEAN
+        df_out['tmean_doy_std'] = df[['DATE', 'TMEAN']].groupby(df['DATE_MD']).std().TMEAN
+        df_out['tmax_doy_max'] = df[['DATE', 'TMAX']].groupby(df['DATE_MD']).max().TMAX
+        df_out['tmax_doy_std'] = df[['DATE', 'TMAX']].groupby(df['DATE_MD']).std().TMAX
+        df_out['tmin_doy_min'] = df[['DATE', 'TMIN']].groupby(df['DATE_MD']).min().TMIN
+        df_out['tmin_doy_std'] = df[['DATE', 'TMIN']].groupby(df['DATE_MD']).std().TMIN
+        df_out['snow_doy_mean'] = df[['DATE', 'SNOW']].groupby(df['DATE_MD']).mean().SNOW
         return df_out
+    
     @staticmethod
     def _parse_dates(date):
         if isinstance(date, str):
@@ -102,7 +103,7 @@ class NOAAPlotter(object):
         else:
             raise('Wrong date format. Either use native datetime format or "YYYY-mm-dd"')
 
-    def plot_weather_series(self, start_date, end_date, plot_tmax=22, plot_tmin=-45):
+    def plot_weather_series(self, start_date, end_date, plot_tmax=22, plot_tmin=-45, show_snow_accumulation=True):
         """
         Plotting Function to show observed vs climate temperatures and snowfall
         """
@@ -110,33 +111,38 @@ class NOAAPlotter(object):
         start_date = self._parse_dates(start_date)
         end_date = self._parse_dates(end_date)
 
-        if self.df_.DATE.max() >= end_date:
-            x_dates_short = pd.date_range(start=start_date, end=end_date)
+        x_dates = pd.DataFrame()
+        x_dates['DATE'] = pd.date_range(start=start_date, end=end_date)
+        # make a staticfunction
+        x_dates['DATE_MD'] = x_dates.apply(lambda x: x['DATE'].strftime('%m-%d'), axis=1)
+
+        if self.df_['DATE'].max() >= end_date:
+            x_dates_short = x_dates.set_index('DATE', drop=False).loc[pd.date_range(start=start_date, end=end_date)]
         else:
-            x_dates_short = pd.date_range(start=start_date, end=self.df_.DATE.max())
-        x_dates = pd.date_range(start=start_date, end=end_date)
+            x_dates_short = x_dates.set_index('DATE', drop=False).loc[pd.date_range(start=start_date, end=self.df_['DATE'].max())]
 
-        df_obs = self.df_[(self.df_.DATE >= start_date) & (self.df_.DATE <= end_date)]
-        df_obs = df_obs.set_index(df_obs.DATE.dt.dayofyear.values)
+        df_clim = self.df_clim_doy_.loc[x_dates['DATE_MD']]
+        df_clim['DATE'] = x_dates['DATE'].values
+        df_clim = df_clim.set_index('DATE', drop=False)
+        df_obs = self.df_.set_index('DATE', drop=False).loc[x_dates_short['DATE']]
 
-        clim_locs = x_dates.dayofyear[:365] # full year series
-        clim_locs_short = x_dates_short.dayofyear # short series for incomplete years (actual data)
+        clim_locs = x_dates['DATE']# full year series
+        clim_locs_short = x_dates_short['DATE']# short series for incomplete years (actual data)
 
         # get mean and mean+-standard deviation of daily mean temperatures of climate series
-        y_clim = self.df_clim_doy_.loc[clim_locs].tmean_doy_mean
-        y_clim_short = self.df_clim_doy_.loc[clim_locs_short].tmean_doy_mean
-        y_clim_std_hi = self.df_clim_doy_.loc[clim_locs][['tmean_doy_mean', 'tmean_doy_std']].sum(axis=1)
-        y_clim_std_lo = self.df_clim_doy_.loc[clim_locs].apply(lambda x: x['tmean_doy_mean'] - x['tmean_doy_std'], axis=1)
+        y_clim = df_clim['tmean_doy_mean']
+        y_clim_std_hi = df_clim[['tmean_doy_mean', 'tmean_doy_std']].sum(axis=1)
+        y_clim_std_lo = df_clim.apply(lambda x: x['tmean_doy_mean'] - x['tmean_doy_std'], axis=1)
 
         # Prepare data for filled plot areas
-        t_above = np.vstack([df_obs.TMEAN.values, y_clim.loc[clim_locs_short].values]).max(axis=0)
-        t_above_std = np.vstack([df_obs.TMEAN.values, y_clim_std_hi.loc[clim_locs_short].values]).max(axis=0)
-        t_below = np.vstack([df_obs.TMEAN.values, y_clim.loc[clim_locs_short].values]).min(axis=0)
-        t_below_std = np.vstack([df_obs.TMEAN.values, y_clim_std_lo.loc[clim_locs_short].values]).min(axis=0)
+        t_above = np.vstack([df_obs['TMEAN'].values, y_clim.loc[clim_locs_short].values]).max(axis=0)
+        t_above_std = np.vstack([df_obs['TMEAN'].values, y_clim_std_hi.loc[clim_locs_short].values]).max(axis=0)
+        t_below = np.vstack([df_obs['TMEAN'].values, y_clim.loc[clim_locs_short].values]).min(axis=0)
+        t_below_std = np.vstack([df_obs['TMEAN'].values, y_clim_std_lo.loc[clim_locs_short].values]).min(axis=0)
 
         # Calculate the date of last snowfall and cumulative sum of snowfall
-        last_snow = np.where(df_obs.SNOW > 0)[0][-1]
-        snow_acc = np.cumsum(df_obs.SNOW)
+        last_snow_date = df_obs[df_obs['SNOW'] > 0].iloc[-1]['DATE']
+        snow_acc = np.cumsum(df_obs['SNOW'])
 
         #PLOT
         fig = plt.figure(figsize=(15,10))
@@ -145,18 +151,18 @@ class NOAAPlotter(object):
         ax2_snow = ax2.twinx()
 
         # climate series (red line)
-        cm, = ax.plot(x_dates, y_clim, c='k', alpha=0.5, lw=2)
-        cm_hi, = ax.plot(x_dates, y_clim_std_hi, c='r', ls='--', alpha=0.4, lw=1)
-        cm_low, = ax.plot(x_dates, y_clim_std_lo, c='r', ls='--', alpha=0.4, lw=1)
+        cm, = ax.plot(x_dates['DATE'], y_clim, c='k', alpha=0.5, lw=2)
+        cm_hi, = ax.plot(x_dates['DATE'], y_clim_std_hi, c='r', ls='--', alpha=0.4, lw=1)
+        cm_low, = ax.plot(x_dates['DATE'], y_clim_std_lo, c='r', ls='--', alpha=0.4, lw=1)
 
         # observed series (grey line)
-        fb, = ax.plot(x_dates_short, df_obs.TMEAN, c='k', alpha=0.4, lw=1.2)
+        fb, = ax.plot(x_dates_short['DATE'], df_obs['TMEAN'], c='k', alpha=0.4, lw=1.2)
 
         # difference of observed and climate (grey area)
-        fill_r = ax.fill_between(x_dates_short, y1=t_above, y2=y_clim.loc[clim_locs_short], facecolor='#d6604d', alpha=0.5)
-        fill_rr = ax.fill_between(x_dates_short, y1=t_above_std, y2=y_clim_std_hi.loc[clim_locs_short], facecolor='#d6604d', alpha=0.7)
-        fill_b = ax.fill_between(x_dates_short, y1=y_clim.loc[clim_locs_short], y2=t_below, facecolor='#4393c3', alpha=0.5)
-        fill_bb = ax.fill_between(x_dates_short, y1=y_clim_std_lo.loc[clim_locs_short], y2=t_below_std, facecolor='#4393c3', alpha=0.7)
+        fill_r = ax.fill_between(x_dates_short['DATE'], y1=t_above, y2=y_clim.loc[clim_locs_short], facecolor='#d6604d', alpha=0.5)
+        fill_rr = ax.fill_between(x_dates_short['DATE'], y1=t_above_std, y2=y_clim_std_hi.loc[clim_locs_short], facecolor='#d6604d', alpha=0.7)
+        fill_b = ax.fill_between(x_dates_short['DATE'], y1=y_clim.loc[clim_locs_short], y2=t_below, facecolor='#4393c3', alpha=0.5)
+        fill_bb = ax.fill_between(x_dates_short['DATE'], y1=y_clim_std_lo.loc[clim_locs_short], y2=t_below_std, facecolor='#4393c3', alpha=0.7)
 
         xlim = ax.get_xlim()
         ax.hlines(0, *xlim, linestyles='--')
@@ -164,7 +170,7 @@ class NOAAPlotter(object):
         ax.grid()
 
         # labels
-        ax.set_xlim(x_dates[0], x_dates[-1])
+        ax.set_xlim(start_date, end_date)
         ax.set_ylim(plot_tmin, plot_tmax)
         ax.set_ylabel('t in °C')
         ax.set_xlabel('Date')
@@ -178,26 +184,33 @@ class NOAAPlotter(object):
                                                 'Below average Temperature'], loc='lower left')
 
         #PRECIPITATION#
-        rain = ax2.bar(x=x_dates_short, height=df_obs.PRCP, fc='b', alpha=0.6)
-        sn_acc = ax2_snow.fill_between(x=x_dates_short[:last_snow], y1=snow_acc[:last_snow]/10, facecolor='k', alpha=0.2)
-        _ = ax2_snow.plot(x_dates_short[last_snow-1:], snow_acc[last_snow-1:]/10, c='k', alpha=0.2, ls='--')
+        # legend handles
+        legend_handle = []
+        legend_text = []
+
+        # precipitation
+        rain = ax2.bar(x=x_dates_short['DATE'], height=df_obs['PRCP'], fc='b', alpha=0.6)
+        legend_handle.append(rain)
+        legend_text.append('Precipitation')
+
+        #snow
+        if show_snow_accumulation:
+            sn_acc = ax2_snow.fill_between(x=x_dates_short.loc[:last_snow_date, 'DATE'], y1=snow_acc.loc[:last_snow_date]/10, facecolor='k', alpha=0.2)
+            _ = ax2_snow.plot(x_dates_short.loc[last_snow_date:, 'DATE'], snow_acc.loc[last_snow_date:]/10, c='k', alpha=0.2, ls='--')
+            legend_handle.append(sn_acc)
+            legend_text.append('Accumulated Snowfall')
+
         # grid
         ax2.grid()
         # labels
         ax2.set_ylabel('Precipitation in mm')
         ax2.set_xlabel('Date')
         ax2_snow.set_ylabel('Accumulated Snowfall in cm')
-        ax2.legend([rain, sn_acc], ['Precipitation',
-                                  'Accumulated Snowfall'], loc='upper left')
+        ax2.legend(legend_handle, legend_text, loc='upper left')
         ax2.set_ylim(0, 30)
         ax2_snow.set_ylim(0, 300)
 
         ax2.set_title('Precipitation pattern {s}/{e}'.format(s=start_date.year, e=end_date.year))
-
+        #"""
         plt.show()
-        print("Freezing Degrees:", df_obs[df_obs.TMEAN < 0].TMEAN.sum())
-        print("Freezing Days:", df_obs[df_obs.TMEAN < 0].TMEAN.count())
-        print('Days with T above 1 std:', (df_obs.loc[clim_locs, 'TMEAN'] > y_clim_std_hi.loc[clim_locs]).sum())
-        print('Days with T below 1 std:', (df_obs.loc[clim_locs, 'TMEAN'] < y_clim_std_lo.loc[clim_locs]).sum())
 
-        print("\n\n\n")
