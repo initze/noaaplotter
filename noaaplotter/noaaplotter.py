@@ -103,7 +103,10 @@ class NOAAPlotter(object):
         else:
             raise('Wrong date format. Either use native datetime format or "YYYY-mm-dd"')
 
-    def plot_weather_series(self, start_date, end_date, plot_tmax=22, plot_tmin=-45, show_snow_accumulation=True):
+    def plot_weather_series(self, start_date, end_date,
+                            plot_tmax='auto', plot_tmin='auto',
+                            plot_pmax='auto', plot_snowmax='auto',
+                            show_snow_accumulation=True, save_path=False, **kwargs_fig):
         """
         Plotting Function to show observed vs climate temperatures and snowfall
         """
@@ -148,7 +151,7 @@ class NOAAPlotter(object):
         fig = plt.figure(figsize=(15,10))
         ax = fig.add_subplot(211)
         ax2 = fig.add_subplot(212, sharex=ax)
-        ax2_snow = ax2.twinx()
+
 
         # climate series (red line)
         cm, = ax.plot(x_dates['DATE'], y_clim, c='k', alpha=0.5, lw=2)
@@ -171,7 +174,8 @@ class NOAAPlotter(object):
 
         # labels
         ax.set_xlim(start_date, end_date)
-        ax.set_ylim(plot_tmin, plot_tmax)
+        if not (plot_tmin == 'auto' and plot_tmin == 'auto'):
+            ax.set_ylim(plot_tmin, plot_tmax)
         ax.set_ylabel('t in °C')
         ax.set_xlabel('Date')
         ax.set_title('Observed temperatures {s}/{e} vs. climatological mean (1981-2010)'.format(s=start_date.year, e=end_date.year))
@@ -193,24 +197,39 @@ class NOAAPlotter(object):
         legend_handle.append(rain)
         legend_text.append('Precipitation')
 
-        #snow
-        if show_snow_accumulation:
-            sn_acc = ax2_snow.fill_between(x=x_dates_short.loc[:last_snow_date, 'DATE'], y1=snow_acc.loc[:last_snow_date]/10, facecolor='k', alpha=0.2)
-            _ = ax2_snow.plot(x_dates_short.loc[last_snow_date:, 'DATE'], snow_acc.loc[last_snow_date:]/10, c='k', alpha=0.2, ls='--')
-            legend_handle.append(sn_acc)
-            legend_text.append('Accumulated Snowfall')
 
         # grid
         ax2.grid()
         # labels
         ax2.set_ylabel('Precipitation in mm')
         ax2.set_xlabel('Date')
-        ax2_snow.set_ylabel('Accumulated Snowfall in cm')
-        ax2.legend(legend_handle, legend_text, loc='upper left')
-        ax2.set_ylim(0, 30)
-        ax2_snow.set_ylim(0, 300)
+        # y-axis scaling
+        ax2.set_ylim(bottom=0)
+        if isinstance(plot_pmax, (int, float)):
+            ax2.set_ylim(top=plot_pmax)
 
+        #snow
+        if show_snow_accumulation:
+            ax2_snow = ax2.twinx()
+            # plots
+            sn_acc = ax2_snow.fill_between(x=x_dates_short.loc[:last_snow_date, 'DATE'], y1=snow_acc.loc[:last_snow_date]/10, facecolor='k', alpha=0.2)
+            _ = ax2_snow.plot(x_dates_short.loc[last_snow_date:, 'DATE'], snow_acc.loc[last_snow_date:]/10, c='k', alpha=0.2, ls='--')
+            # y-axis label
+            ax2_snow.set_ylabel('Accumulated Snowfall in cm')
+            # legend
+            legend_handle.append(sn_acc)
+            legend_text.append('Accumulated Snowfall')
+            # y-axis scaling
+            ax2_snow.set_ylim(bottom=0)
+            if isinstance(plot_snowmax, (int, float)):
+                ax2_snow.set_ylim(top=plot_snowmax)
+
+        ax2.legend(legend_handle, legend_text, loc='upper left')
         ax2.set_title('Precipitation pattern {s}/{e}'.format(s=start_date.year, e=end_date.year))
         #"""
+        # Save Figure
+        if save_path:
+            fig.savefig(save_path, **kwargs_fig)
+
         plt.show()
 
