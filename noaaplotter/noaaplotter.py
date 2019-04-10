@@ -106,6 +106,7 @@ class NOAAPlotter(object):
     def plot_weather_series(self, start_date, end_date,
                             plot_tmax='auto', plot_tmin='auto',
                             plot_pmax='auto', plot_snowmax='auto',
+                            show_plot=True,
                             show_snow_accumulation=True, save_path=False, **kwargs_fig):
         """
         Plotting Function to show observed vs climate temperatures and snowfall
@@ -144,8 +145,12 @@ class NOAAPlotter(object):
         t_below_std = np.vstack([df_obs['TMEAN'].values, y_clim_std_lo.loc[clim_locs_short].values]).min(axis=0)
 
         # Calculate the date of last snowfall and cumulative sum of snowfall
-        last_snow_date = df_obs[df_obs['SNOW'] > 0].iloc[-1]['DATE']
-        snow_acc = np.cumsum(df_obs['SNOW'])
+        if (show_snow_accumulation) and ('SNOW' in df_obs.columns):
+            last_snow_date = df_obs[df_obs['SNOW'] > 0].iloc[-1]['DATE']
+            snow_acc = np.cumsum(df_obs['SNOW'])
+        elif ('SNOW' not in df_obs.columns):
+            show_snow_accumulation = False
+            raise Warning('No snow information available')
 
         #PLOT
         fig = plt.figure(figsize=(15,10))
@@ -162,10 +167,14 @@ class NOAAPlotter(object):
         fb, = ax.plot(x_dates_short['DATE'], df_obs['TMEAN'], c='k', alpha=0.4, lw=1.2)
 
         # difference of observed and climate (grey area)
-        fill_r = ax.fill_between(x_dates_short['DATE'], y1=t_above, y2=y_clim.loc[clim_locs_short], facecolor='#d6604d', alpha=0.5)
-        fill_rr = ax.fill_between(x_dates_short['DATE'], y1=t_above_std, y2=y_clim_std_hi.loc[clim_locs_short], facecolor='#d6604d', alpha=0.7)
-        fill_b = ax.fill_between(x_dates_short['DATE'], y1=y_clim.loc[clim_locs_short], y2=t_below, facecolor='#4393c3', alpha=0.5)
-        fill_bb = ax.fill_between(x_dates_short['DATE'], y1=y_clim_std_lo.loc[clim_locs_short], y2=t_below_std, facecolor='#4393c3', alpha=0.7)
+        fill_r = ax.fill_between(x_dates_short['DATE'], y1=t_above, y2=y_clim.loc[clim_locs_short],
+                                 facecolor='#d6604d', alpha=0.5)
+        fill_rr = ax.fill_between(x_dates_short['DATE'], y1=t_above_std, y2=y_clim_std_hi.loc[clim_locs_short],
+                                  facecolor='#d6604d', alpha=0.7)
+        fill_b = ax.fill_between(x_dates_short['DATE'], y1=y_clim.loc[clim_locs_short], y2=t_below,
+                                 facecolor='#4393c3', alpha=0.5)
+        fill_bb = ax.fill_between(x_dates_short['DATE'], y1=y_clim_std_lo.loc[clim_locs_short], y2=t_below_std,
+                                  facecolor='#4393c3', alpha=0.7)
 
         xlim = ax.get_xlim()
         ax.hlines(0, *xlim, linestyles='--')
@@ -178,14 +187,16 @@ class NOAAPlotter(object):
             ax.set_ylim(plot_tmin, plot_tmax)
         ax.set_ylabel('t in °C')
         ax.set_xlabel('Date')
-        ax.set_title('Observed temperatures {s}/{e} vs. climatological mean (1981-2010)'.format(s=start_date.year, e=end_date.year))
+        ax.set_title('Observed temperatures {s} to {e} vs. climatological mean (1981-2010)'.format(
+            s=start_date.strftime('%Y-%m-%d'),
+            e=end_date.strftime('%Y-%m-%d')))
 
         # add legend
         ax.legend([fb, cm, cm_hi, fill_r, fill_b], ['Observed Temperatures',
-                                                 'Climatological Mean',
+                                                    'Climatological Mean',
                                                     'Std of Climatological Mean',
-                                                 'Above average Temperature',
-                                                'Below average Temperature'], loc='lower left')
+                                                    'Above average Temperature',
+                                                    'Below average Temperature'], loc='best')
 
         #PRECIPITATION#
         # legend handles
@@ -196,7 +207,6 @@ class NOAAPlotter(object):
         rain = ax2.bar(x=x_dates_short['DATE'], height=df_obs['PRCP'], fc='b', alpha=0.6)
         legend_handle.append(rain)
         legend_text.append('Precipitation')
-
 
         # grid
         ax2.grid()
@@ -225,11 +235,16 @@ class NOAAPlotter(object):
                 ax2_snow.set_ylim(top=plot_snowmax)
 
         ax2.legend(legend_handle, legend_text, loc='upper left')
-        ax2.set_title('Precipitation pattern {s}/{e}'.format(s=start_date.year, e=end_date.year))
+        ax2.set_title('Precipitation pattern {s} to {e}'.format(s=start_date.strftime('%Y-%m-%d'), e=end_date.strftime('%Y-%m-%d')))
         #"""
+        fig.tight_layout()
+
         # Save Figure
         if save_path:
             fig.savefig(save_path, **kwargs_fig)
-
-        plt.show()
+        # Show plot if chosen, destroy figure object at the end
+        if show_plot:
+            plt.show()
+        else:
+            plt.close(fig)
 

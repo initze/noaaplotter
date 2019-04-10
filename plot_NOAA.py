@@ -2,14 +2,26 @@
 # -*- coding: utf-8 -*-
 from noaaplotter.noaaplotter import NOAAPlotter
 
-# Plot Kotzebue Winter 2016/2017
+# Plot Kotzebue Winter Year 2016/2017
 n = NOAAPlotter(r'data/weather_station_kotzebue.csv')
 n.plot_weather_series(start_date='2016-07-01', end_date='2017-06-30',
+                      show_plot=False,
                       save_path='figures/kotzebue_20162017.png', kwargs_fig={'dpi':100})
 
-
-# Plot Bismarck Summer 2018
+# Plot Bismarck 1986
 n = NOAAPlotter(r'data/weather_station_bismarck.csv')
+n.plot_weather_series(start_date='1986-01-01', end_date='1986-12-31',
+                      show_snow_accumulation=False, show_plot=False,
+                      save_path='figures/bismarck_1986.png', kwargs_fig={'dpi':100})
+
+# Plot San Francisco 2018
+n = NOAAPlotter(r'data/weather_station_sanfrancisco.csv')
 n.plot_weather_series(start_date='2018-01-01', end_date='2018-12-31',
-                      show_snow_accumulation=False,
-                      save_path='figures/bismarck_2018.png', kwargs_fig={'dpi':100})
+                      show_snow_accumulation=False, show_plot=False,
+                      save_path='figures/sanfrancisco_2018.png', kwargs_fig={'dpi':100})
+
+# Plot Orlando 2000
+n = NOAAPlotter(r'data/weather_station_orlando.csv')
+n.plot_weather_series(start_date='2000-01-01', end_date='2000-12-31',
+                      show_snow_accumulation=False, show_plot=True,
+                      save_path='figures/orlando_2000.png', kwargs_fig={'dpi':100})
