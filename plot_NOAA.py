@@ -25,3 +25,9 @@ n = NOAAPlotter(r'data/weather_station_orlando.csv')
 n.plot_weather_series(start_date='2000-01-01', end_date='2000-12-31',
                       show_snow_accumulation=False, show_plot=True,
                       save_path='figures/orlando_2000.png', kwargs_fig={'dpi':100})
+
+# Plot Orlando 2000
+n = NOAAPlotter(r'data/1696868.csv', location='STERLEGOVA')
+n.plot_weather_series(start_date='2018-07-01', end_date='2019-06-30',
+                      show_snow_accumulation=False, show_plot=True,
+                      kwargs_fig={'dpi':100})

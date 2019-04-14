@@ -19,25 +19,30 @@ class NOAAPlotter(object):
     """
     def __init__(self,
                  input_filepath,
+                 location=None,
                  remove_feb29=False,
                  climate_start=pd.datetime(1981, 1, 1),
                  climate_end=pd.datetime(2010, 12, 31)):
         """
 
         :param input_filepath:
+        :param location:
         :param remove_feb29:
         :param climate_start:
         :param climate_end:
         """
         self.input_filepath = input_filepath
+        self.location = location
         self.climate_start = climate_start
         self.climate_end = climate_end
         self.remove_feb29 = remove_feb29
+
         self.df_ = self._load_file()
         self._update_datatypes()
         self._get_datestring()
         self._get_tmean()
         self._remove_feb29()
+        self._filter_to_location()
         self.df_clim_ = self._filter_to_climate()
         self.df_clim_doy_ = self._get_daily_stats(self.df_clim_)
 
@@ -68,6 +73,14 @@ class NOAAPlotter(object):
         """
         if self.remove_feb29:
             self.df_ = self.df_[~self.df_['DATE_MD'] != '02-29']
+
+    def _filter_to_location(self):
+        if self.location:
+            filt = self.df_.apply(lambda x: self.location in x['NAME'], axis=1)
+            if len(filt) > 0:
+                self.df_ = self.df_.loc[filt]
+            else:
+                raise ValueError('Location Name is not valid')
 
     def _filter_to_climate(self):
         """
