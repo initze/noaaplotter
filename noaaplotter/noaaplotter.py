@@ -76,7 +76,7 @@ class NOAAPlotter(object):
 
     def _filter_to_location(self):
         if self.location:
-            filt = self.df_.apply(lambda x: self.location in x['NAME'], axis=1)
+            filt = self.df_.apply(lambda x: self.location.lower() in x['NAME'].lower(), axis=1)
             if len(filt) > 0:
                 self.df_ = self.df_.loc[filt]
             else:
