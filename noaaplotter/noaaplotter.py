@@ -10,8 +10,8 @@
 ########################
 import pandas as pd
 from matplotlib import pyplot as plt
-import datetime
 import numpy as np
+import seaborn as sns
 
 class NOAAPlotter(object):
     """
@@ -58,6 +58,7 @@ class NOAAPlotter(object):
 
     def _get_datestring(self):
         self.df_['DATE_MD'] = self.df_.apply(lambda x: x['DATE'].strftime('%m-%d'), axis=1)
+        self.df_['DATE_YM'] = self.df_.apply(lambda x: x['DATE'].strftime('%Y-%m'), axis=1)
 
     def _get_tmean(self):
         """
@@ -106,11 +107,38 @@ class NOAAPlotter(object):
         df_out['tmin_doy_std'] = df[['DATE', 'TMIN']].groupby(df['DATE_MD']).std().TMIN
         df_out['snow_doy_mean'] = df[['DATE', 'SNOW']].groupby(df['DATE_MD']).mean().SNOW
         return df_out
+
+    @staticmethod
+    def _get_monthly_stats(df):
+        """
+
+        :param df:
+        :return:
+        """
+        df_out = pd.DataFrame()
+        df_out['tmean_doy_mean'] = df[['DATE', 'TMEAN']].groupby(df['DATE_YM']).mean().TMEAN
+        df_out['tmean_doy_std'] = df[['DATE', 'TMEAN']].groupby(df['DATE_YM']).std().TMEAN
+        df_out['tmax_doy_max'] = df[['DATE', 'TMAX']].groupby(df['DATE_YM']).max().TMAX
+        df_out['tmax_doy_std'] = df[['DATE', 'TMAX']].groupby(df['DATE_YM']).std().TMAX
+        df_out['tmin_doy_min'] = df[['DATE', 'TMIN']].groupby(df['DATE_YM']).min().TMIN
+        df_out['tmin_doy_std'] = df[['DATE', 'TMIN']].groupby(df['DATE_YM']).std().TMIN
+        df_out['snow_doy_mean'] = df[['DATE', 'SNOW']].groupby(df['DATE_YM']).mean().SNOW
+        df_out['prcp_sum'] = df[['DATE', 'PRCP']].groupby(df['DATE_YM']).sum().PRCP
+        return df_out
     
     @staticmethod
     def _parse_dates(date):
         if isinstance(date, str):
             return pd.datetime.strptime(date, '%Y-%m-%d')
+        elif isinstance(date, pd.datetime):
+            return date
+        else:
+            raise('Wrong date format. Either use native datetime format or "YYYY-mm-dd"')
+
+    @staticmethod
+    def _parse_dates_YM(date):
+        if isinstance(date, str):
+            return pd.datetime.strptime(date, '%Y-%m')
         elif isinstance(date, pd.datetime):
             return date
         else:
@@ -261,3 +289,14 @@ class NOAAPlotter(object):
         else:
             plt.close(fig)
 
+    def plot_monthly_heatmap(self, start_date, end_date, information='Temperature'):
+        data = self._get_monthly_stats(self.df_.set_index('DATE', drop=False).loc[start_date:end_date]).reset_index()
+        data['Month'] = data.apply(lambda x: self._parse_dates_YM(x['DATE_YM']).month, axis=1)
+        data['Year'] = data.apply(lambda x: self._parse_dates_YM(x['DATE_YM']).year, axis=1)
+        if information == 'Temperature':
+            pivoted_df = data.pivot(index='Month', columns='Year', values='tmean_doy_mean')
+            sns.heatmap(data=pivoted_df, cmap='RdBu_r')
+        elif information == 'Precipitation':
+            pivoted_df = data.pivot(index='Month', columns='Year', values='prcp_sum')
+            sns.heatmap(data=pivoted_df, cmap='Blues')
+        plt.show()
