@@ -295,8 +295,8 @@ class NOAAPlotter(object):
         data['Year'] = data.apply(lambda x: self._parse_dates_YM(x['DATE_YM']).year, axis=1)
         if information == 'Temperature':
             pivoted_df = data.pivot(index='Month', columns='Year', values='tmean_doy_mean')
-            sns.heatmap(data=pivoted_df, cmap='RdBu_r')
+            sns.heatmap(data=pivoted_df, cmap='RdBu_r', square=True)
         elif information == 'Precipitation':
             pivoted_df = data.pivot(index='Month', columns='Year', values='prcp_sum')
-            sns.heatmap(data=pivoted_df, cmap='Blues')
+            sns.heatmap(data=pivoted_df, cmap='Blues', square=True)
         plt.show()
