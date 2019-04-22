@@ -5,7 +5,7 @@
 # Credits here
 # author: Ingmar Nitze, Alfred Wegener Institute for Polar and Marine Research
 # contact: ingmar.nitze@awi.de
-# version: 2019-04-03
+# version: 2019-04-22
 
 ########################
 import pandas as pd
@@ -25,9 +25,9 @@ class NOAAPlotter(object):
                  climate_end=pd.datetime(2010, 12, 31)):
         """
 
-        :param input_filepath:
-        :param location:
-        :param remove_feb29:
+        :param input_filepath: str
+        :param location: str
+        :param remove_feb29: bool
         :param climate_start:
         :param climate_end:
         """
@@ -59,6 +59,7 @@ class NOAAPlotter(object):
     def _get_datestring(self):
         self.df_['DATE_MD'] = self.df_.apply(lambda x: x['DATE'].strftime('%m-%d'), axis=1)
         self.df_['DATE_YM'] = self.df_.apply(lambda x: x['DATE'].strftime('%Y-%m'), axis=1)
+        self.df_['DATE_M'] = self.df_.apply(lambda x: x['DATE'].strftime('%m'), axis=1)
 
     def _get_tmean(self):
         """
@@ -125,7 +126,23 @@ class NOAAPlotter(object):
         df_out['snow_doy_mean'] = df[['DATE', 'SNOW']].groupby(df['DATE_YM']).mean().SNOW
         df_out['prcp_sum'] = df[['DATE', 'PRCP']].groupby(df['DATE_YM']).sum().PRCP
         return df_out
-    
+
+    @classmethod
+    def _get_monthy_climate(self, df):
+        df_out = pd.DataFrame()
+        df['Month'] = df.apply(lambda x: self._parse_dates_YM(x['DATE_YM']).month, axis=1)
+
+        df_out['tmean_mean'] = df[['Month', 'TMEAN']].groupby(df['Month']).mean().TMEAN
+        df_out['tmean_std'] = df[['Month', 'TMEAN']].groupby(df['Month']).std().TMEAN
+        df_out['tmax_max'] = df[['Month', 'TMAX']].groupby(df['Month']).max().TMAX
+        df_out['tmax_std'] = df[['Month', 'TMAX']].groupby(df['Month']).std().TMAX
+        df_out['tmin_min'] = df[['Month', 'TMIN']].groupby(df['Month']).min().TMIN
+        df_out['tmin_std'] = df[['Month', 'TMIN']].groupby(df['Month']).std().TMIN
+        df_out['snow_mean'] = df[['Month', 'SNOW']].groupby(df['Month']).mean().SNOW
+        unique_years = len(np.unique(df.apply(lambda x: self._parse_dates_YM(x['DATE_YM']).year, axis=1)))
+        df_out['prcp_mean'] = df[['Month', 'PRCP']].groupby(df['Month']).mean().PRCP * unique_years
+        return df_out.reset_index(drop=False)
+
     @staticmethod
     def _parse_dates(date):
         if isinstance(date, str):
@@ -289,14 +306,43 @@ class NOAAPlotter(object):
         else:
             plt.close(fig)
 
-    def plot_monthly_heatmap(self, start_date, end_date, information='Temperature'):
+    def plot_monthly_heatmap(self, start_date, end_date, information='Temperature', show_plot=True,
+                                    anomaly=False, anomaly_type='absolute'):
+        """
+
+        :param start_date:
+        :param end_date:
+        :param information: str {'Temperature', 'Precipitation'}
+        :param show_plot: bool
+        :param anomaly: bool
+        :param anomaly_type:
+        :return:
+        """
         data = self._get_monthly_stats(self.df_.set_index('DATE', drop=False).loc[start_date:end_date]).reset_index()
+        data_clim = self._get_monthy_climate(self.df_clim_)
+
         data['Month'] = data.apply(lambda x: self._parse_dates_YM(x['DATE_YM']).month, axis=1)
         data['Year'] = data.apply(lambda x: self._parse_dates_YM(x['DATE_YM']).year, axis=1)
+        data = data.set_index('Month', drop=False).join(data_clim.set_index('Month', drop=False), rsuffix='_clim').sort_values(
+            'DATE_YM')
+        data['tmean_diff'] = data['tmean_doy_mean'] - data['tmean_mean']
+        data['prcp_diff'] = data['prcp_sum'] - data['prcp_mean']
+
         if information == 'Temperature':
-            pivoted_df = data.pivot(index='Month', columns='Year', values='tmean_doy_mean')
-            sns.heatmap(data=pivoted_df, cmap='RdBu_r', square=True)
+            cmap = cmap = 'RdBu_r'
+            if anomaly:
+                values_col = 'tmean_diff'
+            else:
+                values_col = 'tmean_doy_mean'
+
         elif information == 'Precipitation':
-            pivoted_df = data.pivot(index='Month', columns='Year', values='prcp_sum')
-            sns.heatmap(data=pivoted_df, cmap='Blues', square=True)
+            if anomaly:
+                cmap = 'RdBu'
+                values_col = 'prcp_diff'
+            else:
+                cmap= 'Blues'
+                values_col = 'prcp_sum'
+
+        pivoted_df = data.pivot(index='Month', columns='Year', values=values_col)
+        sns.heatmap(data=pivoted_df, cmap=cmap, square=True)
         plt.show()
