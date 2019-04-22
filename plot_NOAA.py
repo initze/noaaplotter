@@ -31,3 +31,9 @@ n = NOAAPlotter(r'data/1696868.csv', location='sterlegova')
 n.plot_weather_series(start_date='2018-07-01', end_date='2019-06-30',
                       show_snow_accumulation=False, show_plot=True,
                       kwargs_fig={'dpi':100})
+
+# Show Heatmap Kotzebue
+n = NOAAPlotter(r'data/weather_station_kotzebue.csv',
+                location='Kotzebue')
+n.plot_monthly_heatmap('1958-01-01', '2018-12-31', information='Precipitation', anomaly=False)
+n.plot_monthly_heatmap('1958-01-01', '2018-12-31', information='Temperature', anomaly=True)
