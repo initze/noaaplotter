@@ -35,5 +35,5 @@ n.plot_weather_series(start_date='2018-07-01', end_date='2019-06-30',
 # Show Heatmap Kotzebue
 n = NOAAPlotter(r'data/weather_station_kotzebue.csv',
                 location='Kotzebue')
-n.plot_monthly_barchart('1929-01-01', '2019-12-31', information='Temperature', anomaly=True)
-n.plot_monthly_barchart('1998-01-01', '2019-12-31', information='Precipitation', anomaly=True)
+n.plot_monthly_barchart('1998-01-01', '2019-12-31', information='Precipitation', anomaly=True, trailing_mean=12)
+#n.plot_monthly_barchart('1998-01-01', '2019-12-31', information='Precipitation', anomaly=True)

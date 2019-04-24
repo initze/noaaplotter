@@ -161,6 +161,15 @@ class NOAAPlotter(object):
         else:
             raise('Wrong date format. Either use native datetime format or "YYYY-mm-dd"')
 
+    @staticmethod
+    def _calc_trailing_mean(df, length, feature, new_feature):
+        trailing_values = []
+        idxs = df.index
+        for i in range(length, len(idxs.values)):
+            trailing_values.append(df.loc[idxs[i-12:i+1]][feature].mean())
+        df.loc[idxs[length:], new_feature] = trailing_values
+        return df
+
     def plot_weather_series(self, start_date, end_date,
                             plot_tmax='auto', plot_tmin='auto',
                             plot_pmax='auto', plot_snowmax='auto',
@@ -348,18 +357,7 @@ class NOAAPlotter(object):
         plt.show()
 
     def plot_monthly_barchart(self, start_date, end_date, information='Temperature', show_plot=True,
-                                    anomaly=False, anomaly_type='absolute'):
-        data = self._get_monthly_stats(self.df_.set_index('DATE', drop=False).loc[start_date:end_date]).reset_index()
-        data_clim = self._get_monthy_climate(self.df_clim_)
-
-        data['DATE'] = data.apply(lambda x: self._parse_dates_YM(x['DATE_YM']), axis=1)
-        data['Month'] = data.apply(lambda x: self._parse_dates_YM(x['DATE_YM']).month, axis=1)
-        data['Year'] = data.apply(lambda x: self._parse_dates_YM(x['DATE_YM']).year, axis=1)
-        data = data.set_index('Month', drop=False).join(data_clim.set_index('Month', drop=False),
-                                                        rsuffix='_clim').sort_values(
-            'DATE_YM')
-        data['tmean_diff'] = data['tmean_doy_mean'] - data['tmean_mean']
-        data['prcp_diff'] = data['prcp_sum'] - data['prcp_mean']
+                                    anomaly=False, anomaly_type='absolute', trailing_mean=None):
 
         # TODO: add labels
         if information == 'Temperature':
@@ -381,12 +379,31 @@ class NOAAPlotter(object):
                 cmap = 'Blues'
                 values = 'prcp_sum'
 
+        data = self._get_monthly_stats(self.df_.set_index('DATE', drop=False).loc[start_date:end_date]).reset_index()
+        data_clim = self._get_monthy_climate(self.df_clim_)
+
+        data['DATE'] = data.apply(lambda x: self._parse_dates_YM(x['DATE_YM']), axis=1)
+        data['Month'] = data.apply(lambda x: self._parse_dates_YM(x['DATE_YM']).month, axis=1)
+        data['Year'] = data.apply(lambda x: self._parse_dates_YM(x['DATE_YM']).year, axis=1)
+        data = data.set_index('Month', drop=False).join(data_clim.set_index('Month', drop=False),
+                                                        rsuffix='_clim').sort_values(
+            'DATE_YM')
+        data['tmean_diff'] = data['tmean_doy_mean'] - data['tmean_mean']
+        data['prcp_diff'] = data['prcp_sum'] - data['prcp_mean']
+        data = data.set_index('DATE', drop=False)
+
+        if trailing_mean:
+            data = self._calc_trailing_mean(data, trailing_mean, values, 'trailing_values')
+
         fig = plt.figure(figsize=(15,7))
         ax = fig.add_subplot(111)
         data_low = data[data[values]<0]
         data_high = data[data[values] >= 0]
         ax.bar(x=data_low['DATE'], height=data_low[values], width=30, align='edge', color=fc_low)
         ax.bar(x=data_high['DATE'], height=data_high[values], width=30, align='edge',color=fc_high)
+        if trailing_mean:
+            ax.plot(data['DATE'], data['trailing_values'], c='k')
         ax.xaxis.set_major_locator(dates.YearLocator())
+        ax.tick_params(axis='x', rotation=90)
         ax.grid(True)
         plt.show()
