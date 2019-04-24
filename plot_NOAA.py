@@ -1,7 +1,7 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
 from noaaplotter.noaaplotter import NOAAPlotter
-
+"""
 # Plot Kotzebue Winter Year 2016/2017
 n = NOAAPlotter(r'data/weather_station_kotzebue.csv')
 n.plot_weather_series(start_date='2016-07-01', end_date='2017-06-30',
@@ -27,13 +27,13 @@ n.plot_weather_series(start_date='2000-01-01', end_date='2000-12-31',
                       save_path='figures/orlando_2000.png', kwargs_fig={'dpi':100})
 
 # Plot Sterlegova
-n = NOAAPlotter(r'data/1696868.csv', location='sterlegova')
+n = NOAAPlotter(r'data/1697838.csv.csv', location='sterlegova')
 n.plot_weather_series(start_date='2018-07-01', end_date='2019-06-30',
                       show_snow_accumulation=False, show_plot=True,
                       kwargs_fig={'dpi':100})
-
+"""
 # Show Heatmap Kotzebue
 n = NOAAPlotter(r'data/weather_station_kotzebue.csv',
                 location='Kotzebue')
-n.plot_monthly_heatmap('1958-01-01', '2018-12-31', information='Precipitation', anomaly=False)
-n.plot_monthly_heatmap('1958-01-01', '2018-12-31', information='Temperature', anomaly=True)
+n.plot_monthly_barchart('1929-01-01', '2019-12-31', information='Temperature', anomaly=True)
+n.plot_monthly_barchart('1998-01-01', '2019-12-31', information='Precipitation', anomaly=True)

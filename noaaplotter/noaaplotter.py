@@ -9,7 +9,7 @@
 
 ########################
 import pandas as pd
-from matplotlib import pyplot as plt
+from matplotlib import pyplot as plt, dates
 import numpy as np
 import seaborn as sns
 
@@ -329,7 +329,7 @@ class NOAAPlotter(object):
         data['prcp_diff'] = data['prcp_sum'] - data['prcp_mean']
 
         if information == 'Temperature':
-            cmap = cmap = 'RdBu_r'
+            cmap = 'RdBu_r'
             if anomaly:
                 values_col = 'tmean_diff'
             else:
@@ -345,4 +345,48 @@ class NOAAPlotter(object):
 
         pivoted_df = data.pivot(index='Month', columns='Year', values=values_col)
         sns.heatmap(data=pivoted_df, cmap=cmap, square=True)
+        plt.show()
+
+    def plot_monthly_barchart(self, start_date, end_date, information='Temperature', show_plot=True,
+                                    anomaly=False, anomaly_type='absolute'):
+        data = self._get_monthly_stats(self.df_.set_index('DATE', drop=False).loc[start_date:end_date]).reset_index()
+        data_clim = self._get_monthy_climate(self.df_clim_)
+
+        data['DATE'] = data.apply(lambda x: self._parse_dates_YM(x['DATE_YM']), axis=1)
+        data['Month'] = data.apply(lambda x: self._parse_dates_YM(x['DATE_YM']).month, axis=1)
+        data['Year'] = data.apply(lambda x: self._parse_dates_YM(x['DATE_YM']).year, axis=1)
+        data = data.set_index('Month', drop=False).join(data_clim.set_index('Month', drop=False),
+                                                        rsuffix='_clim').sort_values(
+            'DATE_YM')
+        data['tmean_diff'] = data['tmean_doy_mean'] - data['tmean_mean']
+        data['prcp_diff'] = data['prcp_sum'] - data['prcp_mean']
+
+        # TODO: add labels
+        if information == 'Temperature':
+            cmap = 'RdBu_r'
+            fc_low = '#4393c3'
+            fc_high = '#d6604d'
+            if anomaly:
+                values = 'tmean_diff'
+            else:
+                values = 'tmean_doy_mean'
+
+        elif information == 'Precipitation':
+            fc_low = '#d6604d'
+            fc_high = '#4393c3'
+            if anomaly:
+                cmap = 'RdBu'
+                values = 'prcp_diff'
+            else:
+                cmap = 'Blues'
+                values = 'prcp_sum'
+
+        fig = plt.figure(figsize=(15,7))
+        ax = fig.add_subplot(111)
+        data_low = data[data[values]<0]
+        data_high = data[data[values] >= 0]
+        ax.bar(x=data_low['DATE'], height=data_low[values], width=30, align='edge', color=fc_low)
+        ax.bar(x=data_high['DATE'], height=data_high[values], width=30, align='edge',color=fc_high)
+        ax.xaxis.set_major_locator(dates.YearLocator())
+        ax.grid(True)
         plt.show()
