@@ -166,7 +166,7 @@ class NOAAPlotter(object):
         trailing_values = []
         idxs = df.index
         for i in range(length, len(idxs.values)):
-            trailing_values.append(df.loc[idxs[i-12:i+1]][feature].mean())
+            trailing_values.append(df.loc[idxs[i-length:i+1]][feature].mean())
         df.loc[idxs[length:], new_feature] = trailing_values
         return df
 
@@ -357,13 +357,19 @@ class NOAAPlotter(object):
         plt.show()
 
     def plot_monthly_barchart(self, start_date, end_date, information='Temperature', show_plot=True,
-                                    anomaly=False, anomaly_type='absolute', trailing_mean=None):
+                                    anomaly=False, anomaly_type='absolute', trailing_mean=None,
+                                    save_path=False, **kwargs_fig):
+
+        # legend handles
+        legend_handle = []
+        legend_text = []
 
         # TODO: add labels
         if information == 'Temperature':
             cmap = 'RdBu_r'
             fc_low = '#4393c3'
             fc_high = '#d6604d'
+            y_label = 'Temperature deviation from climate [°C]'
             if anomaly:
                 values = 'tmean_diff'
             else:
@@ -372,6 +378,7 @@ class NOAAPlotter(object):
         elif information == 'Precipitation':
             fc_low = '#d6604d'
             fc_high = '#4393c3'
+            y_label = 'Precipitation deviation from climate [mm]'
             if anomaly:
                 cmap = 'RdBu'
                 values = 'prcp_diff'
@@ -379,6 +386,7 @@ class NOAAPlotter(object):
                 cmap = 'Blues'
                 values = 'prcp_sum'
 
+        # TODO: avoid missing values at the beginning - trim later
         data = self._get_monthly_stats(self.df_.set_index('DATE', drop=False).loc[start_date:end_date]).reset_index()
         data_clim = self._get_monthy_climate(self.df_clim_)
 
@@ -399,11 +407,32 @@ class NOAAPlotter(object):
         ax = fig.add_subplot(111)
         data_low = data[data[values]<0]
         data_high = data[data[values] >= 0]
-        ax.bar(x=data_low['DATE'], height=data_low[values], width=30, align='edge', color=fc_low)
-        ax.bar(x=data_high['DATE'], height=data_high[values], width=30, align='edge',color=fc_high)
+        bar_low = ax.bar(x=data_low['DATE'], height=data_low[values], width=30, align='edge', color=fc_low)
+        legend_handle.append(bar_low)
+        legend_text.append('Below average')
+        bar_high = ax.bar(x=data_high['DATE'], height=data_high[values], width=30, align='edge',color=fc_high)
+        legend_handle.append(bar_high)
+        legend_text.append('Above average')
         if trailing_mean:
-            ax.plot(data['DATE'], data['trailing_values'], c='k')
+            line_tr_mean = ax.plot(data['DATE'], data['trailing_values'], c='k')
+            legend_handle.append(line_tr_mean[0])
+            legend_text.append('Trailing mean')
         ax.xaxis.set_major_locator(dates.YearLocator())
         ax.tick_params(axis='x', rotation=90)
         ax.grid(True)
-        plt.show()
+
+        # labels
+        ax.set_ylabel(y_label)
+        ax.set_xlabel('Date')
+        ax.set_title('Monthly deviation form climatological mean (1981-2010)')
+
+        # add legend
+        ax.legend(legend_handle, legend_text, loc='best')
+        # Save Figure
+        if save_path:
+            fig.savefig(save_path, **kwargs_fig)
+        # Show plot if chosen, destroy figure object at the end
+        if show_plot:
+            plt.show()
+        else:
+            plt.close(fig)
