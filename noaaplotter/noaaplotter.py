@@ -102,6 +102,8 @@ class NOAAPlotter(object):
         df_out = pd.DataFrame()
         df_out['tmean_doy_mean'] = df[['DATE', 'TMEAN']].groupby(df['DATE_MD']).mean().TMEAN
         df_out['tmean_doy_std'] = df[['DATE', 'TMEAN']].groupby(df['DATE_MD']).std().TMEAN
+        df_out['tmean_doy_max'] = df[['DATE', 'TMEAN']].groupby(df['DATE_MD']).max().TMEAN
+        df_out['tmean_doy_min'] = df[['DATE', 'TMEAN']].groupby(df['DATE_MD']).min().TMEAN
         df_out['tmax_doy_max'] = df[['DATE', 'TMAX']].groupby(df['DATE_MD']).max().TMAX
         df_out['tmax_doy_std'] = df[['DATE', 'TMAX']].groupby(df['DATE_MD']).std().TMAX
         df_out['tmin_doy_min'] = df[['DATE', 'TMIN']].groupby(df['DATE_MD']).min().TMIN
@@ -173,6 +175,7 @@ class NOAAPlotter(object):
     def plot_weather_series(self, start_date, end_date,
                             plot_tmax='auto', plot_tmin='auto',
                             plot_pmax='auto', plot_snowmax='auto',
+                            plot_extrema=True,
                             show_plot=True,
                             show_snow_accumulation=True, save_path=False, **kwargs_fig):
         """
@@ -211,6 +214,7 @@ class NOAAPlotter(object):
         t_below = np.vstack([df_obs['TMEAN'].values, y_clim.loc[clim_locs_short].values]).min(axis=0)
         t_below_std = np.vstack([df_obs['TMEAN'].values, y_clim_std_lo.loc[clim_locs_short].values]).min(axis=0)
 
+
         # Calculate the date of last snowfall and cumulative sum of snowfall
         if (show_snow_accumulation) and ('SNOW' in df_obs.columns):
             last_snow_date = df_obs[df_obs['SNOW'] > 0].iloc[-1]['DATE']
@@ -243,6 +247,24 @@ class NOAAPlotter(object):
         fill_bb = ax.fill_between(x_dates_short['DATE'], y1=y_clim_std_lo.loc[clim_locs_short], y2=t_below_std,
                                   facecolor='#4393c3', alpha=0.7)
 
+        # TODO: make dynamic legends
+        # plot extremes
+        if plot_extrema:
+            tmax = self.df_.groupby('DATE_MD').max()['TMEAN']
+            tmin = self.df_.groupby('DATE_MD').min()['TMEAN']
+            local_obs = df_obs[['DATE', 'DATE_MD', 'TMEAN']].set_index('DATE_MD', drop=False)
+            idx = local_obs.index
+            local_max = tmax.loc[idx] == local_obs['TMEAN']
+            local_min = tmin.loc[idx] == local_obs['TMEAN']
+            # extract x and y values
+            x_max = local_obs[local_max]['DATE']
+            y_max = local_obs[local_max]['TMEAN']
+            x_min = local_obs[local_min]['DATE']
+            y_min = local_obs[local_min]['TMEAN']
+            ax.scatter(x_max, y_max, c='#d6604d', marker='x')
+            ax.scatter(x_min, y_min, c='#4393c3', marker='x')
+
+
         xlim = ax.get_xlim()
         ax.hlines(0, *xlim, linestyles='--')
         # grid
@@ -264,6 +286,8 @@ class NOAAPlotter(object):
                                                     'Std of Climatological Mean',
                                                     'Above average Temperature',
                                                     'Below average Temperature'], loc='best')
+
+
 
         #PRECIPITATION#
         # legend handles
@@ -389,6 +413,7 @@ class NOAAPlotter(object):
         # TODO: avoid missing values at the beginning - trim later
         data = self._get_monthly_stats(self.df_.set_index('DATE', drop=False).loc[start_date:end_date]).reset_index()
         data_clim = self._get_monthy_climate(self.df_clim_)
+
 
         data['DATE'] = data.apply(lambda x: self._parse_dates_YM(x['DATE_YM']), axis=1)
         data['Month'] = data.apply(lambda x: self._parse_dates_YM(x['DATE_YM']).month, axis=1)
