@@ -5,7 +5,7 @@
 # Credits here
 # author: Ingmar Nitze, Alfred Wegener Institute for Polar and Marine Research
 # contact: ingmar.nitze@awi.de
-# version: 2019-04-22
+# version: 2019-09-02
 
 ########################
 import pandas as pd
@@ -36,7 +36,6 @@ class NOAAPlotter(object):
         self.climate_start = climate_start
         self.climate_end = climate_end
         self.remove_feb29 = remove_feb29
-
         self.df_ = self._load_file()
         self._update_datatypes()
         self._get_datestring()
@@ -108,7 +107,8 @@ class NOAAPlotter(object):
         df_out['tmax_doy_std'] = df[['DATE', 'TMAX']].groupby(df['DATE_MD']).std().TMAX
         df_out['tmin_doy_min'] = df[['DATE', 'TMIN']].groupby(df['DATE_MD']).min().TMIN
         df_out['tmin_doy_std'] = df[['DATE', 'TMIN']].groupby(df['DATE_MD']).std().TMIN
-        df_out['snow_doy_mean'] = df[['DATE', 'SNOW']].groupby(df['DATE_MD']).mean().SNOW
+        if 'SNOW' in df.columns:
+            df_out['snow_doy_mean'] = df[['DATE', 'SNOW']].groupby(df['DATE_MD']).mean().SNOW
         return df_out
 
     @staticmethod
@@ -125,7 +125,8 @@ class NOAAPlotter(object):
         df_out['tmax_doy_std'] = df[['DATE', 'TMAX']].groupby(df['DATE_YM']).std().TMAX
         df_out['tmin_doy_min'] = df[['DATE', 'TMIN']].groupby(df['DATE_YM']).min().TMIN
         df_out['tmin_doy_std'] = df[['DATE', 'TMIN']].groupby(df['DATE_YM']).std().TMIN
-        df_out['snow_doy_mean'] = df[['DATE', 'SNOW']].groupby(df['DATE_YM']).mean().SNOW
+        if 'SNOW' in df.columns:
+            df_out['snow_doy_mean'] = df[['DATE', 'SNOW']].groupby(df['DATE_YM']).mean().SNOW
         df_out['prcp_sum'] = df[['DATE', 'PRCP']].groupby(df['DATE_YM']).sum().PRCP
         return df_out
 
@@ -140,7 +141,8 @@ class NOAAPlotter(object):
         df_out['tmax_std'] = df[['Month', 'TMAX']].groupby(df['Month']).std().TMAX
         df_out['tmin_min'] = df[['Month', 'TMIN']].groupby(df['Month']).min().TMIN
         df_out['tmin_std'] = df[['Month', 'TMIN']].groupby(df['Month']).std().TMIN
-        df_out['snow_mean'] = df[['Month', 'SNOW']].groupby(df['Month']).mean().SNOW
+        if 'SNOW' in df.columns:
+            df_out['snow_mean'] = df[['Month', 'SNOW']].groupby(df['Month']).mean().SNOW
         unique_years = len(np.unique(df.apply(lambda x: self._parse_dates_YM(x['DATE_YM']).year, axis=1)))
         df_out['prcp_mean'] = df[['Month', 'PRCP']].groupby(df['Month']).mean().PRCP * unique_years
         return df_out.reset_index(drop=False)
@@ -216,14 +218,16 @@ class NOAAPlotter(object):
 
 
         # Calculate the date of last snowfall and cumulative sum of snowfall
-        if (show_snow_accumulation) and ('SNOW' in df_obs.columns):
+        if not show_snow_accumulation:
+            None
+        elif (show_snow_accumulation) and ('SNOW' in df_obs.columns):
             last_snow_date = df_obs[df_obs['SNOW'] > 0].iloc[-1]['DATE']
             snow_acc = np.cumsum(df_obs['SNOW'])
         elif ('SNOW' not in df_obs.columns):
             show_snow_accumulation = False
             raise Warning('No snow information available')
 
-        #PLOT
+            #PLOT
         fig = plt.figure(figsize=(15,10))
         ax = fig.add_subplot(211)
         ax2 = fig.add_subplot(212, sharex=ax)
@@ -238,13 +242,13 @@ class NOAAPlotter(object):
         fb, = ax.plot(x_dates_short['DATE'], df_obs['TMEAN'], c='k', alpha=0.4, lw=1.2)
 
         # difference of observed and climate (grey area)
-        fill_r = ax.fill_between(x_dates_short['DATE'], y1=t_above, y2=y_clim.loc[clim_locs_short],
+        fill_r = ax.fill_between(x_dates_short['DATE'].values, y1=t_above, y2=y_clim.loc[clim_locs_short].values,
                                  facecolor='#d6604d', alpha=0.5)
-        fill_rr = ax.fill_between(x_dates_short['DATE'], y1=t_above_std, y2=y_clim_std_hi.loc[clim_locs_short],
+        fill_rr = ax.fill_between(x_dates_short['DATE'].values, y1=t_above_std, y2=y_clim_std_hi.loc[clim_locs_short].values,
                                   facecolor='#d6604d', alpha=0.7)
-        fill_b = ax.fill_between(x_dates_short['DATE'], y1=y_clim.loc[clim_locs_short], y2=t_below,
+        fill_b = ax.fill_between(x_dates_short['DATE'].values, y1=y_clim.loc[clim_locs_short].values, y2=t_below,
                                  facecolor='#4393c3', alpha=0.5)
-        fill_bb = ax.fill_between(x_dates_short['DATE'], y1=y_clim_std_lo.loc[clim_locs_short], y2=t_below_std,
+        fill_bb = ax.fill_between(x_dates_short['DATE'].values, y1=y_clim_std_lo.loc[clim_locs_short].values, y2=t_below_std,
                                   facecolor='#4393c3', alpha=0.7)
 
         # TODO: make dynamic legends
@@ -261,8 +265,8 @@ class NOAAPlotter(object):
             y_max = local_obs[local_max]['TMEAN']
             x_min = local_obs[local_min]['DATE']
             y_min = local_obs[local_min]['TMEAN']
-            ax.scatter(x_max, y_max, c='#d6604d', marker='x')
-            ax.scatter(x_min, y_min, c='#4393c3', marker='x')
+            ax.scatter(x_max.values, y_max.values, c='#d6604d', marker='x')
+            ax.scatter(x_min.values, y_min.values, c='#4393c3', marker='x')
 
 
         xlim = ax.get_xlim()
@@ -295,7 +299,7 @@ class NOAAPlotter(object):
         legend_text = []
 
         # precipitation
-        rain = ax2.bar(x=x_dates_short['DATE'], height=df_obs['PRCP'], fc='b', alpha=0.6)
+        rain = ax2.bar(x=x_dates_short['DATE'].values, height=df_obs['PRCP'].values, fc='b', alpha=0.6)
         legend_handle.append(rain)
         legend_text.append('Precipitation')
 
@@ -310,11 +314,12 @@ class NOAAPlotter(object):
             ax2.set_ylim(top=plot_pmax)
 
         #snow
-        if show_snow_accumulation:
+        # TODO: make snowcheck
+        if (show_snow_accumulation) and ('SNOW' in df_obs.columns):
             ax2_snow = ax2.twinx()
             # plots
-            sn_acc = ax2_snow.fill_between(x=x_dates_short.loc[:last_snow_date, 'DATE'], y1=snow_acc.loc[:last_snow_date]/10, facecolor='k', alpha=0.2)
-            _ = ax2_snow.plot(x_dates_short.loc[last_snow_date:, 'DATE'], snow_acc.loc[last_snow_date:]/10, c='k', alpha=0.2, ls='--')
+            sn_acc = ax2_snow.fill_between(x=x_dates_short.loc[:last_snow_date, 'DATE'].values, y1=snow_acc.loc[:last_snow_date]/10, facecolor='k', alpha=0.2)
+            _ = ax2_snow.plot(x_dates_short.loc[last_snow_date:, 'DATE'].values, snow_acc.loc[last_snow_date:]/10, c='k', alpha=0.2, ls='--')
             # y-axis label
             ax2_snow.set_ylabel('Accumulated Snowfall in cm')
             # legend
