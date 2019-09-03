@@ -299,7 +299,7 @@ class NOAAPlotter(object):
         legend_text = []
 
         # precipitation
-        rain = ax2.bar(x=x_dates_short['DATE'].values, height=df_obs['PRCP'].values, fc='b', alpha=0.6)
+        rain = ax2.bar(x=x_dates_short['DATE'].values, height=df_obs['PRCP'].values, fc='#4393c3', alpha=1)
         legend_handle.append(rain)
         legend_text.append('Precipitation')
 
@@ -437,14 +437,14 @@ class NOAAPlotter(object):
         ax = fig.add_subplot(111)
         data_low = data[data[values]<0]
         data_high = data[data[values] >= 0]
-        bar_low = ax.bar(x=data_low['DATE'], height=data_low[values], width=30, align='edge', color=fc_low)
+        bar_low = ax.bar(x=data_low['DATE'].values, height=data_low[values], width=30, align='edge', color=fc_low)
         legend_handle.append(bar_low)
         legend_text.append('Below average')
-        bar_high = ax.bar(x=data_high['DATE'], height=data_high[values], width=30, align='edge',color=fc_high)
+        bar_high = ax.bar(x=data_high['DATE'].values, height=data_high[values], width=30, align='edge',color=fc_high)
         legend_handle.append(bar_high)
         legend_text.append('Above average')
         if trailing_mean:
-            line_tr_mean = ax.plot(data['DATE'], data['trailing_values'], c='k')
+            line_tr_mean = ax.plot(data['DATE'].values, data['trailing_values'].values, c='k')
             legend_handle.append(line_tr_mean[0])
             legend_text.append('Trailing mean')
         ax.xaxis.set_major_locator(dates.YearLocator())
@@ -454,7 +454,7 @@ class NOAAPlotter(object):
         # labels
         ax.set_ylabel(y_label)
         ax.set_xlabel('Date')
-        ax.set_title('Monthly deviation form climatological mean (1981-2010)')
+        ax.set_title('Monthly deviation from climatological mean (1981-2010)')
 
         # add legend
         ax.legend(legend_handle, legend_text, loc='best')

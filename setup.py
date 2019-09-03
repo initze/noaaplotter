@@ -6,7 +6,7 @@ setup(
     packages=['noaaplotter'],
     url='https://github.com/initze/noaaplotter',
     license='',
-    author='initze',
+    author='Ingmar Nitze',
     author_email='ingmar.nitze@awi.de',
     description='Package to plot fancy climate/weather data of NOAA',
     install_requires=['pandas', 'numpy', 'seaborn', 'matplotlib']
