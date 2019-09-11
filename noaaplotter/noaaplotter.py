@@ -13,6 +13,7 @@ from matplotlib import pyplot as plt, dates
 import numpy as np
 import seaborn as sns
 
+
 class NOAAPlotter(object):
     """
     This class/module creates nice plots of observed weather data from NOAA
@@ -442,7 +443,7 @@ class NOAAPlotter(object):
         legend_handle = []
         legend_text = []
 
-        # TODO: add labels
+        # TODO: move to external file
         if information == 'Temperature':
             cmap = 'RdBu_r'
             fc_low = '#4393c3'
@@ -451,10 +452,14 @@ class NOAAPlotter(object):
                 values = 'tmean_diff'
                 y_label = 'Temperature deviation from climate [°C]'
                 title = 'Monthly deviation from climatological mean (1981-2010)'
+                legend_label_above = 'Above average'
+                legend_label_below =  'Below average'
             else:
                 values = 'tmean_doy_mean'
                 y_label = 'Temperature [°C]'
-                title = 'Monthly mean temperature'
+                title = 'Monthly Mean Temperature'
+                legend_label_above = 'Above freezing'
+                legend_label_below = 'Below freezing'
 
         elif information == 'Precipitation':
             fc_low = '#d6604d'
@@ -464,11 +469,15 @@ class NOAAPlotter(object):
                 values = 'prcp_diff'
                 y_label = 'Precipitation deviation from climate [mm]'
                 title = 'Monthly deviation from climatological mean (1981-2010)'
+                legend_label_above = 'Above average'
+                legend_label_below =  'Below average'
             else:
                 cmap = 'Blues'
                 values = 'prcp_sum'
                 y_label = 'Precipitation [mm]'
                 title = 'Monthly precipitation'
+                legend_label_below = ''
+                legend_label_above = 'Monthly Precipitation'
 
         data = self._get_monthly_stats(self.df_.set_index('DATE', drop=False)).reset_index()
         data_clim = self._get_monthy_climate(self.df_clim_)
@@ -494,10 +503,10 @@ class NOAAPlotter(object):
         # Fix for absolute values
         if len(bar_low) > 1:
             legend_handle.append(bar_low)
-            legend_text.append('Below average')
+            legend_text.append(legend_label_below)
         bar_high = ax.bar(x=data_high['DATE'].values, height=data_high[values], width=30, align='edge',color=fc_high)
         legend_handle.append(bar_high)
-        legend_text.append('Above average')
+        legend_text.append(legend_label_above)
         if trailing_mean:
             line_tr_mean = ax.plot(data['DATE'].values, data['trailing_values'].values, c='k')
             legend_handle.append(line_tr_mean[0])
