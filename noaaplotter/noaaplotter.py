@@ -196,7 +196,7 @@ class NOAAPlotter(object):
         trailing_values = []
         idxs = df.index
         for i in range(length, len(idxs.values)):
-            trailing_values.append(df.loc[idxs[i-length:i+1]][feature].mean())
+            trailing_values.append(df.loc[idxs[i-length:i]][feature].mean())
         df.loc[idxs[length:], new_feature] = trailing_values
         return df
 
@@ -470,11 +470,8 @@ class NOAAPlotter(object):
                 y_label = 'Precipitation [mm]'
                 title = 'Monthly precipitation'
 
-        # TODO: avoid missing values at the beginning - trim later
-        # remove loc - Just fix xlim !
         data = self._get_monthly_stats(self.df_.set_index('DATE', drop=False)).reset_index()
         data_clim = self._get_monthy_climate(self.df_clim_)
-
 
         data['DATE'] = data.apply(lambda x: self._parse_dates_YM(x['DATE_YM']), axis=1)
         data['Month'] = data.apply(lambda x: self._parse_dates_YM(x['DATE_YM']).month, axis=1)
