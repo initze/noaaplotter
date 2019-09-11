@@ -25,11 +25,16 @@ class NOAAPlotter(object):
                  climate_end=pd.datetime(2010, 12, 31)):
         """
 
-        :param input_filepath: str
-        :param location: str
-        :param remove_feb29: bool
-        :param climate_start:
-        :param climate_end:
+        :param input_filepath: path to input file
+        :type input_filepath: str
+        :param location: name of location
+        :type location: str, optional
+        :param remove_feb29:
+        :type remove_feb29: bool, optional
+        :param climate_start: start date of climate period, defaults to 01-01-1981
+        :type climate_start: datetime, optional
+        :param climate_end: start date of climate period, defaults to 31-12-2010
+        :type climate_end: datetime, optional
         """
         self.input_filepath = input_filepath
         self.location = location
@@ -53,6 +58,10 @@ class NOAAPlotter(object):
         return pd.read_csv(self.input_filepath)
 
     def _update_datatypes(self):
+        """
+
+        :return:
+        """
         self.df_['DATE'] = pd.to_datetime(self.df_['DATE'])
 
     def _get_datestring(self):
@@ -76,6 +85,10 @@ class NOAAPlotter(object):
             self.df_ = self.df_[~self.df_['DATE_MD'] != '02-29']
 
     def _filter_to_location(self):
+        """
+
+        :return:
+        """
         if self.location:
             filt = self.df_.apply(lambda x: self.location.lower() in x['NAME'].lower(), axis=1)
             if len(filt) > 0:
@@ -85,6 +98,7 @@ class NOAAPlotter(object):
 
     def _filter_to_climate(self):
         """
+
         :return:
         """
         df_clim = self.df_[(self.df_['DATE'] >= self.climate_start) & (self.df_['DATE'] <= self.climate_end)]
@@ -96,6 +110,7 @@ class NOAAPlotter(object):
         """
 
         :param df:
+        :type df: pandas.DataFrame
         :return:
         """
         df_out = pd.DataFrame()
@@ -116,6 +131,7 @@ class NOAAPlotter(object):
         """
 
         :param df:
+        :type df: pandas.DataFrame
         :return:
         """
         df_out = pd.DataFrame()
@@ -132,6 +148,11 @@ class NOAAPlotter(object):
 
     @classmethod
     def _get_monthy_climate(self, df):
+        """
+
+        :param df:
+        :return:
+        """
         df_out = pd.DataFrame()
         df['Month'] = df.apply(lambda x: self._parse_dates_YM(x['DATE_YM']).month, axis=1)
 
@@ -149,6 +170,11 @@ class NOAAPlotter(object):
 
     @staticmethod
     def _parse_dates(date):
+        """
+
+        :param date:
+        :return:
+        """
         if isinstance(date, str):
             return pd.datetime.strptime(date, '%Y-%m-%d')
         elif isinstance(date, pd.datetime):
@@ -182,6 +208,29 @@ class NOAAPlotter(object):
                             show_snow_accumulation=True, save_path=False, **kwargs_fig):
         """
         Plotting Function to show observed vs climate temperatures and snowfall
+        :param start_date: start date of plot
+        :type start_date: datetime, str
+        :param end_date: end date of plot
+        :type end_date: datetime, str
+        :param plot_tmax:
+        :type plot_tmax: int, float, str
+        :param plot_tmin:
+        :type plot_tmin: int, float, str
+        :param plot_pmax:
+        :type plot_pmax: int, float, str
+        :param plot_snowmax:
+        :type plot_snowmax: int, float, str
+        :param plot_extrema:
+        :type plot_extrema:
+        :param show_plot:
+        :type show_plot:
+        :param show_snow_accumulation:
+        :type show_snow_accumulation:
+        :param save_path:
+        :type save_path:
+        :param kwargs_fig:
+        :type kwargs_fig:
+        :return:
         """
         # make dynamic end date within the function
         start_date = self._parse_dates(start_date)
@@ -398,25 +447,32 @@ class NOAAPlotter(object):
             cmap = 'RdBu_r'
             fc_low = '#4393c3'
             fc_high = '#d6604d'
-            y_label = 'Temperature deviation from climate [°C]'
             if anomaly:
                 values = 'tmean_diff'
+                y_label = 'Temperature deviation from climate [°C]'
+                title = 'Monthly deviation from climatological mean (1981-2010)'
             else:
                 values = 'tmean_doy_mean'
+                y_label = 'Temperature [°C]'
+                title = 'Monthly mean temperature'
 
         elif information == 'Precipitation':
             fc_low = '#d6604d'
             fc_high = '#4393c3'
-            y_label = 'Precipitation deviation from climate [mm]'
             if anomaly:
                 cmap = 'RdBu'
                 values = 'prcp_diff'
+                y_label = 'Precipitation deviation from climate [mm]'
+                title = 'Monthly deviation from climatological mean (1981-2010)'
             else:
                 cmap = 'Blues'
                 values = 'prcp_sum'
+                y_label = 'Precipitation [mm]'
+                title = 'Monthly precipitation'
 
         # TODO: avoid missing values at the beginning - trim later
-        data = self._get_monthly_stats(self.df_.set_index('DATE', drop=False).loc[start_date:end_date]).reset_index()
+        # remove loc - Just fix xlim !
+        data = self._get_monthly_stats(self.df_.set_index('DATE', drop=False)).reset_index()
         data_clim = self._get_monthy_climate(self.df_clim_)
 
 
@@ -438,8 +494,10 @@ class NOAAPlotter(object):
         data_low = data[data[values]<0]
         data_high = data[data[values] >= 0]
         bar_low = ax.bar(x=data_low['DATE'].values, height=data_low[values], width=30, align='edge', color=fc_low)
-        legend_handle.append(bar_low)
-        legend_text.append('Below average')
+        # Fix for absolute values
+        if len(bar_low) > 1:
+            legend_handle.append(bar_low)
+            legend_text.append('Below average')
         bar_high = ax.bar(x=data_high['DATE'].values, height=data_high[values], width=30, align='edge',color=fc_high)
         legend_handle.append(bar_high)
         legend_text.append('Above average')
@@ -451,11 +509,13 @@ class NOAAPlotter(object):
         ax.tick_params(axis='x', rotation=90)
         ax.grid(True)
 
+        # x-limit
+        ax.set_xlim(start_date, end_date)
+
         # labels
         ax.set_ylabel(y_label)
         ax.set_xlabel('Date')
-        ax.set_title('Monthly deviation from climatological mean (1981-2010)')
-
+        ax.set_title(title)
         # add legend
         ax.legend(legend_handle, legend_text, loc='best')
         # Save Figure
