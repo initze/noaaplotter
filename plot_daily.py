@@ -33,11 +33,11 @@ def main():
                         help='filepath for plot')
 
     parser.add_argument('-p_range', dest='p_range', type=float, required=False,
-                        default='auto',
+                        default=None,
                         help='maximum precipitation value in plot')
 
     parser.add_argument('-t_range', dest='t_range', type=float, nargs=2, required=False,
-                        default=['auto', 'auto'],
+                        default=[None, None],
                         help='temperature range in plot')
 
     parser.add_argument('-dpi', dest='dpi', type=float, required=False,

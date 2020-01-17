@@ -5,13 +5,14 @@
 # Credits here
 # author: Ingmar Nitze, Alfred Wegener Institute for Polar and Marine Research
 # contact: ingmar.nitze@awi.de
-# version: 2019-09-02
+# version: 2020-01-17
 
 ########################
 import pandas as pd
 from matplotlib import pyplot as plt, dates
 import numpy as np
 import seaborn as sns
+pd.plotting.register_matplotlib_converters()
 
 
 class NOAAPlotter(object):
@@ -328,7 +329,7 @@ class NOAAPlotter(object):
         ax.set_xlim(start_date, end_date)
         if not (plot_tmin == 'auto' and plot_tmin == 'auto'):
             ax.set_ylim(plot_tmin, plot_tmax)
-        ax.set_ylabel('t in °C')
+        ax.set_ylabel('Temperature in °C')
         ax.set_xlabel('Date')
         ax.set_title('Observed temperatures {s} to {e} vs. climatological mean (1981-2010)'.format(
             s=start_date.strftime('%Y-%m-%d'),
