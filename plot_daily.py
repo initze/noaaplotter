@@ -48,6 +48,10 @@ def main():
                         default=False, action='store_true',
                         help='Location name, must be in data file')
 
+    parser.add_argument('-figsize', dest='figsize', type=float, nargs=2, required=False,
+                        default=[15, 10],
+                        help='figure size in inches width x height. 15 10 recommended for 1 year, 30 10 for 2 years ...')
+
     args = parser.parse_args()
 
     ##### Run Plotting function #####
@@ -57,7 +61,8 @@ def main():
     n.plot_weather_series(start_date=args.start_date, end_date=args.end_date,
     show_snow_accumulation=False, show_plot=args.show_plot, kwargs_fig={'dpi':args.dpi},
     plot_extrema=True, save_path=args.save_path,
-    plot_tmin=args.t_range[0], plot_tmax=args.t_range[1], plot_pmax=args.p_range)
+    plot_tmin=args.t_range[0], plot_tmax=args.t_range[1], plot_pmax=args.p_range,
+    figsize=args.figsize)
 
 if __name__ == "__main__":
     main()
