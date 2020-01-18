@@ -67,9 +67,9 @@ class NOAAPlotter(object):
         self.df_['DATE'] = pd.to_datetime(self.df_['DATE'])
 
     def _get_datestring(self):
-        self.df_['DATE_MD'] = self.df_.apply(lambda x: x['DATE'].strftime('%m-%d'), axis=1)
-        self.df_['DATE_YM'] = self.df_.apply(lambda x: x['DATE'].strftime('%Y-%m'), axis=1)
-        self.df_['DATE_M'] = self.df_.apply(lambda x: x['DATE'].strftime('%m'), axis=1)
+        self.df_['DATE_MD'] = self.df_['DATE'].dt.strftime('%m-%d')
+        self.df_['DATE_YM'] = self.df_['DATE'].dt.strftime('%Y-%m')
+        self.df_['DATE_M'] = self.df_['DATE'].dt.strftime('%m')
 
     def _get_tmean(self):
         """
@@ -92,7 +92,7 @@ class NOAAPlotter(object):
         :return:
         """
         if self.location:
-            filt = self.df_.apply(lambda x: self.location.lower() in x['NAME'].lower(), axis=1)
+            filt = self.df_['NAME'].str.lower().str.contains(self.location.lower())
             if len(filt) > 0:
                 self.df_ = self.df_.loc[filt]
             else:
@@ -241,7 +241,7 @@ class NOAAPlotter(object):
         x_dates = pd.DataFrame()
         x_dates['DATE'] = pd.date_range(start=start_date, end=end_date)
         # make a staticfunction
-        x_dates['DATE_MD'] = x_dates.apply(lambda x: x['DATE'].strftime('%m-%d'), axis=1)
+        x_dates['DATE_MD'] = x_dates['DATE'].dt.strftime('%m-%d')
 
         if self.df_['DATE'].max() >= end_date:
             x_dates_short = x_dates.set_index('DATE', drop=False).loc[pd.date_range(start=start_date, end=end_date)]
@@ -259,7 +259,7 @@ class NOAAPlotter(object):
         # get mean and mean+-standard deviation of daily mean temperatures of climate series
         y_clim = df_clim['tmean_doy_mean']
         y_clim_std_hi = df_clim[['tmean_doy_mean', 'tmean_doy_std']].sum(axis=1)
-        y_clim_std_lo = df_clim.apply(lambda x: x['tmean_doy_mean'] - x['tmean_doy_std'], axis=1)
+        y_clim_std_lo = df_clim['tmean_doy_mean'] - df_clim['tmean_doy_std']
 
         # Prepare data for filled plot areas
         t_above = np.vstack([df_obs['TMEAN'].values, y_clim.loc[clim_locs_short].values]).max(axis=0)
