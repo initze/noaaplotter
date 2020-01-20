@@ -28,13 +28,17 @@ def main():
                         default=None,
                         help='filepath for plot')
 
+    parser.add_argument('-t_range', dest='t_range', type=float, nargs=2, required=False,
+                        default=[None, None],
+                        help='temperature range in plot')
+
     parser.add_argument('-p_range', dest='p_range', type=float, required=False,
                         default=None,
                         help='maximum precipitation value in plot')
 
-    parser.add_argument('-t_range', dest='t_range', type=float, nargs=2, required=False,
-                        default=[None, None],
-                        help='temperature range in plot')
+    parser.add_argument('-s_range', dest='s_range', type=float, required=False,
+                        default=None,
+                        help='maximum snow accumulation value in plot')
 
     parser.add_argument('-snow_acc', dest='snow_acc', required=False,
                         default=False, action='store_true',
@@ -67,6 +71,7 @@ def main():
                           plot_tmin=args.t_range[0],
                           plot_tmax=args.t_range[1],
                           plot_pmax=args.p_range,
+                          plot_snowmax=args.s_range,
                           figsize=args.figsize)
 
 if __name__ == "__main__":
