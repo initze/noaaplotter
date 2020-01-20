@@ -205,9 +205,9 @@ class NOAAPlotter(object):
     def plot_weather_series(self, start_date, end_date,
                             plot_tmax='auto', plot_tmin='auto',
                             plot_pmax='auto', plot_snowmax='auto',
-                            plot_extrema=True,
-                            show_plot=True,
-                            show_snow_accumulation=True, save_path=False, **kwargs_fig):
+                            plot_extrema=True, show_plot=True,
+                            show_snow_accumulation=True, save_path=False,
+                            figsize=(15,10), **kwargs_fig):
         """
         Plotting Function to show observed vs climate temperatures and snowfall
         :param start_date: start date of plot
@@ -279,10 +279,9 @@ class NOAAPlotter(object):
             raise Warning('No snow information available')
 
             #PLOT
-        fig = plt.figure(figsize=(15,10))
+        fig = plt.figure(figsize=figsize)
         ax = fig.add_subplot(211)
         ax2 = fig.add_subplot(212, sharex=ax)
-
 
         # climate series (red line)
         cm, = ax.plot(x_dates['DATE'], y_clim, c='k', alpha=0.5, lw=2)
@@ -316,9 +315,8 @@ class NOAAPlotter(object):
             y_max = local_obs[local_max]['TMEAN']
             x_min = local_obs[local_min]['DATE']
             y_min = local_obs[local_min]['TMEAN']
-            ax.scatter(x_max.values, y_max.values, c='#d6604d', marker='x')
-            ax.scatter(x_min.values, y_min.values, c='#4393c3', marker='x')
-
+            xtreme_hi = ax.scatter(x_max.values, y_max.values, c='#d6604d', marker='x')
+            xtreme_lo = ax.scatter(x_min.values, y_min.values, c='#4393c3', marker='x')
 
         xlim = ax.get_xlim()
         ax.hlines(0, *xlim, linestyles='--')
@@ -336,11 +334,16 @@ class NOAAPlotter(object):
             e=end_date.strftime('%Y-%m-%d')))
 
         # add legend
-        ax.legend([fb, cm, cm_hi, fill_r, fill_b], ['Observed Temperatures',
-                                                    'Climatological Mean',
-                                                    'Std of Climatological Mean',
-                                                    'Above average Temperature',
-                                                    'Below average Temperature'], loc='best')
+        legend_handle = [fb, cm, cm_hi, fill_r, fill_b]
+        legend_text = ['Observed Temperatures',
+                       'Climatological Mean',
+                       'Std of Climatological Mean',
+                       'Above average Temperature',
+                       'Below average Temperature']
+        if plot_extrema:
+            legend_handle.extend([xtreme_hi, xtreme_lo])
+            legend_text.extend(['Record High on Date', 'Record Low on Date'])
+        ax.legend(legend_handle, legend_text, loc='best')
 
 
 
