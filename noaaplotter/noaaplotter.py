@@ -385,7 +385,7 @@ class NOAAPlotter(object):
                 ax2_snow.set_ylim(top=plot_snowmax)
 
         ax2.legend(legend_handle, legend_text, loc='upper left')
-        ax2.set_title('Precipitation pattern {s} to {e}'.format(s=start_date.strftime('%Y-%m-%d'), e=end_date.strftime('%Y-%m-%d')))
+        ax2.set_title('Precipitation {s} to {e}'.format(s=start_date.strftime('%Y-%m-%d'), e=end_date.strftime('%Y-%m-%d')))
         #"""
         fig.tight_layout()
 
@@ -441,7 +441,7 @@ class NOAAPlotter(object):
 
     def plot_monthly_barchart(self, start_date, end_date, information='Temperature', show_plot=True,
                                     anomaly=False, anomaly_type='absolute', trailing_mean=None,
-                                    save_path=False, **kwargs_fig):
+                                    save_path=False, figsize=(15,7), dpi=100, **kwargs_fig):
 
         # legend handles
         legend_handle = []
@@ -453,13 +453,13 @@ class NOAAPlotter(object):
             fc_low = '#4393c3'
             fc_high = '#d6604d'
             if anomaly:
-                values = 'tmean_diff'
+                value_column = 'tmean_diff'
                 y_label = 'Temperature deviation from climate [°C]'
                 title = 'Monthly deviation from climatological mean (1981-2010)'
                 legend_label_above = 'Above average'
                 legend_label_below =  'Below average'
             else:
-                values = 'tmean_doy_mean'
+                value_column = 'tmean_doy_mean'
                 y_label = 'Temperature [°C]'
                 title = 'Monthly Mean Temperature'
                 legend_label_above = 'Above freezing'
@@ -470,14 +470,14 @@ class NOAAPlotter(object):
             fc_high = '#4393c3'
             if anomaly:
                 cmap = 'RdBu'
-                values = 'prcp_diff'
+                value_column = 'prcp_diff'
                 y_label = 'Precipitation deviation from climate [mm]'
                 title = 'Monthly deviation from climatological mean (1981-2010)'
                 legend_label_above = 'Above average'
                 legend_label_below =  'Below average'
             else:
                 cmap = 'Blues'
-                values = 'prcp_sum'
+                value_column = 'prcp_sum'
                 y_label = 'Precipitation [mm]'
                 title = 'Monthly precipitation'
                 legend_label_below = ''
@@ -497,24 +497,24 @@ class NOAAPlotter(object):
         data = data.set_index('DATE', drop=False)
 
         if trailing_mean:
-            data = self._calc_trailing_mean(data, trailing_mean, values, 'trailing_values')
+            data = self._calc_trailing_mean(data, trailing_mean, value_column, 'trailing_values')
 
-        fig = plt.figure(figsize=(15,7))
+        fig = plt.figure(figsize=figsize, dpi=dpi)
         ax = fig.add_subplot(111)
-        data_low = data[data[values]<0]
-        data_high = data[data[values] >= 0]
-        bar_low = ax.bar(x=data_low['DATE'].values, height=data_low[values], width=30, align='edge', color=fc_low)
+        data_low = data[data[value_column] < 0]
+        data_high = data[data[value_column] >= 0]
+        bar_low = ax.bar(x=data_low['DATE'], height=data_low[value_column], width=30, align='edge', color=fc_low)
         # Fix for absolute values
         if len(bar_low) > 1:
             legend_handle.append(bar_low)
             legend_text.append(legend_label_below)
-        bar_high = ax.bar(x=data_high['DATE'].values, height=data_high[values], width=30, align='edge',color=fc_high)
+        bar_high = ax.bar(x=data_high['DATE'], height=data_high[value_column], width=30, align='edge', color=fc_high)
         legend_handle.append(bar_high)
         legend_text.append(legend_label_above)
         if trailing_mean:
-            line_tr_mean = ax.plot(data['DATE'].values, data['trailing_values'].values, c='k')
+            line_tr_mean = ax.plot(data['DATE'], data['trailing_values'], c='k')
             legend_handle.append(line_tr_mean[0])
-            legend_text.append('Trailing mean')
+            legend_text.append('Trailing mean: {} months'.format(trailing_mean))
         ax.xaxis.set_major_locator(dates.YearLocator())
         ax.tick_params(axis='x', rotation=90)
         ax.grid(True)
@@ -528,9 +528,11 @@ class NOAAPlotter(object):
         ax.set_title(title)
         # add legend
         ax.legend(legend_handle, legend_text, loc='best')
+
+        fig.tight_layout()
         # Save Figure
         if save_path:
-            fig.savefig(save_path, **kwargs_fig)
+            fig.savefig(save_path)
         # Show plot if chosen, destroy figure object at the end
         if show_plot:
             plt.show()
