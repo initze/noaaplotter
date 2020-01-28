@@ -207,7 +207,7 @@ class NOAAPlotter(object):
                             plot_pmax='auto', plot_snowmax='auto',
                             plot_extrema=True, show_plot=True,
                             show_snow_accumulation=True, save_path=False,
-                            figsize=(15,10), **kwargs_fig):
+                            figsize=(9,6), legend_fontsize='x-small', **kwargs_fig):
         """
         Plotting Function to show observed vs climate temperatures and snowfall
         :param start_date: start date of plot
@@ -343,7 +343,7 @@ class NOAAPlotter(object):
         if plot_extrema:
             legend_handle.extend([xtreme_hi, xtreme_lo])
             legend_text.extend(['Record High on Date', 'Record Low on Date'])
-        ax.legend(legend_handle, legend_text, loc='best')
+        ax.legend(legend_handle, legend_text, loc='best', fontsize=legend_fontsize)
 
 
 
@@ -384,14 +384,14 @@ class NOAAPlotter(object):
             if isinstance(plot_snowmax, (int, float)):
                 ax2_snow.set_ylim(top=plot_snowmax)
 
-        ax2.legend(legend_handle, legend_text, loc='upper left')
+        ax2.legend(legend_handle, legend_text, loc='upper left', fontsize=legend_fontsize)
         ax2.set_title('Precipitation {s} to {e}'.format(s=start_date.strftime('%Y-%m-%d'), e=end_date.strftime('%Y-%m-%d')))
         #"""
         fig.tight_layout()
 
         # Save Figure
         if save_path:
-            fig.savefig(save_path, **kwargs_fig)
+            fig.savefig(save_path, figsize=figsize, **kwargs_fig)
         # Show plot if chosen, destroy figure object at the end
         if show_plot:
             plt.show()
@@ -532,7 +532,7 @@ class NOAAPlotter(object):
         fig.tight_layout()
         # Save Figure
         if save_path:
-            fig.savefig(save_path)
+            fig.savefig(save_path, figsize=figsize, dpi=dpi)
         # Show plot if chosen, destroy figure object at the end
         if show_plot:
             plt.show()
