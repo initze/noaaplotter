@@ -12,6 +12,7 @@ import pandas as pd
 from matplotlib import pyplot as plt, dates
 import numpy as np
 import seaborn as sns
+from .utils import *
 pd.plotting.register_matplotlib_converters()
 
 
@@ -156,7 +157,7 @@ class NOAAPlotter(object):
         :return:
         """
         df_out = pd.DataFrame()
-        df['Month'] = df.apply(lambda x: self._parse_dates_YM(x['DATE_YM']).month, axis=1)
+        df['Month'] = df.apply(lambda x: parse_dates_YM(x['DATE_YM']).month, axis=1)
 
         df_out['tmean_mean'] = df[['Month', 'TMEAN']].groupby(df['Month']).mean().TMEAN
         df_out['tmean_std'] = df[['Month', 'TMEAN']].groupby(df['Month']).std().TMEAN
@@ -166,48 +167,16 @@ class NOAAPlotter(object):
         df_out['tmin_std'] = df[['Month', 'TMIN']].groupby(df['Month']).std().TMIN
         if 'SNOW' in df.columns:
             df_out['snow_mean'] = df[['Month', 'SNOW']].groupby(df['Month']).mean().SNOW
-        unique_years = len(np.unique(df.apply(lambda x: self._parse_dates_YM(x['DATE_YM']).year, axis=1)))
+        unique_years = len(np.unique(df.apply(lambda x: parse_dates_YM(x['DATE_YM']).year, axis=1)))
         df_out['prcp_mean'] = df[['Month', 'PRCP']].groupby(df['Month']).mean().PRCP * unique_years
         return df_out.reset_index(drop=False)
-
-    @staticmethod
-    def _parse_dates(date):
-        """
-
-        :param date:
-        :return:
-        """
-        if isinstance(date, str):
-            return pd.datetime.strptime(date, '%Y-%m-%d')
-        elif isinstance(date, pd.datetime):
-            return date
-        else:
-            raise('Wrong date format. Either use native datetime format or "YYYY-mm-dd"')
-
-    @staticmethod
-    def _parse_dates_YM(date):
-        if isinstance(date, str):
-            return pd.datetime.strptime(date, '%Y-%m')
-        elif isinstance(date, pd.datetime):
-            return date
-        else:
-            raise('Wrong date format. Either use native datetime format or "YYYY-mm-dd"')
-
-    @staticmethod
-    def _calc_trailing_mean(df, length, feature, new_feature):
-        trailing_values = []
-        idxs = df.index
-        for i in range(length, len(idxs.values)):
-            trailing_values.append(df.loc[idxs[i-length:i]][feature].mean())
-        df.loc[idxs[length:], new_feature] = trailing_values
-        return df
 
     def plot_weather_series(self, start_date, end_date,
                             plot_tmax='auto', plot_tmin='auto',
                             plot_pmax='auto', plot_snowmax='auto',
                             plot_extrema=True, show_plot=True,
                             show_snow_accumulation=True, save_path=False,
-                            figsize=(9,6), legend_fontsize='x-small', **kwargs_fig):
+                            figsize=(9,6), legend_fontsize='x-small', dpi=300):
         """
         Plotting Function to show observed vs climate temperatures and snowfall
         :param start_date: start date of plot
@@ -230,23 +199,22 @@ class NOAAPlotter(object):
         :type show_snow_accumulation:
         :param save_path:
         :type save_path:
-        :param kwargs_fig:
-        :type kwargs_fig:
         :return:
         """
         # make dynamic end date within the function
-        start_date = self._parse_dates(start_date)
-        end_date = self._parse_dates(end_date)
+        start_date = parse_dates(start_date)
+        end_date = parse_dates(end_date)
 
         x_dates = pd.DataFrame()
         x_dates['DATE'] = pd.date_range(start=start_date, end=end_date)
-        # make a staticfunction
         x_dates['DATE_MD'] = x_dates['DATE'].dt.strftime('%m-%d')
 
         if self.df_['DATE'].max() >= end_date:
-            x_dates_short = x_dates.set_index('DATE', drop=False).loc[pd.date_range(start=start_date, end=end_date)]
+            x_dates_short = x_dates.set_index('DATE', drop=False).loc[pd.date_range(start=start_date,
+                                                                                    end=end_date)]
         else:
-            x_dates_short = x_dates.set_index('DATE', drop=False).loc[pd.date_range(start=start_date, end=self.df_['DATE'].max())]
+            x_dates_short = x_dates.set_index('DATE', drop=False).loc[pd.date_range(start=start_date,
+                                                                                    end=self.df_['DATE'].max())]
 
         df_clim = self.df_clim_doy_.loc[x_dates['DATE_MD']]
         df_clim['DATE'] = x_dates['DATE'].values
@@ -279,7 +247,7 @@ class NOAAPlotter(object):
             raise Warning('No snow information available')
 
             #PLOT
-        fig = plt.figure(figsize=figsize)
+        fig = plt.figure(figsize=figsize, dpi=dpi)
         ax = fig.add_subplot(211)
         ax2 = fig.add_subplot(212, sharex=ax)
 
@@ -292,14 +260,26 @@ class NOAAPlotter(object):
         fb, = ax.plot(x_dates_short['DATE'], df_obs['TMEAN'], c='k', alpha=0.4, lw=1.2)
 
         # difference of observed and climate (grey area)
-        fill_r = ax.fill_between(x_dates_short['DATE'].values, y1=t_above, y2=y_clim.loc[clim_locs_short].values,
-                                 facecolor='#d6604d', alpha=0.5)
-        fill_rr = ax.fill_between(x_dates_short['DATE'].values, y1=t_above_std, y2=y_clim_std_hi.loc[clim_locs_short].values,
-                                  facecolor='#d6604d', alpha=0.7)
-        fill_b = ax.fill_between(x_dates_short['DATE'].values, y1=y_clim.loc[clim_locs_short].values, y2=t_below,
-                                 facecolor='#4393c3', alpha=0.5)
-        fill_bb = ax.fill_between(x_dates_short['DATE'].values, y1=y_clim_std_lo.loc[clim_locs_short].values, y2=t_below_std,
-                                  facecolor='#4393c3', alpha=0.7)
+        fill_r = ax.fill_between(x_dates_short['DATE'].values,
+                                 y1=t_above,
+                                 y2=y_clim.loc[clim_locs_short].values,
+                                 facecolor='#d6604d',
+                                 alpha=0.5)
+        fill_rr = ax.fill_between(x_dates_short['DATE'].values,
+                                  y1=t_above_std,
+                                  y2=y_clim_std_hi.loc[clim_locs_short].values,
+                                  facecolor='#d6604d',
+                                  alpha=0.7)
+        fill_b = ax.fill_between(x_dates_short['DATE'].values,
+                                 y1=y_clim.loc[clim_locs_short].values,
+                                 y2=t_below,
+                                 facecolor='#4393c3',
+                                 alpha=0.5)
+        fill_bb = ax.fill_between(x_dates_short['DATE'].values,
+                                  y1=y_clim_std_lo.loc[clim_locs_short].values,
+                                  y2=t_below_std,
+                                  facecolor='#4393c3',
+                                  alpha=0.7)
 
         # TODO: make dynamic legends
         # plot extremes
@@ -353,7 +333,10 @@ class NOAAPlotter(object):
         legend_text = []
 
         # precipitation
-        rain = ax2.bar(x=x_dates_short['DATE'].values, height=df_obs['PRCP'].values, fc='#4393c3', alpha=1)
+        rain = ax2.bar(x=x_dates_short['DATE'].values,
+                       height=df_obs['PRCP'].values,
+                       fc='#4393c3',
+                       alpha=1)
         legend_handle.append(rain)
         legend_text.append('Precipitation')
 
@@ -372,26 +355,34 @@ class NOAAPlotter(object):
         if (show_snow_accumulation) and ('SNOW' in df_obs.columns):
             ax2_snow = ax2.twinx()
             # plots
-            sn_acc = ax2_snow.fill_between(x=x_dates_short.loc[:last_snow_date, 'DATE'].values, y1=snow_acc.loc[:last_snow_date]/10, facecolor='k', alpha=0.2)
-            _ = ax2_snow.plot(x_dates_short.loc[last_snow_date:, 'DATE'].values, snow_acc.loc[last_snow_date:]/10, c='k', alpha=0.2, ls='--')
+            sn_acc = ax2_snow.fill_between(x=x_dates_short.loc[:last_snow_date, 'DATE'].values,
+                                           y1=snow_acc.loc[:last_snow_date]/10,
+                                           facecolor='k',
+                                           alpha=0.2)
+            _ = ax2_snow.plot(x_dates_short.loc[last_snow_date:, 'DATE'].values,
+                              snow_acc.loc[last_snow_date:]/10,
+                              c='k',
+                              alpha=0.2,
+                              ls='--')
             # y-axis label
-            ax2_snow.set_ylabel('Accumulated Snowfall in cm')
+            ax2_snow.set_ylabel('Cumulative Snowfall in cm')
             # legend
             legend_handle.append(sn_acc)
-            legend_text.append('Accumulated Snowfall')
+            legend_text.append('Cumulative Snowfall')
             # y-axis scaling
             ax2_snow.set_ylim(bottom=0)
             if isinstance(plot_snowmax, (int, float)):
                 ax2_snow.set_ylim(top=plot_snowmax)
 
         ax2.legend(legend_handle, legend_text, loc='upper left', fontsize=legend_fontsize)
-        ax2.set_title('Precipitation {s} to {e}'.format(s=start_date.strftime('%Y-%m-%d'), e=end_date.strftime('%Y-%m-%d')))
+        ax2.set_title('Precipitation {s} to {e}'.format(s=start_date.strftime('%Y-%m-%d'),
+                                                        e=end_date.strftime('%Y-%m-%d')))
         #"""
         fig.tight_layout()
 
         # Save Figure
         if save_path:
-            fig.savefig(save_path, figsize=figsize, **kwargs_fig)
+            fig.savefig(save_path, figsize=figsize, dpi=dpi)
         # Show plot if chosen, destroy figure object at the end
         if show_plot:
             plt.show()
@@ -413,10 +404,10 @@ class NOAAPlotter(object):
         data = self._get_monthly_stats(self.df_.set_index('DATE', drop=False).loc[start_date:end_date]).reset_index()
         data_clim = self._get_monthy_climate(self.df_clim_)
 
-        data['Month'] = data.apply(lambda x: self._parse_dates_YM(x['DATE_YM']).month, axis=1)
-        data['Year'] = data.apply(lambda x: self._parse_dates_YM(x['DATE_YM']).year, axis=1)
-        data = data.set_index('Month', drop=False).join(data_clim.set_index('Month', drop=False), rsuffix='_clim').sort_values(
-            'DATE_YM')
+        data['Month'] = data.apply(lambda x: parse_dates_YM(x['DATE_YM']).month, axis=1)
+        data['Year'] = data.apply(lambda x: parse_dates_YM(x['DATE_YM']).year, axis=1)
+        data = data.set_index('Month', drop=False).join(data_clim.set_index('Month', drop=False),
+                                                        rsuffix='_clim').sort_values('DATE_YM')
         data['tmean_diff'] = data['tmean_doy_mean'] - data['tmean_mean']
         data['prcp_diff'] = data['prcp_sum'] - data['prcp_mean']
 
@@ -441,7 +432,7 @@ class NOAAPlotter(object):
 
     def plot_monthly_barchart(self, start_date, end_date, information='Temperature', show_plot=True,
                                     anomaly=False, anomaly_type='absolute', trailing_mean=None,
-                                    save_path=False, figsize=(15,7), dpi=100, **kwargs_fig):
+                                    save_path=False, figsize=(9,4), dpi=100, legend_fontsize='x-small'):
 
         # legend handles
         legend_handle = []
@@ -454,8 +445,8 @@ class NOAAPlotter(object):
             fc_high = '#d6604d'
             if anomaly:
                 value_column = 'tmean_diff'
-                y_label = 'Temperature deviation from climate [°C]'
-                title = 'Monthly deviation from climatological mean (1981-2010)'
+                y_label = 'Temperature anomaly [°C]'
+                title = 'Monthly anomaly from climatological mean (1981-2010)'
                 legend_label_above = 'Above average'
                 legend_label_below =  'Below average'
             else:
@@ -471,24 +462,24 @@ class NOAAPlotter(object):
             if anomaly:
                 cmap = 'RdBu'
                 value_column = 'prcp_diff'
-                y_label = 'Precipitation deviation from climate [mm]'
-                title = 'Monthly deviation from climatological mean (1981-2010)'
+                y_label = 'Precipitation anomaly [mm]'
+                title = 'Monthly anomaly from climatological mean (1981-2010)'
                 legend_label_above = 'Above average'
-                legend_label_below =  'Below average'
+                legend_label_below = 'Below average'
             else:
                 cmap = 'Blues'
                 value_column = 'prcp_sum'
                 y_label = 'Precipitation [mm]'
-                title = 'Monthly precipitation'
+                title = 'Monthly Precipitation'
                 legend_label_below = ''
                 legend_label_above = 'Monthly Precipitation'
 
         data = self._get_monthly_stats(self.df_.set_index('DATE', drop=False)).reset_index()
         data_clim = self._get_monthy_climate(self.df_clim_)
 
-        data['DATE'] = data.apply(lambda x: self._parse_dates_YM(x['DATE_YM']), axis=1)
-        data['Month'] = data.apply(lambda x: self._parse_dates_YM(x['DATE_YM']).month, axis=1)
-        data['Year'] = data.apply(lambda x: self._parse_dates_YM(x['DATE_YM']).year, axis=1)
+        data['DATE'] = data.apply(lambda x: parse_dates_YM(x['DATE_YM']), axis=1)
+        data['Month'] = data.apply(lambda x: parse_dates_YM(x['DATE_YM']).month, axis=1)
+        data['Year'] = data.apply(lambda x: parse_dates_YM(x['DATE_YM']).year, axis=1)
         data = data.set_index('Month', drop=False).join(data_clim.set_index('Month', drop=False),
                                                         rsuffix='_clim').sort_values(
             'DATE_YM')
@@ -497,7 +488,7 @@ class NOAAPlotter(object):
         data = data.set_index('DATE', drop=False)
 
         if trailing_mean:
-            data = self._calc_trailing_mean(data, trailing_mean, value_column, 'trailing_values')
+            data = calc_trailing_mean(data, trailing_mean, value_column, 'trailing_values')
 
         fig = plt.figure(figsize=figsize, dpi=dpi)
         ax = fig.add_subplot(111)
@@ -527,7 +518,7 @@ class NOAAPlotter(object):
         ax.set_xlabel('Date')
         ax.set_title(title)
         # add legend
-        ax.legend(legend_handle, legend_text, loc='best')
+        ax.legend(legend_handle, legend_text, loc='best', fontsize=legend_fontsize)
 
         fig.tight_layout()
         # Save Figure
