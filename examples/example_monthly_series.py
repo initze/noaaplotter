@@ -12,18 +12,37 @@ import logging
 
 def main():
     logging.basicConfig(filename='example.log', filemode='w', level=logging.DEBUG)
-    n = NOAAPlotter(r'../data/Kotzebue.csv',
-                    location='Kotzebue')
-    try:
-        n.plot_monthly_barchart('1960-01-01', '2019-12-31', information='Precipitation', anomaly=True,
-                                trailing_mean=12, show_plot=True,
-                                kwargs_fig={'dpi': 100},
-                                save_path=r'../figures/monthly_series_precipitation_12mthsTrMn_Kotzebue.png')
+    
+    LOCATION = 'Kotzebue'
+    START = '1990-01-01'
+    END = '2019-12-31'
+    TRAILING_MEAN = 12
+    DPI = 300
+    FIGSIZE = (15,7)
+    PERIOD = '1990-2019'
+   
+    n = NOAAPlotter(r'C:/Users/initze/OneDrive/noaaplotter/data/2005576.csv', location='Kotzebue')   
 
-        n.plot_monthly_barchart('1960-01-01', '2019-12-31', information='Temperature', anomaly=True,
-                                trailing_mean=12, show_plot=True,
-                                kwargs_fig={'dpi': 100},
-                                save_path=r'../figures/monthly_series_temperature_12mthsTrMn_Kotzebue.png')
+    try:
+        n.plot_monthly_barchart(START, END, information='Precipitation', anomaly=False,
+                                trailing_mean=TRAILING_MEAN, show_plot=False,
+                                dpi=DPI, figsize=FIGSIZE,
+                                save_path=r'./figures/{loc}_monthly_series_precipitation_12mthsTrMn_{p}.png'.format(p=PERIOD, loc=LOCATION))
+
+        n.plot_monthly_barchart(START, END, information='Temperature', anomaly=False,
+                                trailing_mean=TRAILING_MEAN, show_plot=False,
+                                dpi=DPI, figsize=FIGSIZE,
+                                 save_path=r'./figures/{loc}_monthly_series_temperature_12mthsTrMn_{p}.png'.format(p=PERIOD, loc=LOCATION))
+
+        n.plot_monthly_barchart(START, END, information='Precipitation', anomaly=True,
+                                trailing_mean=TRAILING_MEAN, show_plot=False,
+                                dpi=DPI, figsize=FIGSIZE,
+                                save_path=r'./figures/{loc}_monthly_series_precipitation_12mthsTrMn_anomaly_{p}.png'.format(p=PERIOD, loc=LOCATION))
+
+        n.plot_monthly_barchart(START, END, information='Temperature', anomaly=True,
+                                trailing_mean=TRAILING_MEAN, show_plot=False,
+                                dpi=DPI, figsize=FIGSIZE,
+                                save_path=r'./figures/{loc}_monthly_series_temperature_12mthsTrMn_anomaly_{p}.png'.format(p=PERIOD, loc=LOCATION))
     except Exception as e:
         print(e)
 

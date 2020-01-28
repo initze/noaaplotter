@@ -1,39 +1,25 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
 from noaaplotter.noaaplotter import NOAAPlotter
-"""
-# Plot Kotzebue Winter Year 2016/2017
-n = NOAAPlotter(r'data/weather_station_kotzebue.csv')
-n.plot_weather_series(start_date='2016-07-01', end_date='2017-06-30',
-                      show_plot=False,
-                      save_path='figures/kotzebue_20162017.png', kwargs_fig={'dpi':100})
 
-# Plot Bismarck 1986
-n = NOAAPlotter(r'data/weather_station_bismarck.csv')
-n.plot_weather_series(start_date='1986-01-01', end_date='1986-12-31',
-                      show_snow_accumulation=False, show_plot=False,
-                      save_path='figures/bismarck_1986.png', kwargs_fig={'dpi':100})
+def main():
+    logging.basicConfig(filename='example.log', filemode='w', level=logging.DEBUG)
+    n = NOAAPlotter(r'data/Kotzebue.csv',
+                    location='Kotzebue')
+    for year in range(1900, 2020):
+        print(year)
+        try:
+            n.plot_weather_series(start_date='{yr}-07-01'.format(yr=year), end_date='{yr}-06-30'.format(yr=year+1),
+                                  show_snow_accumulation=True, plot_extrema=True,
+                                  show_plot=False, kwargs_fig={'dpi':100},
+                                  save_path=r'figures/Kotzebue_temperature_winter_{yr0}-{yr1}.png'.format(yr0=year, yr1=year+1),
+                                  plot_tmin=-45, plot_tmax=25, plot_pmax=50, plot_snowmax=300)
+        except Exception as e:
+            print(e)
+            continue
 
-# Plot San Francisco 2018
-n = NOAAPlotter(r'data/weather_station_sanfrancisco.csv')
-n.plot_weather_series(start_date='2018-01-01', end_date='2018-12-31',
-                      show_snow_accumulation=False, show_plot=False,
-                      save_path='figures/sanfrancisco_2018.png', kwargs_fig={'dpi':100})
+if __name__ == '__main__':
+    main()
 
-# Plot Orlando 2000
-n = NOAAPlotter(r'data/weather_station_orlando.csv')
-n.plot_weather_series(start_date='2000-01-01', end_date='2000-12-31',
-                      show_snow_accumulation=False, show_plot=True,
-                      save_path='figures/orlando_2000.png', kwargs_fig={'dpi':100})
-
-# Plot Sterlegova
-n = NOAAPlotter(r'data/1697838.csv.csv', location='sterlegova')
-n.plot_weather_series(start_date='2018-07-01', end_date='2019-06-30',
-                      show_snow_accumulation=False, show_plot=True,
-                      kwargs_fig={'dpi':100})
-"""
-# Show Heatmap Kotzebue
-n = NOAAPlotter(r'data/weather_station_kotzebue.csv',
-                location='Kotzebue')
 n.plot_monthly_barchart('1998-01-01', '2019-12-31', information='Precipitation', anomaly=True, trailing_mean=12)
-#n.plot_monthly_barchart('1998-01-01', '2019-12-31', information='Precipitation', anomaly=True)
+
