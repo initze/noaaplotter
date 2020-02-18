@@ -84,7 +84,7 @@ class NOAAPlotterDailySummariesDataset(object):
             else:
                 raise ValueError('Location Name is not valid')
 
-    def _filter_to_climate(self, climate_start, climate_end):
+    def filter_to_climate(self, climate_start, climate_end):
         """
 
         :return:

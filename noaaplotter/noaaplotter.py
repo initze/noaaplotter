@@ -49,7 +49,7 @@ class NOAAPlotter(object):
                           location=location,
                           remove_feb29=remove_feb29)
 
-        self.df_clim_ = self.dataset._filter_to_climate(climate_start, climate_end)
+        self.df_clim_ = self.dataset.filter_to_climate(climate_start, climate_end)
         self.df_clim_doy_ = self.dataset.get_daily_stats(self.df_clim_)
 
     def plot_weather_series(self, start_date, end_date,
@@ -116,7 +116,6 @@ class NOAAPlotter(object):
         t_below = np.vstack([df_obs['TMEAN'].values, y_clim.loc[clim_locs_short].values]).min(axis=0)
         t_below_std = np.vstack([df_obs['TMEAN'].values, y_clim_std_lo.loc[clim_locs_short].values]).min(axis=0)
 
-
         # Calculate the date of last snowfall and cumulative sum of snowfall
         if not show_snow_accumulation:
             None
@@ -162,7 +161,6 @@ class NOAAPlotter(object):
                                   facecolor='#4393c3',
                                   alpha=0.7)
 
-        # TODO: make dynamic legends
         # plot extremes
         if plot_extrema:
             tmax = self.dataset.data.groupby('DATE_MD').max()['TMEAN']
@@ -206,9 +204,7 @@ class NOAAPlotter(object):
             legend_text.extend(['Record High on Date', 'Record Low on Date'])
         ax.legend(legend_handle, legend_text, loc='best', fontsize=legend_fontsize)
 
-
-
-        #PRECIPITATION#
+        # PRECIPITATION#
         # legend handles
         legend_handle = []
         legend_text = []
@@ -258,7 +254,6 @@ class NOAAPlotter(object):
         ax2.legend(legend_handle, legend_text, loc='upper left', fontsize=legend_fontsize)
         ax2.set_title('Precipitation {s} to {e}'.format(s=start_date.strftime('%Y-%m-%d'),
                                                         e=end_date.strftime('%Y-%m-%d')))
-        #"""
         fig.tight_layout()
 
         # Save Figure
@@ -282,7 +277,8 @@ class NOAAPlotter(object):
         :param anomaly_type:
         :return:
         """
-        data = self.dataset.get_monthly_stats(self.dataset.data.set_index('DATE', drop=False).loc[start_date:end_date]).reset_index()
+        data = self.dataset.get_monthly_stats(self.dataset.data.set_index('DATE', drop=False).loc[start_date:end_date])\
+            .reset_index()
         data_clim = self._get_monthy_climate(self.df_clim_)
 
         data['Month'] = data.apply(lambda x: parse_dates_YM(x['DATE_YM']).month, axis=1)
@@ -304,7 +300,7 @@ class NOAAPlotter(object):
                 cmap = 'RdBu'
                 values_col = 'prcp_diff'
             else:
-                cmap= 'Blues'
+                cmap = 'Blues'
                 values_col = 'prcp_sum'
 
         pivoted_df = data.pivot(index='Month', columns='Year', values=values_col)
