@@ -5,7 +5,7 @@
 # Credits here
 # author: Ingmar Nitze, Alfred Wegener Institute for Polar and Marine Research
 # contact: ingmar.nitze@awi.de
-# version: 2020-02-18
+# version: 2020-03-27
 
 ########################
 import pandas as pd
@@ -26,6 +26,7 @@ class NOAAPlotterDailySummariesDataset(object):
         self.remove_feb29 = remove_feb29
         self.data = None
         self._load_file()
+        self._validate_location()
         self._update_datatypes()
         self._get_datestring()
         self._get_tmean()
@@ -36,7 +37,7 @@ class NOAAPlotterDailySummariesDataset(object):
         """
         Print all locations names
         """
-        print(pd.unique(self.data['NAME']))
+        print(self.data['NAME'].unique())
 
     def _load_file(self):
         """
@@ -44,6 +45,16 @@ class NOAAPlotterDailySummariesDataset(object):
         :return:
         """
         self.data = pd.read_csv(self.input_filepath)
+
+    def _validate_location(self):
+        """
+        raise error and message if location name cannot be found
+        :return:
+        """
+        filt = self.data['NAME'].str.lower().str.contains(self.location.lower())
+        if filt.sum() == 0:
+            raise ValueError('Location Name is not valid! Valid Location identifiers: {0}'
+                             .format(self.data['NAME'].unique()))
 
     def _update_datatypes(self):
         """
