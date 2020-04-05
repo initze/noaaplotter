@@ -9,7 +9,10 @@ CSV files of "daily summaries"
 * File types: csv
 
 ## Requirements
-
+pandas
+matplotlib
+numpy
+seaborn
 
 ## Examples
 ### Monthly aggregates
