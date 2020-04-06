@@ -5,14 +5,14 @@
 # Credits here
 # author: Ingmar Nitze, Alfred Wegener Institute for Polar and Marine Research
 # contact: ingmar.nitze@awi.de
-# version: 2020-01-28
+# version: 2020-04-06
 
 ########################
 import pandas as pd
 from matplotlib import pyplot as plt, dates
 import numpy as np
-import seaborn as sns
 from .utils import *
+from .dataset import NOAAPlotterDailySummariesDataset as DS
 pd.plotting.register_matplotlib_converters()
 
 
@@ -44,132 +44,12 @@ class NOAAPlotter(object):
         self.climate_start = climate_start
         self.climate_end = climate_end
         self.remove_feb29 = remove_feb29
-        self.df_ = self._load_file()
-        self._update_datatypes()
-        self._get_datestring()
-        self._get_tmean()
-        self._remove_feb29()
-        self._filter_to_location()
-        self.df_clim_ = self._filter_to_climate()
-        self.df_clim_doy_ = self._get_daily_stats(self.df_clim_)
+        self.dataset = DS(input_filepath,
+                          location=location,
+                          remove_feb29=remove_feb29)
 
-    def _load_file(self):
-        """
-        load csv file into Pandas DataFrame
-        :return:
-        """
-        return pd.read_csv(self.input_filepath)
-
-    def _update_datatypes(self):
-        """
-
-        :return:
-        """
-        self.df_['DATE'] = pd.to_datetime(self.df_['DATE'])
-
-    def _get_datestring(self):
-        self.df_['DATE_MD'] = self.df_['DATE'].dt.strftime('%m-%d')
-        self.df_['DATE_YM'] = self.df_['DATE'].dt.strftime('%Y-%m')
-        self.df_['DATE_M'] = self.df_['DATE'].dt.strftime('%m')
-
-    def _get_tmean(self):
-        """
-        calculate mean daily temperature from min and max
-        :return:
-        """
-        self.df_['TMEAN'] = self.df_[['TMIN', 'TMAX']].mean(axis=1)
-
-    def _remove_feb29(self):
-        """
-
-        :return:
-        """
-        if self.remove_feb29:
-            self.df_ = self.df_[~self.df_['DATE_MD'] != '02-29']
-
-    def _filter_to_location(self):
-        """
-
-        :return:
-        """
-        if self.location:
-            filt = self.df_['NAME'].str.lower().str.contains(self.location.lower())
-            if len(filt) > 0:
-                self.df_ = self.df_.loc[filt]
-            else:
-                raise ValueError('Location Name is not valid')
-
-    def _filter_to_climate(self):
-        """
-
-        :return:
-        """
-        df_clim = self.df_[(self.df_['DATE'] >= self.climate_start) & (self.df_['DATE'] <= self.climate_end)]
-        df_clim = df_clim[df_clim['DATE'].apply(lambda x: x.dayofyear != 366)]
-        return df_clim
-
-    @staticmethod
-    def _get_daily_stats(df):
-        """
-
-        :param df:
-        :type df: pandas.DataFrame
-        :return:
-        """
-        df_out = pd.DataFrame()
-        df_out['tmean_doy_mean'] = df[['DATE', 'TMEAN']].groupby(df['DATE_MD']).mean().TMEAN
-        df_out['tmean_doy_std'] = df[['DATE', 'TMEAN']].groupby(df['DATE_MD']).std().TMEAN
-        df_out['tmean_doy_max'] = df[['DATE', 'TMEAN']].groupby(df['DATE_MD']).max().TMEAN
-        df_out['tmean_doy_min'] = df[['DATE', 'TMEAN']].groupby(df['DATE_MD']).min().TMEAN
-        df_out['tmax_doy_max'] = df[['DATE', 'TMAX']].groupby(df['DATE_MD']).max().TMAX
-        df_out['tmax_doy_std'] = df[['DATE', 'TMAX']].groupby(df['DATE_MD']).std().TMAX
-        df_out['tmin_doy_min'] = df[['DATE', 'TMIN']].groupby(df['DATE_MD']).min().TMIN
-        df_out['tmin_doy_std'] = df[['DATE', 'TMIN']].groupby(df['DATE_MD']).std().TMIN
-        if 'SNOW' in df.columns:
-            df_out['snow_doy_mean'] = df[['DATE', 'SNOW']].groupby(df['DATE_MD']).mean().SNOW
-        return df_out
-
-    @staticmethod
-    def _get_monthly_stats(df):
-        """
-
-        :param df:
-        :type df: pandas.DataFrame
-        :return:
-        """
-        df_out = pd.DataFrame()
-        df_out['tmean_doy_mean'] = df[['DATE', 'TMEAN']].groupby(df['DATE_YM']).mean().TMEAN
-        df_out['tmean_doy_std'] = df[['DATE', 'TMEAN']].groupby(df['DATE_YM']).std().TMEAN
-        df_out['tmax_doy_max'] = df[['DATE', 'TMAX']].groupby(df['DATE_YM']).max().TMAX
-        df_out['tmax_doy_std'] = df[['DATE', 'TMAX']].groupby(df['DATE_YM']).std().TMAX
-        df_out['tmin_doy_min'] = df[['DATE', 'TMIN']].groupby(df['DATE_YM']).min().TMIN
-        df_out['tmin_doy_std'] = df[['DATE', 'TMIN']].groupby(df['DATE_YM']).std().TMIN
-        if 'SNOW' in df.columns:
-            df_out['snow_doy_mean'] = df[['DATE', 'SNOW']].groupby(df['DATE_YM']).mean().SNOW
-        df_out['prcp_sum'] = df[['DATE', 'PRCP']].groupby(df['DATE_YM']).sum().PRCP
-        return df_out
-
-    @classmethod
-    def _get_monthy_climate(self, df):
-        """
-
-        :param df:
-        :return:
-        """
-        df_out = pd.DataFrame()
-        df['Month'] = df.apply(lambda x: parse_dates_YM(x['DATE_YM']).month, axis=1)
-
-        df_out['tmean_mean'] = df[['Month', 'TMEAN']].groupby(df['Month']).mean().TMEAN
-        df_out['tmean_std'] = df[['Month', 'TMEAN']].groupby(df['Month']).std().TMEAN
-        df_out['tmax_max'] = df[['Month', 'TMAX']].groupby(df['Month']).max().TMAX
-        df_out['tmax_std'] = df[['Month', 'TMAX']].groupby(df['Month']).std().TMAX
-        df_out['tmin_min'] = df[['Month', 'TMIN']].groupby(df['Month']).min().TMIN
-        df_out['tmin_std'] = df[['Month', 'TMIN']].groupby(df['Month']).std().TMIN
-        if 'SNOW' in df.columns:
-            df_out['snow_mean'] = df[['Month', 'SNOW']].groupby(df['Month']).mean().SNOW
-        unique_years = len(np.unique(df.apply(lambda x: parse_dates_YM(x['DATE_YM']).year, axis=1)))
-        df_out['prcp_mean'] = df[['Month', 'PRCP']].groupby(df['Month']).mean().PRCP * unique_years
-        return df_out.reset_index(drop=False)
+        self.df_clim_ = self.dataset.filter_to_climate(climate_start, climate_end)
+        self.df_clim_doy_ = self.dataset.get_daily_stats(self.df_clim_)
 
     def plot_weather_series(self, start_date, end_date,
                             plot_tmax='auto', plot_tmin='auto',
@@ -209,17 +89,17 @@ class NOAAPlotter(object):
         x_dates['DATE'] = pd.date_range(start=start_date, end=end_date)
         x_dates['DATE_MD'] = x_dates['DATE'].dt.strftime('%m-%d')
 
-        if self.df_['DATE'].max() >= end_date:
+        if self.dataset.data['DATE'].max() >= end_date:
             x_dates_short = x_dates.set_index('DATE', drop=False).loc[pd.date_range(start=start_date,
                                                                                     end=end_date)]
         else:
             x_dates_short = x_dates.set_index('DATE', drop=False).loc[pd.date_range(start=start_date,
-                                                                                    end=self.df_['DATE'].max())]
+                                                                                    end=self.dataset.data['DATE'].max())]
 
         df_clim = self.df_clim_doy_.loc[x_dates['DATE_MD']]
         df_clim['DATE'] = x_dates['DATE'].values
         df_clim = df_clim.set_index('DATE', drop=False)
-        df_obs = self.df_.set_index('DATE', drop=False).loc[x_dates_short['DATE']]
+        df_obs = self.dataset.data.set_index('DATE', drop=False).loc[x_dates_short['DATE']]
 
         clim_locs = x_dates['DATE']# full year series
         clim_locs_short = x_dates_short['DATE']# short series for incomplete years (actual data)
@@ -234,7 +114,6 @@ class NOAAPlotter(object):
         t_above_std = np.vstack([df_obs['TMEAN'].values, y_clim_std_hi.loc[clim_locs_short].values]).max(axis=0)
         t_below = np.vstack([df_obs['TMEAN'].values, y_clim.loc[clim_locs_short].values]).min(axis=0)
         t_below_std = np.vstack([df_obs['TMEAN'].values, y_clim_std_lo.loc[clim_locs_short].values]).min(axis=0)
-
 
         # Calculate the date of last snowfall and cumulative sum of snowfall
         if not show_snow_accumulation:
@@ -281,11 +160,10 @@ class NOAAPlotter(object):
                                   facecolor='#4393c3',
                                   alpha=0.7)
 
-        # TODO: make dynamic legends
         # plot extremes
         if plot_extrema:
-            tmax = self.df_.groupby('DATE_MD').max()['TMEAN']
-            tmin = self.df_.groupby('DATE_MD').min()['TMEAN']
+            tmax = self.dataset.data.groupby('DATE_MD').max()['TMEAN']
+            tmin = self.dataset.data.groupby('DATE_MD').min()['TMEAN']
             local_obs = df_obs[['DATE', 'DATE_MD', 'TMEAN']].set_index('DATE_MD', drop=False)
             idx = local_obs.index
             local_max = tmax.loc[idx] == local_obs['TMEAN']
@@ -325,9 +203,7 @@ class NOAAPlotter(object):
             legend_text.extend(['Record High on Date', 'Record Low on Date'])
         ax.legend(legend_handle, legend_text, loc='best', fontsize=legend_fontsize)
 
-
-
-        #PRECIPITATION#
+        # PRECIPITATION#
         # legend handles
         legend_handle = []
         legend_text = []
@@ -377,7 +253,6 @@ class NOAAPlotter(object):
         ax2.legend(legend_handle, legend_text, loc='upper left', fontsize=legend_fontsize)
         ax2.set_title('Precipitation {s} to {e}'.format(s=start_date.strftime('%Y-%m-%d'),
                                                         e=end_date.strftime('%Y-%m-%d')))
-        #"""
         fig.tight_layout()
 
         # Save Figure
@@ -389,46 +264,6 @@ class NOAAPlotter(object):
         else:
             plt.close(fig)
 
-    def plot_monthly_heatmap(self, start_date, end_date, information='Temperature', show_plot=True,
-                                    anomaly=False, anomaly_type='absolute'):
-        """
-
-        :param start_date:
-        :param end_date:
-        :param information: str {'Temperature', 'Precipitation'}
-        :param show_plot: bool
-        :param anomaly: bool
-        :param anomaly_type:
-        :return:
-        """
-        data = self._get_monthly_stats(self.df_.set_index('DATE', drop=False).loc[start_date:end_date]).reset_index()
-        data_clim = self._get_monthy_climate(self.df_clim_)
-
-        data['Month'] = data.apply(lambda x: parse_dates_YM(x['DATE_YM']).month, axis=1)
-        data['Year'] = data.apply(lambda x: parse_dates_YM(x['DATE_YM']).year, axis=1)
-        data = data.set_index('Month', drop=False).join(data_clim.set_index('Month', drop=False),
-                                                        rsuffix='_clim').sort_values('DATE_YM')
-        data['tmean_diff'] = data['tmean_doy_mean'] - data['tmean_mean']
-        data['prcp_diff'] = data['prcp_sum'] - data['prcp_mean']
-
-        if information == 'Temperature':
-            cmap = 'RdBu_r'
-            if anomaly:
-                values_col = 'tmean_diff'
-            else:
-                values_col = 'tmean_doy_mean'
-
-        elif information == 'Precipitation':
-            if anomaly:
-                cmap = 'RdBu'
-                values_col = 'prcp_diff'
-            else:
-                cmap= 'Blues'
-                values_col = 'prcp_sum'
-
-        pivoted_df = data.pivot(index='Month', columns='Year', values=values_col)
-        sns.heatmap(data=pivoted_df, cmap=cmap, square=True)
-        plt.show()
 
     def plot_monthly_barchart(self, start_date, end_date, information='Temperature', show_plot=True,
                                     anomaly=False, anomaly_type='absolute', trailing_mean=None,
@@ -474,8 +309,8 @@ class NOAAPlotter(object):
                 legend_label_below = ''
                 legend_label_above = 'Monthly Precipitation'
 
-        data = self._get_monthly_stats(self.df_.set_index('DATE', drop=False)).reset_index()
-        data_clim = self._get_monthy_climate(self.df_clim_)
+        data = self.dataset.get_monthly_stats(self.dataset.data.set_index('DATE', drop=False)).reset_index()
+        data_clim = self.dataset.get_monthy_climate(self.df_clim_)
 
         data['DATE'] = data.apply(lambda x: parse_dates_YM(x['DATE_YM']), axis=1)
         data['Month'] = data.apply(lambda x: parse_dates_YM(x['DATE_YM']).month, axis=1)
