@@ -67,6 +67,7 @@ def main():
                           show_snow_accumulation=args.snow_acc,
                           #kwargs_fig={'dpi':args.dpi, 'figsize':args.figsize},
                           plot_extrema=True,
+                          show_plot=args.show_plot,
                           save_path=args.save_path,
                           plot_tmin=args.t_range[0],
                           plot_tmax=args.t_range[1],

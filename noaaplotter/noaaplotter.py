@@ -5,13 +5,12 @@
 # Credits here
 # author: Ingmar Nitze, Alfred Wegener Institute for Polar and Marine Research
 # contact: ingmar.nitze@awi.de
-# version: 2020-02-18
+# version: 2020-04-06
 
 ########################
 import pandas as pd
 from matplotlib import pyplot as plt, dates
 import numpy as np
-import seaborn as sns
 from .utils import *
 from .dataset import NOAAPlotterDailySummariesDataset as DS
 pd.plotting.register_matplotlib_converters()
@@ -265,47 +264,6 @@ class NOAAPlotter(object):
         else:
             plt.close(fig)
 
-    def plot_monthly_heatmap(self, start_date, end_date, information='Temperature', show_plot=True,
-                                    anomaly=False, anomaly_type='absolute'):
-        """
-
-        :param start_date:
-        :param end_date:
-        :param information: str {'Temperature', 'Precipitation'}
-        :param show_plot: bool
-        :param anomaly: bool
-        :param anomaly_type:
-        :return:
-        """
-        data = self.dataset.get_monthly_stats(self.dataset.data.set_index('DATE', drop=False).loc[start_date:end_date])\
-            .reset_index()
-        data_clim = self._get_monthy_climate(self.df_clim_)
-
-        data['Month'] = data.apply(lambda x: parse_dates_YM(x['DATE_YM']).month, axis=1)
-        data['Year'] = data.apply(lambda x: parse_dates_YM(x['DATE_YM']).year, axis=1)
-        data = data.set_index('Month', drop=False).join(data_clim.set_index('Month', drop=False),
-                                                        rsuffix='_clim').sort_values('DATE_YM')
-        data['tmean_diff'] = data['tmean_doy_mean'] - data['tmean_mean']
-        data['prcp_diff'] = data['prcp_sum'] - data['prcp_mean']
-
-        if information == 'Temperature':
-            cmap = 'RdBu_r'
-            if anomaly:
-                values_col = 'tmean_diff'
-            else:
-                values_col = 'tmean_doy_mean'
-
-        elif information == 'Precipitation':
-            if anomaly:
-                cmap = 'RdBu'
-                values_col = 'prcp_diff'
-            else:
-                cmap = 'Blues'
-                values_col = 'prcp_sum'
-
-        pivoted_df = data.pivot(index='Month', columns='Year', values=values_col)
-        sns.heatmap(data=pivoted_df, cmap=cmap, square=True)
-        plt.show()
 
     def plot_monthly_barchart(self, start_date, end_date, information='Temperature', show_plot=True,
                                     anomaly=False, anomaly_type='absolute', trailing_mean=None,
