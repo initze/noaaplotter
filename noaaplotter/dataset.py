@@ -104,26 +104,6 @@ class NOAAPlotterDailySummariesDataset(object):
         df_clim = df_clim[df_clim['DATE'].apply(lambda x: x.dayofyear != 366)]
         return df_clim
 
-    @staticmethod
-    def get_daily_stats(df):
-        """
-
-        :param df:
-        :type df: pandas.DataFrame
-        :return:
-        """
-        df_out = pd.DataFrame()
-        df_out['tmean_doy_mean'] = df[['DATE', 'TMEAN']].groupby(df['DATE_MD']).mean().TMEAN
-        df_out['tmean_doy_std'] = df[['DATE', 'TMEAN']].groupby(df['DATE_MD']).std().TMEAN
-        df_out['tmean_doy_max'] = df[['DATE', 'TMEAN']].groupby(df['DATE_MD']).max().TMEAN
-        df_out['tmean_doy_min'] = df[['DATE', 'TMEAN']].groupby(df['DATE_MD']).min().TMEAN
-        df_out['tmax_doy_max'] = df[['DATE', 'TMAX']].groupby(df['DATE_MD']).max().TMAX
-        df_out['tmax_doy_std'] = df[['DATE', 'TMAX']].groupby(df['DATE_MD']).std().TMAX
-        df_out['tmin_doy_min'] = df[['DATE', 'TMIN']].groupby(df['DATE_MD']).min().TMIN
-        df_out['tmin_doy_std'] = df[['DATE', 'TMIN']].groupby(df['DATE_MD']).std().TMIN
-        if 'SNOW' in df.columns:
-            df_out['snow_doy_mean'] = df[['DATE', 'SNOW']].groupby(df['DATE_MD']).mean().SNOW
-        return df_out
 
     @staticmethod
     def get_monthly_stats(df):
@@ -167,23 +147,21 @@ class NOAAPlotterDailySummariesDataset(object):
 
 
 class NOAAPlotterDailyClimateDataset(object):
-    def __init__(self, daily_dataset, start='1981-01-01', end='2010-12-31', filtersize=0, feb29=False):
+    def __init__(self, daily_dataset, start='1981-01-01', end='2010-12-31', filtersize=7, impute_feb29=True):
         """
         :param start:
         :param end:
         :param filtersize:
-        :param feb29:
+        :param impute_feb29:
         """
 
         self.start = parse_dates(start)
         self.end = parse_dates(end)
         self.filtersize = filtersize
-        self.feb29 = feb29
-
+        self.impute_feb29 = impute_feb29
         self.daily_dataset = daily_dataset
         self.data_daily = None
         self.data = None
-
         self.date_range_valid = False
 
         # validate date range
@@ -192,7 +170,10 @@ class NOAAPlotterDailyClimateDataset(object):
         self._filter_to_climate()
         # calculate daily statistics
         self._calculate_climate_statistics()
+        # mean imputation for 29 February
+        self._impute_feb29()
         # filter if desired
+        self._run_filter()
         # make completeness report
 
     def _validate_date_range(self):
@@ -230,11 +211,29 @@ class NOAAPlotterDailyClimateDataset(object):
         df_out['tmin_doy_std'] = self.data_daily[['DATE', 'TMIN']].groupby(self.data_daily['DATE_MD']).std().TMIN
         if 'SNOW' in self.data_daily.columns:
             df_out['snow_doy_mean'] = self.data_daily[['DATE', 'SNOW']].groupby(self.data_daily['DATE_MD']).mean().SNOW
-        
         self.data = df_out
 
+    def _impute_feb29(self):
+        """
+
+        :return:
+        """
+        # TODO calc mean of Feb 28 and March 1
+        if self.impute_feb29:
+            self.data.loc['02-29'] = self.data.loc['02-28':'03-01'].mean(axis=0)
+            self.data.sort_index(inplace=True)
+
     def _run_filter(self):
-        pass
+        """
+
+        :return:
+        """
+        self.filtersize = 2
+        if self.filtersize % 2 != 0:
+            data_roll = pd.concat([self.data.iloc[-self.filtersize:],
+                                   self.data,
+                                   self.data[:self.filtersize]]).rolling(self.filtersize).mean()
+            self.data = data_roll[self.filtersize: -self.filtersize]
 
     def _make_report(self):
         pass
