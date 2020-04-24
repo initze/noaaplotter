@@ -13,6 +13,8 @@ from matplotlib import pyplot as plt, dates
 import numpy as np
 from .utils import *
 from .dataset import NOAAPlotterDailySummariesDataset as DS
+from .dataset import NOAAPlotterDailyClimateDataset as DS_daily
+
 pd.plotting.register_matplotlib_converters()
 
 
@@ -47,9 +49,23 @@ class NOAAPlotter(object):
         self.dataset = DS(input_filepath,
                           location=location,
                           remove_feb29=remove_feb29)
+        self.df_clim_ = DS_daily(self.dataset)
 
-        self.df_clim_ = self.dataset.filter_to_climate(climate_start, climate_end)
-        self.df_clim_doy_ = self.dataset.get_daily_stats(self.df_clim_)
+    def _make_short_dateseries(self, start_date, end_date):
+
+        x_dates = pd.DataFrame()
+        x_dates['DATE'] = pd.date_range(start=start_date, end=end_date)
+        x_dates['DATE_MD'] = x_dates['DATE'].dt.strftime('%m-%d')
+        #TODO: Filter Feb29
+        if self.dataset.data['DATE'].max() >= end_date:
+            x_dates_short = x_dates.set_index('DATE', drop=False).loc[pd.date_range(start=start_date,
+                                                                                    end=end_date)]
+        else:
+            x_dates_short = x_dates.set_index('DATE', drop=False).loc[pd.date_range(start=start_date,
+                                                                                    end=self.dataset.data[
+                                                                                        'DATE'].max())]
+
+        return x_dates, x_dates_short
 
     def plot_weather_series(self, start_date, end_date,
                             plot_tmax='auto', plot_tmin='auto',
@@ -81,27 +97,16 @@ class NOAAPlotter(object):
         :type save_path:
         :return:
         """
-        # make dynamic end date within the function
         start_date = parse_dates(start_date)
         end_date = parse_dates(end_date)
+        x_dates, x_dates_short = self._make_short_dateseries(start_date, end_date)
 
-        x_dates = pd.DataFrame()
-        x_dates['DATE'] = pd.date_range(start=start_date, end=end_date)
-        x_dates['DATE_MD'] = x_dates['DATE'].dt.strftime('%m-%d')
+        df_clim = self.df_clim_.data.loc[x_dates['DATE_MD']]
 
-        if self.dataset.data['DATE'].max() >= end_date:
-            x_dates_short = x_dates.set_index('DATE', drop=False).loc[pd.date_range(start=start_date,
-                                                                                    end=end_date)]
-        else:
-            x_dates_short = x_dates.set_index('DATE', drop=False).loc[pd.date_range(start=start_date,
-                                                                                    end=self.dataset.data['DATE'].max())]
-
-        df_clim = self.df_clim_doy_.loc[x_dates['DATE_MD']]
         df_clim['DATE'] = x_dates['DATE'].values
         df_clim = df_clim.set_index('DATE', drop=False)
         df_obs = self.dataset.data.set_index('DATE', drop=False).loc[x_dates_short['DATE']]
 
-        clim_locs = x_dates['DATE']# full year series
         clim_locs_short = x_dates_short['DATE']# short series for incomplete years (actual data)
 
         # get mean and mean+-standard deviation of daily mean temperatures of climate series

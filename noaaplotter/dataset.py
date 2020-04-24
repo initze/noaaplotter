@@ -164,3 +164,89 @@ class NOAAPlotterDailySummariesDataset(object):
         unique_years = len(np.unique(df.apply(lambda x: parse_dates_YM(x['DATE_YM']).year, axis=1)))
         df_out['prcp_mean'] = df[['Month', 'PRCP']].groupby(df['Month']).mean().PRCP * unique_years
         return df_out.reset_index(drop=False)
+
+
+class NOAAPlotterDailyClimateDataset(object):
+    def __init__(self, daily_dataset, start='1981-01-01', end='2010-12-31', filtersize=0, feb29=False):
+        """
+        :param start:
+        :param end:
+        :param filtersize:
+        :param feb29:
+        """
+
+        self.start = parse_dates(start)
+        self.end = parse_dates(end)
+        self.filtersize = filtersize
+        self.feb29 = feb29
+
+        self.daily_dataset = daily_dataset
+        self.data_daily = None
+        self.data = None
+
+        self.date_range_valid = False
+
+        # validate date range
+        self._validate_date_range()
+        # filter daily to date range
+        self._filter_to_climate()
+        # calculate daily statistics
+        self._calculate_climate_statistics()
+        # filter if desired
+        # make completeness report
+
+    def _validate_date_range(self):
+        if self.daily_dataset.data['DATE'].max() >= self.end:
+            if self.daily_dataset.data['DATE'].min() <= self.end:
+                self.date_range_valid = True
+        else:
+            raise ('Dataset is insufficient to calculate climate normals!')
+
+
+    def _filter_to_climate(self):
+        """
+
+        :return:
+        """
+        df_clim = self.daily_dataset.data[(self.daily_dataset.data['DATE'] >= self.start) & (self.daily_dataset.data['DATE'] <= self.end)]
+        df_clim = df_clim[(df_clim['DATE_MD'] != '02-29')]
+        self.data_daily = df_clim
+
+    def _calculate_climate_statistics(self):
+        """
+
+        :param self.data_daily:
+        :type self.data_daily: pandas.DataFrame
+        :return:
+        """
+        df_out = pd.DataFrame()
+        df_out['tmean_doy_mean'] = self.data_daily[['DATE', 'TMEAN']].groupby(self.data_daily['DATE_MD']).mean().TMEAN
+        df_out['tmean_doy_std'] = self.data_daily[['DATE', 'TMEAN']].groupby(self.data_daily['DATE_MD']).std().TMEAN
+        df_out['tmean_doy_max'] = self.data_daily[['DATE', 'TMEAN']].groupby(self.data_daily['DATE_MD']).max().TMEAN
+        df_out['tmean_doy_min'] = self.data_daily[['DATE', 'TMEAN']].groupby(self.data_daily['DATE_MD']).min().TMEAN
+        df_out['tmax_doy_max'] = self.data_daily[['DATE', 'TMAX']].groupby(self.data_daily['DATE_MD']).max().TMAX
+        df_out['tmax_doy_std'] = self.data_daily[['DATE', 'TMAX']].groupby(self.data_daily['DATE_MD']).std().TMAX
+        df_out['tmin_doy_min'] = self.data_daily[['DATE', 'TMIN']].groupby(self.data_daily['DATE_MD']).min().TMIN
+        df_out['tmin_doy_std'] = self.data_daily[['DATE', 'TMIN']].groupby(self.data_daily['DATE_MD']).std().TMIN
+        if 'SNOW' in self.data_daily.columns:
+            df_out['snow_doy_mean'] = self.data_daily[['DATE', 'SNOW']].groupby(self.data_daily['DATE_MD']).mean().SNOW
+        
+        self.data = df_out
+
+    def _run_filter(self):
+        pass
+
+    def _make_report(self):
+        pass
+
+
+class NOAAPlotterMonthlyClimateDataset(object):
+    def __init__(self, start, end, filtersize, feb29):
+        self.start = start
+        self.end = end
+        self.filtersize = filtersize
+        self.feb29 = feb29
+        pass
+
+    def from_daily_dataset(self, daily_dataset):
+        pass
