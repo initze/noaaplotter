@@ -5,7 +5,7 @@
 # Credits here
 # author: Ingmar Nitze, Alfred Wegener Institute for Polar and Marine Research
 # contact: ingmar.nitze@awi.de
-# version: 2020-04-06
+# version: 2020-04-25
 
 ########################
 import pandas as pd
@@ -17,6 +17,7 @@ class NOAAPlotterDailySummariesDataset(object):
     """
     This class/module creates nice plots of observed weather data from NOAA
     """
+
     def __init__(self,
                  input_filepath,
                  location=None,
@@ -58,12 +59,16 @@ class NOAAPlotterDailySummariesDataset(object):
 
     def _update_datatypes(self):
         """
-
+        define 'DATE' as datetime
         :return:
         """
         self.data['DATE'] = pd.to_datetime(self.data['DATE'])
 
     def _get_datestring(self):
+        """
+        write specific date formats
+        :return:
+        """
         self.data['DATE_MD'] = self.data['DATE'].dt.strftime('%m-%d')
         self.data['DATE_YM'] = self.data['DATE'].dt.strftime('%Y-%m')
         self.data['DATE_M'] = self.data['DATE'].dt.strftime('%m')
@@ -73,19 +78,20 @@ class NOAAPlotterDailySummariesDataset(object):
         calculate mean daily temperature from min and max
         :return:
         """
+        # TODO: check for cases where TMIN and TMAX are empty (e.g. Schonefeld). There TAVG is the main field
         self.data['TMEAN'] = self.data[['TMIN', 'TMAX']].mean(axis=1)
 
     def _remove_feb29(self):
         """
-
+        Function to remove February 29 from the data
         :return:
         """
         if self.remove_feb29:
-            self.data = self.data[~self.data['DATE_MD'] != '02-29']
+            self.data = self.data[self.data['DATE_MD'] != '02-29']
 
     def _filter_to_location(self):
         """
-
+        Filter dataset to the defined location
         :return:
         """
         if self.location:
@@ -97,18 +103,16 @@ class NOAAPlotterDailySummariesDataset(object):
 
     def filter_to_climate(self, climate_start, climate_end):
         """
-
+        Function to create filtered dataset covering the defined climate normal period
         :return:
         """
         df_clim = self.data[(self.data['DATE'] >= climate_start) & (self.data['DATE'] <= climate_end)]
-        df_clim = df_clim[df_clim['DATE'].apply(lambda x: x.dayofyear != 366)]
         return df_clim
-
 
     @staticmethod
     def get_monthly_stats(df):
         """
-
+        calculate monthly statistics
         :param df:
         :type df: pandas.DataFrame
         :return:
@@ -154,7 +158,6 @@ class NOAAPlotterDailyClimateDataset(object):
         :param filtersize:
         :param impute_feb29:
         """
-
         self.start = parse_dates(start)
         self.end = parse_dates(end)
         self.filtersize = filtersize
@@ -183,19 +186,19 @@ class NOAAPlotterDailyClimateDataset(object):
         else:
             raise ('Dataset is insufficient to calculate climate normals!')
 
-
     def _filter_to_climate(self):
         """
-
+        calculate climate dataset
         :return:
         """
-        df_clim = self.daily_dataset.data[(self.daily_dataset.data['DATE'] >= self.start) & (self.daily_dataset.data['DATE'] <= self.end)]
+        df_clim = self.daily_dataset.data[(self.daily_dataset.data['DATE'] >= self.start) &
+                                          (self.daily_dataset.data['DATE'] <= self.end)]
         df_clim = df_clim[(df_clim['DATE_MD'] != '02-29')]
         self.data_daily = df_clim
 
     def _calculate_climate_statistics(self):
         """
-
+        Function to calculate major statistics
         :param self.data_daily:
         :type self.data_daily: pandas.DataFrame
         :return:
@@ -215,20 +218,18 @@ class NOAAPlotterDailyClimateDataset(object):
 
     def _impute_feb29(self):
         """
-
+        Function for mean imputation of February 29.
         :return:
         """
-        # TODO calc mean of Feb 28 and March 1
         if self.impute_feb29:
             self.data.loc['02-29'] = self.data.loc['02-28':'03-01'].mean(axis=0)
             self.data.sort_index(inplace=True)
 
     def _run_filter(self):
         """
-
+        Function to run rolling mean filter on climate series to smooth out short fluctuations
         :return:
         """
-        self.filtersize = 2
         if self.filtersize % 2 != 0:
             data_roll = pd.concat([self.data.iloc[-self.filtersize:],
                                    self.data,
@@ -236,6 +237,11 @@ class NOAAPlotterDailyClimateDataset(object):
             self.data = data_roll[self.filtersize: -self.filtersize]
 
     def _make_report(self):
+        """
+        Function to create report on climate data completeness
+        :return:
+        """
+        # input climate series (e.g. 1981-01-01 - 2010-12-31)
         pass
 
 

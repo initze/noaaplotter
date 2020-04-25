@@ -5,14 +5,14 @@
 # Credits here
 # author: Ingmar Nitze, Alfred Wegener Institute for Polar and Marine Research
 # contact: ingmar.nitze@awi.de
-# version: 2020-04-06
+# version: 2020-04-25
 
 ########################
 import pandas as pd
 from matplotlib import pyplot as plt, dates
 import numpy as np
 from .utils import *
-from .dataset import NOAAPlotterDailySummariesDataset as DS
+from .dataset import NOAAPlotterDailySummariesDataset as Dataset
 from .dataset import NOAAPlotterDailyClimateDataset as DS_daily
 
 pd.plotting.register_matplotlib_converters()
@@ -22,6 +22,7 @@ class NOAAPlotter(object):
     """
     This class/module creates nice plots of observed weather data from NOAA
     """
+
     def __init__(self,
                  input_filepath,
                  location=None,
@@ -46,9 +47,9 @@ class NOAAPlotter(object):
         self.climate_start = climate_start
         self.climate_end = climate_end
         self.remove_feb29 = remove_feb29
-        self.dataset = DS(input_filepath,
-                          location=location,
-                          remove_feb29=remove_feb29)
+        self.dataset = Dataset(input_filepath,
+                               location=location,
+                               remove_feb29=remove_feb29)
         self.df_clim_ = DS_daily(self.dataset)
 
     def _make_short_dateseries(self, start_date, end_date):
@@ -56,7 +57,7 @@ class NOAAPlotter(object):
         x_dates = pd.DataFrame()
         x_dates['DATE'] = pd.date_range(start=start_date, end=end_date)
         x_dates['DATE_MD'] = x_dates['DATE'].dt.strftime('%m-%d')
-        #TODO: Filter Feb29
+        # TODO: Filter Feb29
         if self.dataset.data['DATE'].max() >= end_date:
             x_dates_short = x_dates.set_index('DATE', drop=False).loc[pd.date_range(start=start_date,
                                                                                     end=end_date)]
@@ -72,9 +73,12 @@ class NOAAPlotter(object):
                             plot_pmax='auto', plot_snowmax='auto',
                             plot_extrema=True, show_plot=True,
                             show_snow_accumulation=True, save_path=False,
-                            figsize=(9,6), legend_fontsize='x-small', dpi=300):
+                            figsize=(9, 6), legend_fontsize='x-small', dpi=300):
         """
         Plotting Function to show observed vs climate temperatures and snowfall
+        :param dpi:
+        :param legend_fontsize:
+        :param figsize:
         :param start_date: start date of plot
         :type start_date: datetime, str
         :param end_date: end date of plot
@@ -107,7 +111,7 @@ class NOAAPlotter(object):
         df_clim = df_clim.set_index('DATE', drop=False)
         df_obs = self.dataset.data.set_index('DATE', drop=False).loc[x_dates_short['DATE']]
 
-        clim_locs_short = x_dates_short['DATE']# short series for incomplete years (actual data)
+        clim_locs_short = x_dates_short['DATE']  # short series for incomplete years (actual data)
 
         # get mean and mean+-standard deviation of daily mean temperatures of climate series
         y_clim = df_clim['tmean_doy_mean']
@@ -130,7 +134,7 @@ class NOAAPlotter(object):
             show_snow_accumulation = False
             raise Warning('No snow information available')
 
-            #PLOT
+            # PLOT
         fig = plt.figure(figsize=figsize, dpi=dpi)
         ax = fig.add_subplot(211)
         ax2 = fig.add_subplot(212, sharex=ax)
@@ -231,17 +235,17 @@ class NOAAPlotter(object):
         if isinstance(plot_pmax, (int, float)):
             ax2.set_ylim(top=plot_pmax)
 
-        #snow
+        # snow
         # TODO: make snowcheck
         if (show_snow_accumulation) and ('SNOW' in df_obs.columns):
             ax2_snow = ax2.twinx()
             # plots
             sn_acc = ax2_snow.fill_between(x=x_dates_short.loc[:last_snow_date, 'DATE'].values,
-                                           y1=snow_acc.loc[:last_snow_date]/10,
+                                           y1=snow_acc.loc[:last_snow_date] / 10,
                                            facecolor='k',
                                            alpha=0.2)
             _ = ax2_snow.plot(x_dates_short.loc[last_snow_date:, 'DATE'].values,
-                              snow_acc.loc[last_snow_date:]/10,
+                              snow_acc.loc[last_snow_date:] / 10,
                               c='k',
                               alpha=0.2,
                               ls='--')
@@ -269,10 +273,9 @@ class NOAAPlotter(object):
         else:
             plt.close(fig)
 
-
     def plot_monthly_barchart(self, start_date, end_date, information='Temperature', show_plot=True,
-                                    anomaly=False, anomaly_type='absolute', trailing_mean=None,
-                                    save_path=False, figsize=(9,4), dpi=100, legend_fontsize='x-small'):
+                              anomaly=False, anomaly_type='absolute', trailing_mean=None,
+                              save_path=False, figsize=(9, 4), dpi=100, legend_fontsize='x-small'):
 
         # legend handles
         legend_handle = []
@@ -288,7 +291,7 @@ class NOAAPlotter(object):
                 y_label = 'Temperature anomaly [°C]'
                 title = 'Monthly anomaly from climatological mean (1981-2010)'
                 legend_label_above = 'Above average'
-                legend_label_below =  'Below average'
+                legend_label_below = 'Below average'
             else:
                 value_column = 'tmean_doy_mean'
                 y_label = 'Temperature [°C]'
