@@ -151,6 +151,7 @@ class NOAAPlotterDailySummariesDataset(object):
 
 
 class NOAAPlotterDailyClimateDataset(object):
+    # TODO: make main class sub subclasses for daily/monthly
     def __init__(self, daily_dataset, start='1981-01-01', end='2010-12-31', filtersize=7, impute_feb29=True):
         """
         :param start:
@@ -246,12 +247,56 @@ class NOAAPlotterDailyClimateDataset(object):
 
 
 class NOAAPlotterMonthlyClimateDataset(object):
-    def __init__(self, start, end, filtersize, feb29):
+    def __init__(self, daily_dataset, start='1981-01-01', end='2010-12-31', impute_feb29=True):
+        self.daily_dataset = daily_dataset
         self.start = start
         self.end = end
-        self.filtersize = filtersize
-        self.feb29 = feb29
+        self.impute_feb29 = impute_feb29
+
+    def _validate_date_range(self):
+        if self.daily_dataset.data['DATE'].max() >= self.end:
+            if self.daily_dataset.data['DATE'].min() <= self.end:
+                self.date_range_valid = True
+        else:
+            raise ('Dataset is insufficient to calculate climate normals!')
+
+    def _filter_to_climate(self):
+        """
+        calculate climate dataset
+        :return:
+        """
+        df_clim = self.daily_dataset.data[(self.daily_dataset.data['DATE'] >= self.start) &
+                                          (self.daily_dataset.data['DATE'] <= self.end)]
+        df_clim = df_clim[(df_clim['DATE_MD'] != '02-29')]
+        self.data_daily = df_clim
+
+    def _impute_feb29(self):
+        """
+        Function for mean imputation of February 29.
+        :return:
+        """
         pass
 
-    def from_daily_dataset(self, daily_dataset):
+    def _calculate_climate_statistics(self):
+
+        df_out = pd.DataFrame()
+        df_out['tmean_doy_mean'] = self.data_daily[['DATE', 'TMEAN']].groupby(self.data_daily['DATE_YM']).mean().TMEAN
+        df_out['tmean_doy_std'] = self.data_daily[['DATE', 'TMEAN']].groupby(self.data_daily['DATE_YM']).std().TMEAN
+        df_out['tmax_doy_max'] = self.data_daily[['DATE', 'TMAX']].groupby(self.data_daily['DATE_YM']).max().TMAX
+        df_out['tmax_doy_std'] = self.data_daily[['DATE', 'TMAX']].groupby(self.data_daily['DATE_YM']).std().TMAX
+        df_out['tmin_doy_min'] = self.data_daily[['DATE', 'TMIN']].groupby(self.data_daily['DATE_YM']).min().TMIN
+        df_out['tmin_doy_std'] = self.data_daily[['DATE', 'TMIN']].groupby(self.data_daily['DATE_YM']).std().TMIN
+        if 'SNOW' in self.data_daily.columns:
+            df_out['snow_doy_mean'] = self.data_daily[['DATE', 'SNOW']].groupby(self.data_daily['DATE_YM']).mean().SNOW
+        df_out['prcp_sum'] = self.data_daily[['DATE', 'PRCP']].groupby(self.data_daily['DATE_YM']).sum().PRCP
+        df_out = df_out.set_index('DATE_YM', drop=False)
+        self.data = df_out
+
+    def _make_report(self):
+        """
+        Function to create report on climate data completeness
+        :return:
+        """
+        # input climate series (e.g. 1981-01-01 - 2010-12-31)
+
         pass

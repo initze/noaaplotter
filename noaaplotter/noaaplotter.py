@@ -28,7 +28,9 @@ class NOAAPlotter(object):
                  location=None,
                  remove_feb29=False,
                  climate_start=pd.datetime(1981, 1, 1),
-                 climate_end=pd.datetime(2010, 12, 31)):
+                 climate_end=pd.datetime(2010, 12, 31),
+                 climate_filtersize=7
+                 ):
         """
 
         :param input_filepath: path to input file
@@ -50,7 +52,7 @@ class NOAAPlotter(object):
         self.dataset = Dataset(input_filepath,
                                location=location,
                                remove_feb29=remove_feb29)
-        self.df_clim_ = DS_daily(self.dataset)
+        self.df_clim_ = DS_daily(self.dataset, filtersize=climate_filtersize)
 
     def _make_short_dateseries(self, start_date, end_date):
 
