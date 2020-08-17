@@ -44,6 +44,11 @@ def main():
                         default=False, action='store_true',
                         help='show snow accumulation, only useful for plotting winter season (e.g. July to June')
 
+    parser.add_argument('-filtersize', dest='filtersize', type=int, required=False,
+                        default=7,
+                        help='parameter to smooth climate temperature series by n days for smoother visual appearance. '
+                             'default value: 7')
+
     parser.add_argument('-dpi', dest='dpi', type=float, required=False,
                         default=100,
                         help='dpi for plot output')
@@ -60,7 +65,8 @@ def main():
 
     ##### Run Plotting function #####
     n = NOAAPlotter(args.infile,
-                    location=args.location)
+                    location=args.location,
+                    climate_filtersize=args.filtersize)
 
     n.plot_weather_series(start_date=args.start_date,
                           end_date=args.end_date,
