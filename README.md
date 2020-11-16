@@ -1,5 +1,5 @@
 # noaaplotter
-python module to make fancy plots for weather data provided by NOAA
+A python package to create fancy plots with NOAA weather data.
 
 ## Input Data
 
