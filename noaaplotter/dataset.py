@@ -5,10 +5,9 @@
 # Credits here
 # author: Ingmar Nitze, Alfred Wegener Institute for Polar and Marine Research
 # contact: ingmar.nitze@awi.de
-# version: 2020-04-25
+# version: 2020-12-09
 
 ########################
-import pandas as pd
 import numpy as np
 from .utils import *
 
@@ -255,9 +254,6 @@ class NOAAPlotterMonthlyClimateDataset(object):
         self.end = parse_dates(end)
         self.impute_feb29 = impute_feb29
         self._validate_date_range()
-        #self._filter_to_climate()
-        #self.calculate_monthly_statistics()
-
 
     def _validate_date_range(self):
         if self.daily_dataset.data['DATE'].max() >= self.end:
@@ -275,7 +271,6 @@ class NOAAPlotterMonthlyClimateDataset(object):
                                                        (self.daily_dataset.data['DATE'] <= self.end)]
         df_clim = df_clim[(df_clim['DATE_MD'] != '02-29')]
         self.data_daily = df_clim
-
 
     def filter_to_date(self):
         """
@@ -307,7 +302,6 @@ class NOAAPlotterMonthlyClimateDataset(object):
         if 'SNOW' in data_filtered.columns:
             df_out['snow_doy_mean'] = data_filtered[['DATE', 'SNOW']].groupby(data_filtered['DATE_YM']).mean().SNOW
         df_out['prcp_sum'] = data_filtered[['DATE', 'PRCP']].groupby(data_filtered['DATE_YM']).sum().PRCP
-        #df_out = df_out.set_index('DATE_YM', drop=False)
         self.monthly_aggregate = df_out
 
     def calculate_monthly_climate(self):
@@ -327,7 +321,7 @@ class NOAAPlotterMonthlyClimateDataset(object):
         df_out['tmin_doy_std'] = data_filtered[['DATE', 'TMIN']].groupby(data_filtered['Month']).std().TMIN
         if 'SNOW' in data_filtered.columns:
             df_out['snow_doy_mean'] = data_filtered[['DATE', 'SNOW']].groupby(data_filtered['Month']).mean().SNOW
-        df_out['prcp_sum'] = data_filtered[['DATE', 'PRCP']].groupby(data_filtered['Month']).mean().PRCP
+        df_out['prcp_sum'] = data_filtered[['DATE', 'PRCP']].groupby(data_filtered['Month']).mean().PRCP * 30
         #df_out = df_out.set_index('DATE_YM', drop=False)
         self.monthly_climate = df_out
 

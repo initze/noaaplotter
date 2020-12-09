@@ -5,7 +5,7 @@
 # Credits here
 # author: Ingmar Nitze, Alfred Wegener Institute for Polar and Marine Research
 # contact: ingmar.nitze@awi.de
-# version: 2020-04-25
+# version: 2020-12-09
 
 ########################
 import pandas as pd
@@ -325,16 +325,14 @@ class NOAAPlotter(object):
 
         #NOAAPlotterDailySummariesDataset()h
 
-        # TODO: MonthlyDatasets (full + climate) --> make diff
+        # Data Preprocessing
         data_monthly = DS_monthly(self.dataset, start=start_date, end=end_date)
         data_monthly.calculate_monthly_statistics()
         data_clim = DS_monthly(self.dataset, start=self.climate_start, end=self.climate_end)
         data_clim.calculate_monthly_climate()
-        #data = self.dataset.get_monthly_stats(self.dataset.data.set_index('DATE', drop=False)).reset_index()
 
         data = data_monthly.monthly_aggregate.reset_index(drop=False)
         df_clim = data_clim.monthly_climate.reset_index(drop=False)
-
 
         data['DATE'] = data.apply(lambda x: parse_dates_YM(x['DATE_YM']), axis=1)
         data['Month'] = data.apply(lambda x: parse_dates_YM(x['DATE_YM']).month, axis=1)
@@ -346,9 +344,11 @@ class NOAAPlotter(object):
         data['prcp_diff'] = data['prcp_sum'] - data['prcp_sum_clim']
         data = data.set_index('DATE', drop=False)
 
+        # trailing mean calculation
         if trailing_mean:
             data = calc_trailing_mean(data, trailing_mean, value_column, 'trailing_values')
 
+        # PLOT part
         fig = plt.figure(figsize=figsize, dpi=dpi)
         ax = fig.add_subplot(111)
         data_low = data[data[value_column] < 0]
