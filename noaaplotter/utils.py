@@ -5,7 +5,7 @@
 # Credits here
 # author: Ingmar Nitze, Alfred Wegener Institute for Polar and Marine Research
 # contact: ingmar.nitze@awi.de
-# version: 2020-04-06
+# version: 2020-12-09
 
 ########################
 import pandas as pd
@@ -27,18 +27,14 @@ def parse_dates(date):
 
 def calc_trailing_mean(df, length, feature, new_feature):
     """
-
     :param df:
     :param length:
     :param feature:
     :param new_feature:
     :return:
+
     """
-    trailing_values = []
-    idxs = df.index
-    for i in range(length, len(idxs.values)):
-        trailing_values.append(df.loc[idxs[i-length:i]][feature].mean())
-    df.loc[idxs[length:], new_feature] = trailing_values
+    df[new_feature] = df[feature].rolling(length).mean()
     return df
 
 
