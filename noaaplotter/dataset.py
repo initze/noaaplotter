@@ -136,7 +136,8 @@ class NOAAPlotterDailySummariesDataset(object):
         :return:
         """
         df_out = pd.DataFrame()
-        df['Month'] = df.apply(lambda x: parse_dates_YM(x['DATE_YM']).month, axis=1)
+        df = df.data
+        df['Month'] = df.reset_index().apply(lambda x: int(x['DATE_MD'][:2]), axis=1).values
         df_out['tmean_mean'] = df[['Month', 'TMEAN']].groupby(df['Month']).mean().TMEAN
         df_out['tmean_std'] = df[['Month', 'TMEAN']].groupby(df['Month']).std().TMEAN
         df_out['tmax_max'] = df[['Month', 'TMAX']].groupby(df['Month']).max().TMAX
@@ -193,7 +194,7 @@ class NOAAPlotterDailyClimateDataset(object):
         :return:
         """
         df_clim = self.daily_dataset.data[(self.daily_dataset.data['DATE'] >= self.start) &
-                                          (self.daily_dataset.data['DATE'] <= self.end)]
+                                                       (self.daily_dataset.data['DATE'] <= self.end)]
         df_clim = df_clim[(df_clim['DATE_MD'] != '02-29')]
         self.data_daily = df_clim
 
@@ -249,9 +250,14 @@ class NOAAPlotterDailyClimateDataset(object):
 class NOAAPlotterMonthlyClimateDataset(object):
     def __init__(self, daily_dataset, start='1981-01-01', end='2010-12-31', impute_feb29=True):
         self.daily_dataset = daily_dataset
-        self.start = start
-        self.end = end
+        self.monthly_aggregate = None
+        self.start = parse_dates(start)
+        self.end = parse_dates(end)
         self.impute_feb29 = impute_feb29
+        self._validate_date_range()
+        #self._filter_to_climate()
+        #self.calculate_monthly_statistics()
+
 
     def _validate_date_range(self):
         if self.daily_dataset.data['DATE'].max() >= self.end:
@@ -266,9 +272,20 @@ class NOAAPlotterMonthlyClimateDataset(object):
         :return:
         """
         df_clim = self.daily_dataset.data[(self.daily_dataset.data['DATE'] >= self.start) &
-                                          (self.daily_dataset.data['DATE'] <= self.end)]
+                                                       (self.daily_dataset.data['DATE'] <= self.end)]
         df_clim = df_clim[(df_clim['DATE_MD'] != '02-29')]
         self.data_daily = df_clim
+
+
+    def filter_to_date(self):
+        """
+        calculate climate dataset
+        :return:
+        """
+        df_clim = self.daily_dataset.data[(self.daily_dataset.data['DATE'] >= self.start) &
+                                                       (self.daily_dataset.data['DATE'] <= self.end)]
+        df_clim = df_clim[(df_clim['DATE_MD'] != '02-29')]
+        return df_clim
 
     def _impute_feb29(self):
         """
@@ -277,20 +294,42 @@ class NOAAPlotterMonthlyClimateDataset(object):
         """
         pass
 
-    def _calculate_climate_statistics(self):
+    def calculate_monthly_statistics(self):
 
         df_out = pd.DataFrame()
-        df_out['tmean_doy_mean'] = self.data_daily[['DATE', 'TMEAN']].groupby(self.data_daily['DATE_YM']).mean().TMEAN
-        df_out['tmean_doy_std'] = self.data_daily[['DATE', 'TMEAN']].groupby(self.data_daily['DATE_YM']).std().TMEAN
-        df_out['tmax_doy_max'] = self.data_daily[['DATE', 'TMAX']].groupby(self.data_daily['DATE_YM']).max().TMAX
-        df_out['tmax_doy_std'] = self.data_daily[['DATE', 'TMAX']].groupby(self.data_daily['DATE_YM']).std().TMAX
-        df_out['tmin_doy_min'] = self.data_daily[['DATE', 'TMIN']].groupby(self.data_daily['DATE_YM']).min().TMIN
-        df_out['tmin_doy_std'] = self.data_daily[['DATE', 'TMIN']].groupby(self.data_daily['DATE_YM']).std().TMIN
-        if 'SNOW' in self.data_daily.columns:
-            df_out['snow_doy_mean'] = self.data_daily[['DATE', 'SNOW']].groupby(self.data_daily['DATE_YM']).mean().SNOW
-        df_out['prcp_sum'] = self.data_daily[['DATE', 'PRCP']].groupby(self.data_daily['DATE_YM']).sum().PRCP
-        df_out = df_out.set_index('DATE_YM', drop=False)
-        self.data = df_out
+        data_filtered = self.filter_to_date()
+        df_out['tmean_doy_mean'] = data_filtered[['DATE', 'TMEAN']].groupby(data_filtered['DATE_YM']).mean().TMEAN
+        df_out['tmean_doy_std'] = data_filtered[['DATE', 'TMEAN']].groupby(data_filtered['DATE_YM']).std().TMEAN
+        df_out['tmax_doy_max'] = data_filtered[['DATE', 'TMAX']].groupby(data_filtered['DATE_YM']).max().TMAX
+        df_out['tmax_doy_std'] = data_filtered[['DATE', 'TMAX']].groupby(data_filtered['DATE_YM']).std().TMAX
+        df_out['tmin_doy_min'] = data_filtered[['DATE', 'TMIN']].groupby(data_filtered['DATE_YM']).min().TMIN
+        df_out['tmin_doy_std'] = data_filtered[['DATE', 'TMIN']].groupby(data_filtered['DATE_YM']).std().TMIN
+        if 'SNOW' in data_filtered.columns:
+            df_out['snow_doy_mean'] = data_filtered[['DATE', 'SNOW']].groupby(data_filtered['DATE_YM']).mean().SNOW
+        df_out['prcp_sum'] = data_filtered[['DATE', 'PRCP']].groupby(data_filtered['DATE_YM']).sum().PRCP
+        #df_out = df_out.set_index('DATE_YM', drop=False)
+        self.monthly_aggregate = df_out
+
+    def calculate_monthly_climate(self):
+
+        df_out = pd.DataFrame()
+        data_filtered = self.filter_to_date()
+
+        data_filtered['DATE'] = data_filtered.apply(lambda x: parse_dates_YM(x['DATE_YM']), axis=1)
+        data_filtered['Month'] = data_filtered.apply(lambda x: parse_dates_YM(x['DATE_YM']).month, axis=1)
+        data_filtered['Year'] = data_filtered.apply(lambda x: parse_dates_YM(x['DATE_YM']).year, axis=1)
+
+        df_out['tmean_doy_mean'] = data_filtered[['DATE', 'TMEAN']].groupby(data_filtered['Month']).mean().TMEAN
+        df_out['tmean_doy_std'] = data_filtered[['DATE', 'TMEAN']].groupby(data_filtered['Month']).std().TMEAN
+        df_out['tmax_doy_max'] = data_filtered[['DATE', 'TMAX']].groupby(data_filtered['Month']).max().TMAX
+        df_out['tmax_doy_std'] = data_filtered[['DATE', 'TMAX']].groupby(data_filtered['Month']).std().TMAX
+        df_out['tmin_doy_min'] = data_filtered[['DATE', 'TMIN']].groupby(data_filtered['Month']).min().TMIN
+        df_out['tmin_doy_std'] = data_filtered[['DATE', 'TMIN']].groupby(data_filtered['Month']).std().TMIN
+        if 'SNOW' in data_filtered.columns:
+            df_out['snow_doy_mean'] = data_filtered[['DATE', 'SNOW']].groupby(data_filtered['Month']).mean().SNOW
+        df_out['prcp_sum'] = data_filtered[['DATE', 'PRCP']].groupby(data_filtered['Month']).mean().PRCP
+        #df_out = df_out.set_index('DATE_YM', drop=False)
+        self.monthly_climate = df_out
 
     def _make_report(self):
         """

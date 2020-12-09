@@ -14,6 +14,7 @@ import numpy as np
 from .utils import *
 from .dataset import NOAAPlotterDailySummariesDataset as Dataset
 from .dataset import NOAAPlotterDailyClimateDataset as DS_daily
+from .dataset import NOAAPlotterMonthlyClimateDataset as DS_monthly
 
 pd.plotting.register_matplotlib_converters()
 
@@ -52,7 +53,10 @@ class NOAAPlotter(object):
         self.dataset = Dataset(input_filepath,
                                location=location,
                                remove_feb29=remove_feb29)
+
+        # TODO: move to respective functions?
         self.df_clim_ = DS_daily(self.dataset, filtersize=climate_filtersize)
+        #
 
     def _make_short_dateseries(self, start_date, end_date):
 
@@ -319,17 +323,27 @@ class NOAAPlotter(object):
                 legend_label_below = ''
                 legend_label_above = 'Monthly Precipitation'
 
-        data = self.dataset.get_monthly_stats(self.dataset.data.set_index('DATE', drop=False)).reset_index()
-        data_clim = self.dataset.get_monthy_climate(self.df_clim_)
+        #NOAAPlotterDailySummariesDataset()h
+
+        # TODO: MonthlyDatasets (full + climate) --> make diff
+        data_monthly = DS_monthly(self.dataset, start=start_date, end=end_date)
+        data_monthly.calculate_monthly_statistics()
+        data_clim = DS_monthly(self.dataset, start=self.climate_start, end=self.climate_end)
+        data_clim.calculate_monthly_climate()
+        #data = self.dataset.get_monthly_stats(self.dataset.data.set_index('DATE', drop=False)).reset_index()
+
+        data = data_monthly.monthly_aggregate.reset_index(drop=False)
+        df_clim = data_clim.monthly_climate.reset_index(drop=False)
+
 
         data['DATE'] = data.apply(lambda x: parse_dates_YM(x['DATE_YM']), axis=1)
         data['Month'] = data.apply(lambda x: parse_dates_YM(x['DATE_YM']).month, axis=1)
         data['Year'] = data.apply(lambda x: parse_dates_YM(x['DATE_YM']).year, axis=1)
-        data = data.set_index('Month', drop=False).join(data_clim.set_index('Month', drop=False),
+        data = data.set_index('Month', drop=False).join(df_clim.set_index('Month', drop=False),
                                                         rsuffix='_clim').sort_values(
             'DATE_YM')
-        data['tmean_diff'] = data['tmean_doy_mean'] - data['tmean_mean']
-        data['prcp_diff'] = data['prcp_sum'] - data['prcp_mean']
+        data['tmean_diff'] = data['tmean_doy_mean'] - data['tmean_doy_mean_clim']
+        data['prcp_diff'] = data['prcp_sum'] - data['prcp_sum_clim']
         data = data.set_index('DATE', drop=False)
 
         if trailing_mean:
