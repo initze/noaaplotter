@@ -12,6 +12,7 @@ import pandas as pd
 from matplotlib import pyplot as plt, dates
 import numpy as np
 from .utils import *
+from .plot_utils import *
 from .dataset import NOAAPlotterDailySummariesDataset as Dataset
 from .dataset import NOAAPlotterDailyClimateDataset as DS_daily
 from .dataset import NOAAPlotterMonthlyClimateDataset as DS_monthly
@@ -287,42 +288,8 @@ class NOAAPlotter(object):
         legend_handle = []
         legend_text = []
 
-        # TODO: move to external file
-        if information == 'Temperature':
-            cmap = 'RdBu_r'
-            fc_low = '#4393c3'
-            fc_high = '#d6604d'
-            if anomaly:
-                value_column = 'tmean_diff'
-                y_label = 'Temperature anomaly [°C]'
-                title = 'Monthly anomaly from climatological mean (1981-2010)'
-                legend_label_above = 'Above average'
-                legend_label_below = 'Below average'
-            else:
-                value_column = 'tmean_doy_mean'
-                y_label = 'Temperature [°C]'
-                title = 'Monthly Mean Temperature'
-                legend_label_above = 'Above freezing'
-                legend_label_below = 'Below freezing'
-
-        elif information == 'Precipitation':
-            fc_low = '#d6604d'
-            fc_high = '#4393c3'
-            if anomaly:
-                cmap = 'RdBu'
-                value_column = 'prcp_diff'
-                y_label = 'Precipitation anomaly [mm]'
-                title = 'Monthly anomaly from climatological mean (1981-2010)'
-                legend_label_above = 'Above average'
-                legend_label_below = 'Below average'
-            else:
-                cmap = 'Blues'
-                value_column = 'prcp_sum'
-                y_label = 'Precipitation [mm]'
-                title = 'Monthly Precipitation'
-                legend_label_below = ''
-                legend_label_above = 'Monthly Precipitation'
-
+        plot_kwargs = setup_monthly_plot_props(information, anomaly)
+        
         # Data Preprocessing
         if parse_dates(end_date) > self.dataset.data['DATE'].max():
             end_date = self.dataset.data['DATE'].max()
@@ -346,21 +313,21 @@ class NOAAPlotter(object):
 
         # trailing mean calculation
         if trailing_mean:
-            data = calc_trailing_mean(data, trailing_mean, value_column, 'trailing_values')
+            data = calc_trailing_mean(data, trailing_mean, plot_kwargs['value_column'], 'trailing_values')
 
         # PLOT part
         fig = plt.figure(figsize=figsize, dpi=dpi)
         ax = fig.add_subplot(111)
-        data_low = data[data[value_column] < 0]
-        data_high = data[data[value_column] >= 0]
-        bar_low = ax.bar(x=data_low['DATE'], height=data_low[value_column], width=30, align='edge', color=fc_low)
+        data_low = data[data[plot_kwargs['value_column']] < 0]
+        data_high = data[data[plot_kwargs['value_column']] >= 0]
+        bar_low = ax.bar(x=data_low['DATE'], height=data_low[plot_kwargs['value_column']], width=30, align='edge', color=plot_kwargs['fc_low'])
         # Fix for absolute values
         if len(bar_low) > 1:
             legend_handle.append(bar_low)
-            legend_text.append(legend_label_below)
-        bar_high = ax.bar(x=data_high['DATE'], height=data_high[value_column], width=30, align='edge', color=fc_high)
+            legend_text.append(plot_kwargs['legend_label_below'])
+        bar_high = ax.bar(x=data_high['DATE'], height=data_high[plot_kwargs['value_column']], width=30, align='edge', color=plot_kwargs['fc_high'])
         legend_handle.append(bar_high)
-        legend_text.append(legend_label_above)
+        legend_text.append(plot_kwargs['legend_label_above'])
         if trailing_mean:
             line_tr_mean = ax.plot(data['DATE'], data['trailing_values'], c='k')
             legend_handle.append(line_tr_mean[0])
@@ -373,9 +340,9 @@ class NOAAPlotter(object):
         ax.set_xlim(start_date, end_date)
 
         # labels
-        ax.set_ylabel(y_label)
+        ax.set_ylabel(plot_kwargs['y_label'])
         ax.set_xlabel('Date')
-        ax.set_title(title)
+        ax.set_title(plot_kwargs['title'])
         # add legend
         ax.legend(legend_handle, legend_text, loc='best', fontsize=legend_fontsize)
 
