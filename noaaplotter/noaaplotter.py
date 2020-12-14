@@ -323,9 +323,9 @@ class NOAAPlotter(object):
                 legend_label_below = ''
                 legend_label_above = 'Monthly Precipitation'
 
-        #NOAAPlotterDailySummariesDataset()h
-
         # Data Preprocessing
+        if parse_dates(end_date) > self.dataset.data['DATE'].max():
+            end_date = self.dataset.data['DATE'].max()
         data_monthly = DS_monthly(self.dataset, start=self.dataset.data['DATE'].min(), end=end_date)#, start=start_date, end=end_date)
         data_monthly.calculate_monthly_statistics()
         data_clim = DS_monthly(self.dataset, start=self.climate_start, end=self.climate_end)
