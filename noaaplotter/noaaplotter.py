@@ -326,7 +326,7 @@ class NOAAPlotter(object):
         #NOAAPlotterDailySummariesDataset()h
 
         # Data Preprocessing
-        data_monthly = DS_monthly(self.dataset, start=start_date, end=end_date)
+        data_monthly = DS_monthly(self.dataset, start=self.dataset.data['DATE'].min(), end=end_date)#, start=start_date, end=end_date)
         data_monthly.calculate_monthly_statistics()
         data_clim = DS_monthly(self.dataset, start=self.climate_start, end=self.climate_end)
         data_clim.calculate_monthly_climate()
