@@ -288,12 +288,13 @@ class NOAAPlotter(object):
         legend_handle = []
         legend_text = []
 
+        # setup plot arguments
         plot_kwargs = setup_monthly_plot_props(information, anomaly)
-        
+
         # Data Preprocessing
         if parse_dates(end_date) > self.dataset.data['DATE'].max():
             end_date = self.dataset.data['DATE'].max()
-        data_monthly = DS_monthly(self.dataset, start=self.dataset.data['DATE'].min(), end=end_date)#, start=start_date, end=end_date)
+        data_monthly = DS_monthly(self.dataset, start=self.dataset.data['DATE'].min(), end=end_date)
         data_monthly.calculate_monthly_statistics()
         data_clim = DS_monthly(self.dataset, start=self.climate_start, end=self.climate_end)
         data_clim.calculate_monthly_climate()
@@ -305,8 +306,7 @@ class NOAAPlotter(object):
         data['Month'] = data.apply(lambda x: parse_dates_YM(x['DATE_YM']).month, axis=1)
         data['Year'] = data.apply(lambda x: parse_dates_YM(x['DATE_YM']).year, axis=1)
         data = data.set_index('Month', drop=False).join(df_clim.set_index('Month', drop=False),
-                                                        rsuffix='_clim').sort_values(
-            'DATE_YM')
+                                                        rsuffix='_clim').sort_values('DATE_YM')
         data['tmean_diff'] = data['tmean_doy_mean'] - data['tmean_doy_mean_clim']
         data['prcp_diff'] = data['prcp_sum'] - data['prcp_sum_clim']
         data = data.set_index('DATE', drop=False)
@@ -320,12 +320,14 @@ class NOAAPlotter(object):
         ax = fig.add_subplot(111)
         data_low = data[data[plot_kwargs['value_column']] < 0]
         data_high = data[data[plot_kwargs['value_column']] >= 0]
-        bar_low = ax.bar(x=data_low['DATE'], height=data_low[plot_kwargs['value_column']], width=30, align='edge', color=plot_kwargs['fc_low'])
+        bar_low = ax.bar(x=data_low['DATE'], height=data_low[plot_kwargs['value_column']], width=30, align='edge',
+                         color=plot_kwargs['fc_low'])
         # Fix for absolute values
         if len(bar_low) > 1:
             legend_handle.append(bar_low)
             legend_text.append(plot_kwargs['legend_label_below'])
-        bar_high = ax.bar(x=data_high['DATE'], height=data_high[plot_kwargs['value_column']], width=30, align='edge', color=plot_kwargs['fc_high'])
+        bar_high = ax.bar(x=data_high['DATE'], height=data_high[plot_kwargs['value_column']], width=30, align='edge',
+                          color=plot_kwargs['fc_high'])
         legend_handle.append(bar_high)
         legend_text.append(plot_kwargs['legend_label_above'])
         if trailing_mean:
