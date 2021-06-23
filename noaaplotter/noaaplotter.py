@@ -11,6 +11,7 @@
 import pandas as pd
 from matplotlib import pyplot as plt, dates
 import numpy as np
+import datetime as dt
 from .utils import *
 from .plot_utils import *
 from .dataset import NOAAPlotterDailySummariesDataset as Dataset
@@ -29,8 +30,8 @@ class NOAAPlotter(object):
                  input_filepath,
                  location=None,
                  remove_feb29=False,
-                 climate_start=pd.datetime(1981, 1, 1),
-                 climate_end=pd.datetime(2010, 12, 31),
+                 climate_start=dt.datetime(1981, 1, 1),
+                 climate_end=dt.datetime(2010, 12, 31),
                  climate_filtersize=7
                  ):
         """

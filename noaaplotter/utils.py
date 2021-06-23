@@ -9,6 +9,7 @@
 
 ########################
 import pandas as pd
+import datetime as dt
 
 
 def parse_dates(date):
@@ -18,8 +19,8 @@ def parse_dates(date):
     :return:
     """
     if isinstance(date, str):
-        return pd.datetime.strptime(date, '%Y-%m-%d')
-    elif isinstance(date, pd.datetime):
+        return dt.datetime.strptime(date, '%Y-%m-%d')
+    elif isinstance(date, dt.datetime):
         return date
     else:
         raise ('Wrong date format. Either use native datetime format or "YYYY-mm-dd"')
@@ -44,8 +45,8 @@ def parse_dates_YM(date):
     :return:
     """
     if isinstance(date, str):
-        return pd.datetime.strptime(date, '%Y-%m')
-    elif isinstance(date, pd.datetime):
+        return dt.datetime.strptime(date, '%Y-%m')
+    elif isinstance(date, dt.datetime):
         return date
     else:
         raise('Wrong date format. Either use native datetime format or "YYYY-mm-dd"')
