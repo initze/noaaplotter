@@ -9,6 +9,7 @@
 
 ########################
 import numpy as np
+import os
 from .utils import *
 
 
@@ -18,14 +19,19 @@ class NOAAPlotterDailySummariesDataset(object):
     """
 
     def __init__(self,
-                 input_filepath,
+                 input_filepath=None,
                  location=None,
                  remove_feb29=False):
+        self.input_switch = None
         self.input_filepath = input_filepath
         self.location = location
+        self.noaa_token = None
+        self.noaa_location = None
         self.remove_feb29 = remove_feb29
         self.data = None
-        self._load_file()
+        self._check_data_loading()
+        if self.input_switch == 'file':
+            self._load_file()
         self._validate_location()
         self._update_datatypes()
         self._get_datestring()
@@ -39,12 +45,32 @@ class NOAAPlotterDailySummariesDataset(object):
         """
         print(self.data['NAME'].unique())
 
+    def _check_data_loading(self):
+        """
+        function check if all requirements for loading options are met
+        File loading:
+        * input_filepath
+        """
+        if os.path.exists(self.input_filepath):
+            self.input_switch ='file'
+        elif self.noaa_token and self.noaa_location:
+            self.input_switch = 'noaa_api'
+        else:
+            raise ImportError("Please enter either correct file path or noaa station_id and API token")
+
+
     def _load_file(self):
         """
         load csv file into Pandas DataFrame
         :return:
         """
         self.data = pd.read_csv(self.input_filepath)
+
+    def _load_noaa(self):
+        """
+        load data through NOAA API
+        """
+        pass
 
     def _validate_location(self):
         """

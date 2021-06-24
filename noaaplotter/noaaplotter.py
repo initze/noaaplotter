@@ -27,7 +27,7 @@ class NOAAPlotter(object):
     """
 
     def __init__(self,
-                 input_filepath,
+                 input_filepath=None,
                  location=None,
                  remove_feb29=False,
                  climate_start=dt.datetime(1981, 1, 1),
@@ -59,7 +59,6 @@ class NOAAPlotter(object):
         # TODO: move to respective functions?
         self.df_clim_ = DS_daily(self.dataset, filtersize=climate_filtersize)
         #
-
     def _make_short_dateseries(self, start_date, end_date):
 
         x_dates = pd.DataFrame()
