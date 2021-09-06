@@ -32,6 +32,8 @@ class NOAAPlotterDailySummariesDataset(object):
         self._check_data_loading()
         if self.input_switch == 'file':
             self._load_file()
+        elif self.input_switch == 'noaa_api':
+            self._load_noaa()
         self._validate_location()
         self._update_datatypes()
         self._get_datestring()
@@ -71,6 +73,11 @@ class NOAAPlotterDailySummariesDataset(object):
         load data through NOAA API
         """
         pass
+
+    def _save_noaa(self):
+        """
+        save loaded NOAA API data to temporary csv file
+        """
 
     def _validate_location(self):
         """

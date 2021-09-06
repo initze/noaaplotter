@@ -72,6 +72,8 @@ def main():
 
     args = parser.parse_args()
 
+    ##### Download from NOAA #####
+
     ##### Run Plotting function #####
     n = NOAAPlotter(args.infile,
                     location=args.location,

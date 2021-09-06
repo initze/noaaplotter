@@ -5,7 +5,7 @@
 # Credits here
 # author: Ingmar Nitze, Alfred Wegener Institute for Polar and Marine Research
 # contact: ingmar.nitze@awi.de
-# version: 2020-12-09
+# version: 2021-09-06
 
 ########################
 import pandas as pd

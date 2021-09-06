@@ -10,6 +10,8 @@
 ########################
 import pandas as pd
 import datetime as dt
+from datetime import timedelta
+import requests, json, csv
 
 
 def parse_dates(date):
@@ -50,3 +52,36 @@ def parse_dates_YM(date):
         return date
     else:
         raise('Wrong date format. Either use native datetime format or "YYYY-mm-dd"')
+
+
+def download_from_noaa(station_id, token):
+    """
+    function to download from NOAA API
+    """
+    pass
+    #return df
+
+
+def dl_noaa_api(i, dtypes_string, station_id, Token, date_start, date_end, split_size):
+    dt_start = dt.strptime(date_start, '%Y-%m-%d')
+    dt_end = dt.strptime(date_end, '%Y-%m-%d')
+
+    split_start = dt_start + timedelta(days=i)
+    split_end = dt_start + timedelta(days=i + split_size - 1)
+    if split_end > dt_end:
+        split_end = dt_end
+
+    date_start_split = split_start.strftime('%Y-%m-%d')
+    date_end_split = split_end.strftime('%Y-%m-%d')
+
+    # print(date_start_split)
+    # print(date_end_split)
+
+    # make the api call
+    r = requests.get(
+        f'https://www.ncdc.noaa.gov/cdo-web/api/v2/data?datasetid=GHCND&{dtypes_string}&limit=1000&stationid={station_id}&startdate={date_start_split}&enddate={date_end_split}',
+        headers={'token': Token})
+    # load the api response as a json
+    d = json.loads(r.text)
+
+    return pd.DataFrame(d['results'])
