@@ -143,34 +143,34 @@ class NOAAPlotter(object):
 
             # PLOT
         fig = plt.figure(figsize=figsize, dpi=dpi)
-        ax = fig.add_subplot(211)
-        ax2 = fig.add_subplot(212, sharex=ax)
+        ax_t = fig.add_subplot(211)
+        ax_p = fig.add_subplot(212, sharex=ax_t)
 
         # climate series (red line)
-        cm, = ax.plot(x_dates['DATE'], y_clim, c='k', alpha=0.5, lw=2)
-        cm_hi, = ax.plot(x_dates['DATE'], y_clim_std_hi, c='r', ls='--', alpha=0.4, lw=1)
-        cm_low, = ax.plot(x_dates['DATE'], y_clim_std_lo, c='r', ls='--', alpha=0.4, lw=1)
+        cm, = ax_t.plot(x_dates['DATE'], y_clim, c='k', alpha=0.5, lw=2)
+        cm_hi, = ax_t.plot(x_dates['DATE'], y_clim_std_hi, c='r', ls='--', alpha=0.4, lw=1)
+        cm_low, = ax_t.plot(x_dates['DATE'], y_clim_std_lo, c='r', ls='--', alpha=0.4, lw=1)
 
         # observed series (grey line)
-        fb, = ax.plot(x_dates_short['DATE'], df_obs['TMEAN'], c='k', alpha=0.4, lw=1.2)
+        fb, = ax_t.plot(x_dates_short['DATE'], df_obs['TMEAN'], c='k', alpha=0.4, lw=1.2)
 
         # difference of observed and climate (grey area)
-        fill_r = ax.fill_between(x_dates_short['DATE'].values,
+        fill_r = ax_t.fill_between(x_dates_short['DATE'].values,
                                  y1=t_above,
                                  y2=y_clim.loc[clim_locs_short].values,
                                  facecolor='#d6604d',
                                  alpha=0.5)
-        fill_rr = ax.fill_between(x_dates_short['DATE'].values,
+        fill_rr = ax_t.fill_between(x_dates_short['DATE'].values,
                                   y1=t_above_std,
                                   y2=y_clim_std_hi.loc[clim_locs_short].values,
                                   facecolor='#d6604d',
                                   alpha=0.7)
-        fill_b = ax.fill_between(x_dates_short['DATE'].values,
+        fill_b = ax_t.fill_between(x_dates_short['DATE'].values,
                                  y1=y_clim.loc[clim_locs_short].values,
                                  y2=t_below,
                                  facecolor='#4393c3',
                                  alpha=0.5)
-        fill_bb = ax.fill_between(x_dates_short['DATE'].values,
+        fill_bb = ax_t.fill_between(x_dates_short['DATE'].values,
                                   y1=y_clim_std_lo.loc[clim_locs_short].values,
                                   y2=t_below_std,
                                   facecolor='#4393c3',
@@ -189,23 +189,25 @@ class NOAAPlotter(object):
             y_max = local_obs[local_max]['TMEAN']
             x_min = local_obs[local_min]['DATE']
             y_min = local_obs[local_min]['TMEAN']
-            xtreme_hi = ax.scatter(x_max.values, y_max.values, c='#d6604d', marker='x')
-            xtreme_lo = ax.scatter(x_min.values, y_min.values, c='#4393c3', marker='x')
+            xtreme_hi = ax_t.scatter(x_max.values, y_max.values, c='#d6604d', marker='x')
+            xtreme_lo = ax_t.scatter(x_min.values, y_min.values, c='#4393c3', marker='x')
 
-        xlim = ax.get_xlim()
-        ax.hlines(0, *xlim, linestyles='--')
+        xlim = ax_t.get_xlim()
+        ax_t.hlines(0, *xlim, linestyles='--')
         # grid
-        ax.grid()
+        ax_t.grid()
 
         # labels
-        ax.set_xlim(start_date, end_date)
+        ax_t.set_xlim(start_date, end_date)
         if not (plot_tmin == 'auto' and plot_tmin == 'auto'):
-            ax.set_ylim(plot_tmin, plot_tmax)
-        ax.set_ylabel('Temperature in °C')
-        ax.set_xlabel('Date')
+            ax_t.set_ylim(plot_tmin, plot_tmax)
+        ax_t.set_ylabel('Temperature in °C')
+        ax_t.set_xlabel('Date')
+        """"
         ax.set_title('Observed temperatures {s} to {e} vs. climatological mean (1981-2010)'.format(
             s=start_date.strftime('%Y-%m-%d'),
             e=end_date.strftime('%Y-%m-%d')))
+        """
 
         # add legend
         legend_handle = [fb, cm, cm_hi, fill_r, fill_b]
@@ -217,7 +219,7 @@ class NOAAPlotter(object):
         if plot_extrema:
             legend_handle.extend([xtreme_hi, xtreme_lo])
             legend_text.extend(['Record High on Date', 'Record Low on Date'])
-        ax.legend(legend_handle, legend_text, loc='best', fontsize=legend_fontsize)
+        ax_t.legend(legend_handle, legend_text, loc='upper center', fontsize=legend_fontsize, ncol=4, bbox_to_anchor=(0.5, -0.2))
 
         # PRECIPITATION#
         # legend handles
@@ -225,7 +227,7 @@ class NOAAPlotter(object):
         legend_text = []
 
         # precipitation
-        rain = ax2.bar(x=x_dates_short['DATE'].values,
+        rain = ax_p.bar(x=x_dates_short['DATE'].values,
                        height=df_obs['PRCP'].values,
                        fc='#4393c3',
                        alpha=1)
@@ -233,19 +235,19 @@ class NOAAPlotter(object):
         legend_text.append('Precipitation')
 
         # grid
-        ax2.grid()
+        ax_p.grid()
         # labels
-        ax2.set_ylabel('Precipitation in mm')
-        ax2.set_xlabel('Date')
+        ax_p.set_ylabel('Precipitation in mm')
+        ax_p.set_xlabel('Date')
         # y-axis scaling
-        ax2.set_ylim(bottom=0)
+        ax_p.set_ylim(bottom=0)
         if isinstance(plot_pmax, (int, float)):
-            ax2.set_ylim(top=plot_pmax)
+            ax_p.set_ylim(top=plot_pmax)
 
         # snow
         # TODO: make snowcheck
         if (show_snow_accumulation) and ('SNOW' in df_obs.columns):
-            ax2_snow = ax2.twinx()
+            ax2_snow = ax_p.twinx()
             # plots
             sn_acc = ax2_snow.fill_between(x=x_dates_short.loc[:last_snow_date, 'DATE'].values,
                                            y1=snow_acc.loc[:last_snow_date] / 10,
@@ -266,9 +268,11 @@ class NOAAPlotter(object):
             if isinstance(plot_snowmax, (int, float)):
                 ax2_snow.set_ylim(top=plot_snowmax)
 
-        ax2.legend(legend_handle, legend_text, loc='upper left', fontsize=legend_fontsize)
+        ax_p.legend(legend_handle, legend_text, loc='upper left', fontsize=legend_fontsize)
+        """
         ax2.set_title('Precipitation {s} to {e}'.format(s=start_date.strftime('%Y-%m-%d'),
                                                         e=end_date.strftime('%Y-%m-%d')))
+        """
         fig.tight_layout()
 
         # Save Figure
