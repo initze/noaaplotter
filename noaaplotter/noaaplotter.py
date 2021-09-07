@@ -7,16 +7,15 @@
 # contact: ingmar.nitze@awi.de
 # version: 2021-09-06
 
-########################
-import pandas as pd
-from matplotlib import pyplot as plt, dates
 import numpy as np
-import datetime as dt
-from .utils import *
-from .plot_utils import *
-from .dataset import NOAAPlotterDailySummariesDataset as Dataset
+########################
+from matplotlib import pyplot as plt, dates
+
 from .dataset import NOAAPlotterDailyClimateDataset as DS_daily
+from .dataset import NOAAPlotterDailySummariesDataset as Dataset
 from .dataset import NOAAPlotterMonthlyClimateDataset as DS_monthly
+from .plot_utils import *
+from .utils import *
 
 pd.plotting.register_matplotlib_converters()
 
@@ -59,6 +58,7 @@ class NOAAPlotter(object):
         # TODO: move to respective functions?
         self.df_clim_ = DS_daily(self.dataset, filtersize=climate_filtersize)
         #
+
     def _make_short_dateseries(self, start_date, end_date):
 
         x_dates = pd.DataFrame()
@@ -156,25 +156,25 @@ class NOAAPlotter(object):
 
         # difference of observed and climate (grey area)
         fill_r = ax_t.fill_between(x_dates_short['DATE'].values,
-                                 y1=t_above,
-                                 y2=y_clim.loc[clim_locs_short].values,
-                                 facecolor='#d6604d',
-                                 alpha=0.5)
+                                   y1=t_above,
+                                   y2=y_clim.loc[clim_locs_short].values,
+                                   facecolor='#d6604d',
+                                   alpha=0.5)
         fill_rr = ax_t.fill_between(x_dates_short['DATE'].values,
-                                  y1=t_above_std,
-                                  y2=y_clim_std_hi.loc[clim_locs_short].values,
-                                  facecolor='#d6604d',
-                                  alpha=0.7)
+                                    y1=t_above_std,
+                                    y2=y_clim_std_hi.loc[clim_locs_short].values,
+                                    facecolor='#d6604d',
+                                    alpha=0.7)
         fill_b = ax_t.fill_between(x_dates_short['DATE'].values,
-                                 y1=y_clim.loc[clim_locs_short].values,
-                                 y2=t_below,
-                                 facecolor='#4393c3',
-                                 alpha=0.5)
+                                   y1=y_clim.loc[clim_locs_short].values,
+                                   y2=t_below,
+                                   facecolor='#4393c3',
+                                   alpha=0.5)
         fill_bb = ax_t.fill_between(x_dates_short['DATE'].values,
-                                  y1=y_clim_std_lo.loc[clim_locs_short].values,
-                                  y2=t_below_std,
-                                  facecolor='#4393c3',
-                                  alpha=0.7)
+                                    y1=y_clim_std_lo.loc[clim_locs_short].values,
+                                    y2=t_below_std,
+                                    facecolor='#4393c3',
+                                    alpha=0.7)
 
         # plot extremes
         if plot_extrema:
@@ -203,36 +203,30 @@ class NOAAPlotter(object):
             ax_t.set_ylim(plot_tmin, plot_tmax)
         ax_t.set_ylabel('Temperature in °C')
         ax_t.set_xlabel('Date')
-        """"
-        ax.set_title('Observed temperatures {s} to {e} vs. climatological mean (1981-2010)'.format(
-            s=start_date.strftime('%Y-%m-%d'),
-            e=end_date.strftime('%Y-%m-%d')))
-        """
 
         # add legend
-        legend_handle = [fb, cm, cm_hi, fill_r, fill_b]
-        legend_text = ['Observed Temperatures',
-                       'Climatological Mean',
-                       'Std of Climatological Mean',
-                       'Above average Temperature',
-                       'Below average Temperature']
+        legend_handle_t = [fb, cm, cm_hi, fill_r, fill_b]
+        legend_text_t = ['Observed Temperatures',
+                         'Climatological Mean',
+                         'Std of Climatological Mean',
+                         'Above average Temperature',
+                         'Below average Temperature']
         if plot_extrema:
-            legend_handle.extend([xtreme_hi, xtreme_lo])
-            legend_text.extend(['Record High on Date', 'Record Low on Date'])
-        ax_t.legend(legend_handle, legend_text, loc='upper center', fontsize=legend_fontsize, ncol=4, bbox_to_anchor=(0.5, -0.2))
+            legend_handle_t.extend([xtreme_hi, xtreme_lo])
+            legend_text_t.extend(['Record High on Date', 'Record Low on Date'])
 
         # PRECIPITATION#
         # legend handles
-        legend_handle = []
-        legend_text = []
+        legend_handle_p = []
+        legend_text_p = []
 
         # precipitation
         rain = ax_p.bar(x=x_dates_short['DATE'].values,
-                       height=df_obs['PRCP'].values,
-                       fc='#4393c3',
-                       alpha=1)
-        legend_handle.append(rain)
-        legend_text.append('Precipitation')
+                        height=df_obs['PRCP'].values,
+                        fc='#4393c3',
+                        alpha=1)
+        legend_handle_p.append(rain)
+        legend_text_p.append('Precipitation')
 
         # grid
         ax_p.grid()
@@ -261,18 +255,28 @@ class NOAAPlotter(object):
             # y-axis label
             ax2_snow.set_ylabel('Cumulative Snowfall in cm')
             # legend
-            legend_handle.append(sn_acc)
-            legend_text.append('Cumulative Snowfall')
+            legend_handle_p.append(sn_acc)
+            legend_text_p.append('Cumulative Snowfall')
             # y-axis scaling
             ax2_snow.set_ylim(bottom=0)
             if isinstance(plot_snowmax, (int, float)):
                 ax2_snow.set_ylim(top=plot_snowmax)
 
-        ax_p.legend(legend_handle, legend_text, loc='upper left', fontsize=legend_fontsize)
-        """
-        ax2.set_title('Precipitation {s} to {e}'.format(s=start_date.strftime('%Y-%m-%d'),
-                                                        e=end_date.strftime('%Y-%m-%d')))
-        """
+        # SHow nodata
+        for ax in [ax_t, ax_p]:
+            lo, hi = ax.get_ylim()
+            nanvals = x_dates_short['DATE'].loc[pd.isna(df_obs['TMEAN'])]
+            nan_bar = ax.bar(x=nanvals, height=hi - lo, bottom=lo, width=1, edgecolor=None, facecolor='k', alpha=0.2)
+        legend_handle_t.append(nan_bar)
+        legend_text_t.append('No Data')
+        legend_handle_p.append(nan_bar)
+        legend_text_p.append('No Data')
+
+        # add Legends
+        ax_t.legend(legend_handle_t, legend_text_t, loc='upper center', fontsize=legend_fontsize, ncol=4,
+                    bbox_to_anchor=(0.5, -0.2))
+        ax_p.legend(legend_handle_p, legend_text_p, loc='upper left', fontsize=legend_fontsize)
+
         fig.tight_layout()
 
         # Save Figure
