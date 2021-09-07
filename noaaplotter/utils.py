@@ -55,16 +55,17 @@ def parse_dates_YM(date):
 
 
 def download_from_noaa(station_id, token):
-    """
-    function to download from NOAA API
-    """
+
     pass
     #return df
 
 
 def dl_noaa_api(i, dtypes_string, station_id, Token, date_start, date_end, split_size):
-    dt_start = dt.strptime(date_start, '%Y-%m-%d')
-    dt_end = dt.strptime(date_end, '%Y-%m-%d')
+    """
+    function to download from NOAA API
+    """
+    dt_start = dt.datetime.strptime(date_start, '%Y-%m-%d')
+    dt_end = dt.datetime.strptime(date_end, '%Y-%m-%d')
 
     split_start = dt_start + timedelta(days=i)
     split_end = dt_start + timedelta(days=i + split_size - 1)

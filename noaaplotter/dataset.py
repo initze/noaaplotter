@@ -54,12 +54,11 @@ class NOAAPlotterDailySummariesDataset(object):
         * input_filepath
         """
         if os.path.exists(self.input_filepath):
-            self.input_switch ='file'
+            self.input_switch = 'file'
         elif self.noaa_token and self.noaa_location:
             self.input_switch = 'noaa_api'
         else:
             raise ImportError("Please enter either correct file path or noaa station_id and API token")
-
 
     def _load_file(self):
         """
@@ -84,10 +83,18 @@ class NOAAPlotterDailySummariesDataset(object):
         raise error and message if location name cannot be found
         :return:
         """
-        filt = self.data['NAME'].str.lower().str.contains(self.location.lower())
-        if filt.sum() == 0:
-            raise ValueError('Location Name is not valid! Valid Location identifiers: {0}'
-                             .format(self.data['NAME'].unique()))
+        if not self.location and len(pd.unique(self.data['NAME']) == 1):
+            pass
+        elif not self.location and len(pd.unique(self.data['NAME']) > 1):
+            raise ValueError(
+                'There is more than one location in the dataset. Please choose a location using the -loc option! '
+                'Valid Location identifiers: {0} '
+                .format(self.data['NAME'].unique()))
+        else:
+            filt = self.data['NAME'].str.lower().str.contains(self.location.lower())
+            if filt.sum() == 0:
+                raise ValueError('Location Name is not valid! Valid Location identifiers: {0}'
+                                 .format(self.data['NAME'].unique()))
 
     def _update_datatypes(self):
         """
@@ -226,7 +233,7 @@ class NOAAPlotterDailyClimateDataset(object):
         :return:
         """
         df_clim = self.daily_dataset.data[(self.daily_dataset.data['DATE'] >= self.start) &
-                                                       (self.daily_dataset.data['DATE'] <= self.end)]
+                                          (self.daily_dataset.data['DATE'] <= self.end)]
         df_clim = df_clim[(df_clim['DATE_MD'] != '02-29')]
         self.data_daily = df_clim
 
@@ -301,7 +308,7 @@ class NOAAPlotterMonthlyClimateDataset(object):
         :return:
         """
         df_clim = self.daily_dataset.data[(self.daily_dataset.data['DATE'] >= self.start) &
-                                                       (self.daily_dataset.data['DATE'] <= self.end)]
+                                          (self.daily_dataset.data['DATE'] <= self.end)]
         df_clim = df_clim[(df_clim['DATE_MD'] != '02-29')]
         self.data_daily = df_clim
 
@@ -311,7 +318,7 @@ class NOAAPlotterMonthlyClimateDataset(object):
         :return:
         """
         df_clim = self.daily_dataset.data[(self.daily_dataset.data['DATE'] >= self.start) &
-                                                       (self.daily_dataset.data['DATE'] <= self.end)]
+                                          (self.daily_dataset.data['DATE'] <= self.end)]
         df_clim = df_clim[(df_clim['DATE_MD'] != '02-29')]
         return df_clim
 
@@ -323,6 +330,10 @@ class NOAAPlotterMonthlyClimateDataset(object):
         pass
 
     def calculate_monthly_statistics(self):
+        """
+        Function to calculate monthly statistics.
+        :return:
+        """
 
         df_out = pd.DataFrame()
         data_filtered = self.filter_to_date()
@@ -338,7 +349,10 @@ class NOAAPlotterMonthlyClimateDataset(object):
         self.monthly_aggregate = df_out
 
     def calculate_monthly_climate(self):
-
+        """
+        Function to calculate monthly climate statistics.
+        :return:
+        """
         df_out = pd.DataFrame()
         data_filtered = self.filter_to_date()
 
@@ -355,7 +369,7 @@ class NOAAPlotterMonthlyClimateDataset(object):
         if 'SNOW' in data_filtered.columns:
             df_out['snow_doy_mean'] = data_filtered[['DATE', 'SNOW']].groupby(data_filtered['Month']).mean().SNOW
         df_out['prcp_sum'] = data_filtered[['DATE', 'PRCP']].groupby(data_filtered['Month']).mean().PRCP * 30
-        #df_out = df_out.set_index('DATE_YM', drop=False)
+        # df_out = df_out.set_index('DATE_YM', drop=False)
         self.monthly_climate = df_out
 
     def _make_report(self):
