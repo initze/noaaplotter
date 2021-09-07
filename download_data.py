@@ -5,6 +5,7 @@ import argparse
 import csv
 from datetime import datetime
 import numpy as np
+import os
 import pandas as pd
 import tqdm
 from joblib import delayed, Parallel
@@ -45,6 +46,10 @@ def main():
 
     args = parser.parse_args()
 
+    # remove file if exists
+    if os.path.exists(args.output_file):
+        os.remove(args.output_file)
+
     # Make query string
     dtypes_string = '&'.join([f'datatypeid={dt}' for dt in args.datatypes])
 
@@ -62,8 +67,8 @@ def main():
     print('Downloading data through NOAA API')
     datasets_list = Parallel(n_jobs=4)(
         delayed(dl_noaa_api)(i, dtypes_string, args.station_id, args.token, args.start_date, args.end_date, split_size)
-        for i in
-        tqdm.tqdm(split_range[:]))
+        for i in tqdm.tqdm(split_range[:])
+    )
 
     # Merge subsets and create DataFrame
     df = pd.concat(datasets_list)
@@ -95,7 +100,6 @@ def main():
 
     print(f'Saving data to {args.output_file}')
     df_final.to_csv(args.output_file, index=False, quoting=csv.QUOTE_ALL)
-
 
 if __name__ == "__main__":
     main()

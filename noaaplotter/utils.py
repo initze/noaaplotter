@@ -11,7 +11,7 @@
 import pandas as pd
 import datetime as dt
 from datetime import timedelta
-import requests, json, csv
+import requests, json
 
 
 def parse_dates(date):
@@ -75,9 +75,6 @@ def dl_noaa_api(i, dtypes_string, station_id, Token, date_start, date_end, split
     date_start_split = split_start.strftime('%Y-%m-%d')
     date_end_split = split_end.strftime('%Y-%m-%d')
 
-    # print(date_start_split)
-    # print(date_end_split)
-
     # make the api call
     r = requests.get(
         f'https://www.ncdc.noaa.gov/cdo-web/api/v2/data?datasetid=GHCND&{dtypes_string}&limit=1000&stationid={station_id}&startdate={date_start_split}&enddate={date_end_split}',
@@ -85,4 +82,9 @@ def dl_noaa_api(i, dtypes_string, station_id, Token, date_start, date_end, split
     # load the api response as a json
     d = json.loads(r.text)
 
-    return pd.DataFrame(d['results'])
+    # workaround to skip empty returns (no data within period)
+    try:
+        result = pd.DataFrame(d['results'])
+    except:
+        result = None
+    return result
