@@ -15,6 +15,10 @@ numpy
 
 ## Examples
 
+### Download daily summaries (temperature + precipitation) from Kotzebue (or other station) from 1970-01-01 until 2021-12-31 
+
+`python download_data.py -o ./data/kotzebue.csv -sid GHCND:USW00026616 -start 1970-01-01 -end 2021-12-31 -t <NOAA API Token>`
+  
 ### Daily Temperature and Precipitation values vs. Climate
 #### Entire year 1 January until 31 December
 
