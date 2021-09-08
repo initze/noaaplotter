@@ -58,7 +58,7 @@ def main():
     dt_end = datetime.strptime(args.end_date, '%Y-%m-%d')
     # calculate number of days
     n_days = (dt_end - dt_start).days
-    # calculate nuber of splits to fit into 1000 lines/rows
+    # calculate number of splits to fit into 1000 lines/rows
     split_size = np.floor(1000 / len(args.datatypes))
     # calculate splits
     split_range = np.arange(0, n_days, split_size)
@@ -86,7 +86,6 @@ def main():
                           sort=True).reset_index(
         drop=False)
 
-    df_merged['DATE'] = df_merged['index']
     df_merged['STATION'] = args.station_id
     df_merged['NAME'] = args.loc_name
 
@@ -100,6 +99,7 @@ def main():
 
     print(f'Saving data to {args.output_file}')
     df_final.to_csv(args.output_file, index=False, quoting=csv.QUOTE_ALL)
+
 
 if __name__ == "__main__":
     main()
