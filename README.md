@@ -24,7 +24,9 @@ numpy
 
 `python plot_daily.py -infile ./data/kotzebue.csv -loc Kotzebue -start 1992-01-01 -end 1992-12-31 -t_range -45 25 -p_range 50 -plot`
 
-![alt text](https://raw.githubusercontent.com/initze/noaaplotter/master/figures/daily_series_Kotzebue_1992.png "Mean monthly temperatures with 12 months trailing mean")
+
+![alt text](https://user-images.githubusercontent.com/4864803/132648353-d1792234-dc68-4baf-a608-5aa5fe6899a8.png "Mean monthly temperatures with 12 months trailing mean")
+
 
 #### Winter configuration with cumulative snowfall: July 1 until June 30
 
