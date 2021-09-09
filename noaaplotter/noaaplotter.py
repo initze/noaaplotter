@@ -262,15 +262,20 @@ class NOAAPlotter(object):
             if isinstance(plot_snowmax, (int, float)):
                 ax2_snow.set_ylim(top=plot_snowmax)
 
-        # SHow nodata
-        for ax in [ax_t, ax_p]:
-            lo, hi = ax.get_ylim()
-            nanvals = x_dates_short['DATE'].loc[pd.isna(df_obs['TMEAN'])]
-            nan_bar = ax.bar(x=nanvals, height=hi - lo, bottom=lo, width=1, edgecolor=None, facecolor='k', alpha=0.2)
-        legend_handle_t.append(nan_bar)
-        legend_text_t.append('No Data')
-        legend_handle_p.append(nan_bar)
-        legend_text_p.append('No Data')
+        # Show nodata - make function
+        lo, hi = ax_t.get_ylim()
+        nanvals_t = x_dates_short['DATE'].loc[pd.isna(df_obs['TMEAN'])]
+        nan_bar_t = ax_t.bar(x=nanvals_t, height=hi - lo, bottom=lo, width=1, edgecolor=None, facecolor='k', alpha=0.2)
+        if len(nan_bar_t)>0:
+            legend_handle_t.append(nan_bar_t)
+            legend_text_t.append('No Data')
+
+        lo, hi = ax_p.get_ylim()
+        nanvals_p = x_dates_short['DATE'].loc[pd.isna(df_obs['PRCP'])]
+        nan_bar_p = ax_p.bar(x=nanvals_p, height=hi - lo, bottom=lo, width=1, edgecolor=None, facecolor='k', alpha=0.2)
+        if len(nan_bar_p) > 0:
+            legend_handle_p.append(nan_bar_p)
+            legend_text_p.append('No Data')
 
         # add Legends
         ax_t.legend(legend_handle_t, legend_text_t, loc='upper center', fontsize=legend_fontsize, ncol=4,
