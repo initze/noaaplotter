@@ -5,7 +5,7 @@
 # Credits here
 # author: Ingmar Nitze, Alfred Wegener Institute for Polar and Marine Research
 # contact: ingmar.nitze@awi.de
-# version: 2020-12-14
+# version: 2021-09-11
 
 ########################
 
@@ -18,8 +18,8 @@ def setup_monthly_plot_props(information, anomaly):
         plot_kwargs['fc_high'] = '#d6604d'
         if anomaly:
             plot_kwargs['value_column'] = 'tmean_diff'
-            plot_kwargs['y_label'] = 'Temperature anomaly [°C]'
-            plot_kwargs['title'] = 'Monthly anomaly from climatological mean (1981-2010)'
+            plot_kwargs['y_label'] = 'Temperature departure [°C]'
+            plot_kwargs['title'] = 'Monthly departure from climatological mean (1981-2010)'
             plot_kwargs['legend_label_above'] = 'Above average'
             plot_kwargs['legend_label_below'] = 'Below average'
         else:
@@ -35,8 +35,8 @@ def setup_monthly_plot_props(information, anomaly):
         if anomaly:
             plot_kwargs['cmap'] = 'RdBu'
             plot_kwargs['value_column'] = 'prcp_diff'
-            plot_kwargs['y_label'] = 'Precipitation anomaly [mm]'
-            plot_kwargs['title'] = 'Monthly anomaly from climatological mean (1981-2010)'
+            plot_kwargs['y_label'] = 'Precipitation departure [mm]'
+            plot_kwargs['title'] = 'Monthly departure from climatological mean (1981-2010)'
             plot_kwargs['legend_label_above'] = 'Above average'
             plot_kwargs['legend_label_below'] = 'Below average'
         else:
