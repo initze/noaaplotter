@@ -147,12 +147,12 @@ class NOAAPlotter(object):
         ax_p = fig.add_subplot(212, sharex=ax_t)
 
         # climate series (red line)
-        cm, = ax_t.plot(x_dates['DATE'], y_clim, c='k', alpha=0.5, lw=2)
-        cm_hi, = ax_t.plot(x_dates['DATE'], y_clim_std_hi, c='r', ls='--', alpha=0.4, lw=1)
-        cm_low, = ax_t.plot(x_dates['DATE'], y_clim_std_lo, c='r', ls='--', alpha=0.4, lw=1)
+        cm, = ax_t.plot(x_dates['DATE'].values, y_clim.values, c='k', alpha=0.5, lw=2)
+        cm_hi, = ax_t.plot(x_dates['DATE'].values, y_clim_std_hi.values, c='r', ls='--', alpha=0.4, lw=1)
+        cm_low, = ax_t.plot(x_dates['DATE'].values, y_clim_std_lo.values, c='r', ls='--', alpha=0.4, lw=1)
 
         # observed series (grey line)
-        fb, = ax_t.plot(x_dates_short['DATE'], df_obs['TMEAN'], c='k', alpha=0.4, lw=1.2)
+        fb, = ax_t.plot(x_dates_short['DATE'].values, df_obs['TMEAN'].values, c='k', alpha=0.4, lw=1.2)
 
         # difference of observed and climate (grey area)
         fill_r = ax_t.fill_between(x_dates_short['DATE'].values,
