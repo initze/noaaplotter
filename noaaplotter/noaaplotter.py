@@ -315,6 +315,10 @@ class NOAAPlotter(object):
         data = data_monthly.monthly_aggregate.reset_index(drop=False)
         df_clim = data_clim.monthly_climate.reset_index(drop=False)
 
+        if plot_kwargs['value_column'] == 'prcp_diff' and df_clim['prcp_sum'].isna().any():
+            print('Invalid precipitation values, information not available!')
+            return None
+
         data['DATE'] = data.apply(lambda x: parse_dates_YM(x['DATE_YM']), axis=1)
         data['Month'] = data.apply(lambda x: parse_dates_YM(x['DATE_YM']).month, axis=1)
         data['Year'] = data.apply(lambda x: parse_dates_YM(x['DATE_YM']).year, axis=1)
