@@ -34,7 +34,7 @@ Download daily summaries (temperature + precipitation) from Kotzebue (or other s
 ### Daily Mean Temperature and Precipitation values vs. Climate
 #### Entire year 1 January until 31 December (e.g. 1992)
 
-`python plot_daily.py -infile ./data/kotzebue.csv -loc Kotzebue -start 1992-01-01 -end 1992-12-31 -t_range -45 25 -p_range 50 -plot`
+`python plot_daily.py -infile data/kotzebue.csv -start 1992-01-01 -end 1992-12-31 -t_range -45 25 -p_range 50 -plot`
 
 ![alt text](https://user-images.githubusercontent.com/4864803/132648353-d1792234-dc68-4baf-a608-5aa5fe6899a8.png "Mean monthly temperatures with 12 months trailing mean")
 
