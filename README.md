@@ -3,11 +3,18 @@ A python package to create fancy plots with NOAA weather data.
 
 
 
-## Requirements
-
+## Install
+#### Recommended conda install
 I recommend to use a fresh conda environment
+
+`git clone https://github.com/initze/noaaplotter.git`
+
 `conda env create -n noaaplotter -f environment.yml`
 
+#### alternative pip install
+`pip install git+https://github.com/initze/noaaplotter.git`
+
+#### Requirements
   - matplotlib
   - numpy
   - pandas
@@ -21,6 +28,7 @@ I recommend to use a fresh conda environment
 #### Option 1: Download via script
 Download daily summaries (temperature + precipitation) from Kotzebue (or other station) from 1970-01-01 until 2021-12-31
 * NOAA API Token is required: https://www.ncdc.noaa.gov/cdo-web/token
+
 `python download_data.py -o ./data/kotzebue.csv -sid GHCND:USW00026616 -start 1970-01-01 -end 2021-12-31 -t <NOAA API Token>`
  
  #### Option 2: Download via browser
@@ -28,8 +36,6 @@ Download daily summaries (temperature + precipitation) from Kotzebue (or other s
 ("https://www.ncdc.noaa.gov/cdo-web/search")
 * Values: metric
 * File types: csv
- 
- 
  
 ### Daily Mean Temperature and Precipitation values vs. Climate
 #### Entire year 1 January until 31 December (e.g. 1992)
