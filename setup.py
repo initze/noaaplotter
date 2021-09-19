@@ -2,7 +2,7 @@ from distutils.core import setup
 
 setup(
     name='noaaplotter',
-    version='0.4',
+    version='0.2.0',
     packages=['noaaplotter'],
     url='https://github.com/initze/noaaplotter',
     license='',
