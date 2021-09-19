@@ -28,21 +28,14 @@ numpy
 ![alt text](https://user-images.githubusercontent.com/4864803/132648353-d1792234-dc68-4baf-a608-5aa5fe6899a8.png "Mean monthly temperatures with 12 months trailing mean")
 
 
-#### Winter configuration with cumulative snowfall: July 1 until June 30
-
-`python plot_daily.py -infile ./data/kotzebue.csv -loc Kotzebue -start 2017-07-01 -end 2018-06-30 -t_range -45 25 -p_range 50 -snow_acc -s_range 300 -plot`
-
-![alt text](https://raw.githubusercontent.com/initze/noaaplotter/master/figures/daily_series_Kotzebue_2017-2018_winter.png "Mean monthly temperatures with 12 months trailing mean")
-
 
 ### Monthly aggregates
 #### Absolute values
 
 Temperature:
 
-`python plot_monthly.py -infile ./data/kotzebue.csv -loc Kotzebue -start 1990-01-01 -end 2019-12-31 -type Temperature -trail 12 -plot`
 
-![alt text](https://raw.githubusercontent.com/initze/noaaplotter/master/figures/monthly_series_temperature_12mthsTrMn_Kotzebue.png "Mean monthly temperatures with 12 months trailing mean")
+
 
 Precipitation:
 
@@ -55,13 +48,15 @@ Precipitation:
 
 Temperature:
 
-`python plot_monthly.py -infile ./data/kotzebue.csv -loc Kotzebue -start 1990-01-01 -end 2019-12-31 -type Temperature -trail 12 -plot -anomaly`
+`python plot_monthly.py -infile data/data2.csv -start 1980-01-01 -end 2021-08-31 -type Temperature -trail 12 -save_plot figures/kotzebue_monthly_temperature_anomaly.png  -anomaly -plot`
 
-![alt text](https://raw.githubusercontent.com/initze/noaaplotter/master/figures/monthly_series_temperature_12mthsTrMn_Kotzebue_anomaly.png "Mean monthly temperatures with 12 months trailing mean")
+!["Mean monthly temperatures with 12 months trailing mean"](https://user-images.githubusercontent.com/4864803/133923928-9ca78105-3718-48d9-80c5-efaf0bfa3217.png)
 
 Precipitation:
 
 
-`python plot_monthly.py -infile ./data/kotzebue.csv -loc Kotzebue -start 1990-01-01 -end 2019-12-31 -type Precipitation -trail 12 -plot -anomaly`
+`python plot_monthly.py -infile data/data2.csv -start 1980-01-01 -end 2021-08-31 -type Precipitation -trail 12 -save_plot figures/kotzebue_monthly_precipitation_anomaly.png  -anomaly -plot`
 
-![alt text](https://raw.githubusercontent.com/initze/noaaplotter/master/figures/monthly_series_precipitation_12mthsTrMn_Kotzebue_anomaly.png "Mean monthly temperatures with 12 months trailing mean")
+!["Mean monthly temperatures with 12 months trailing mean"](https://user-images.githubusercontent.com/4864803/133923987-faabba54-e2d7-4340-be05-078bce0648cf.png)
+
+
