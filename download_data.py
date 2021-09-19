@@ -83,9 +83,8 @@ def main():
     dr = pd.DataFrame(pd.date_range(start=args.start_date, end=args.end_date), columns=['DATE'])
     dr['DATE'] = dr['DATE'].astype(str)
     df_merged = pd.concat([df_pivot.set_index('DATE'), dr.set_index('DATE')], join='outer', axis=1,
-                          sort=True).reset_index(
-        drop=False)
-
+                          sort=True)
+    df_merged['DATE'] = df_merged.index
     df_merged['STATION'] = args.station_id
     df_merged['NAME'] = args.loc_name
 
