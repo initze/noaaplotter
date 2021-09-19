@@ -12,7 +12,16 @@ def main():
     parser = argparse.ArgumentParser(description='Parse arguments.')
 
     parser.add_argument('-infile', dest='infile', type=str, required=True,
+                        default='data/temp.csv',
                         help='input file with climate data')
+
+    parser.add_argument('-t', dest='token', type=str, required=False,
+                        default='',
+                        help='NOAA API token, only if loading through NOAA API')
+
+    parser.add_argument('-sid', dest='station_id', type=str, required=False,
+                        default='',
+                        help='NOAA Station ID, e.g. "GHCND:USW00026616" for Kotzebue, only if loading through NOAA API')
 
     parser.add_argument('-start', dest='start_date', type=str, required=True,
                         help='start date of plot ("yyyy-mm-dd")')
@@ -62,6 +71,8 @@ def main():
                         help='figure size in inches width x height. 15 10 recommended for 1 year, 30 10 for 2 years ...')
 
     args = parser.parse_args()
+
+    ##### Download from NOAA #####
 
     ##### Run Plotting function #####
     n = NOAAPlotter(args.infile,
