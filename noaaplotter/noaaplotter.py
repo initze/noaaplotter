@@ -10,6 +10,7 @@
 import numpy as np
 ########################
 from matplotlib import pyplot as plt, dates
+import matplotlib.dates as mdates
 
 from .dataset import NOAAPlotterDailyClimateDataset as DS_daily
 from .dataset import NOAAPlotterDailySummariesDataset as Dataset
@@ -284,6 +285,11 @@ class NOAAPlotter(object):
         ax_t.legend(legend_handle_t, legend_text_t, loc='upper center', fontsize=legend_fontsize, ncol=4,
                     bbox_to_anchor=(0.5, -0.2))
         ax_p.legend(legend_handle_p, legend_text_p, loc='upper left', fontsize=legend_fontsize)
+
+        # set locator to monthly
+        locator = dates.MonthLocator()
+        ax_t.xaxis.set_major_locator(locator)
+        ax_p.xaxis.set_major_locator(locator)
 
         fig.tight_layout()
 
