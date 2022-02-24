@@ -80,7 +80,8 @@ class NOAAPlotter(object):
                             plot_pmax='auto', plot_snowmax='auto',
                             plot_extrema=True, show_plot=True,
                             show_snow_accumulation=True, save_path=False,
-                            figsize=(9, 6), legend_fontsize='x-small', dpi=300):
+                            figsize=(9, 6), legend_fontsize='x-small', dpi=300,
+                            title=None):
         """
         Plotting Function to show observed vs climate temperatures and snowfall
         :param dpi:
@@ -203,6 +204,8 @@ class NOAAPlotter(object):
             ax_t.set_ylim(plot_tmin, plot_tmax)
         ax_t.set_ylabel('Temperature in °C')
         ax_t.set_xlabel('Date')
+        if title:
+            ax_t.set_title(title)
 
         # add legend
         legend_handle_t = [fb, cm, cm_hi, fill_r, fill_b]
