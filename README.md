@@ -1,8 +1,6 @@
 # noaaplotter
 A python package to create fancy plots with NOAA weather data.
 
-
-
 ## Install
 #### Recommended conda install
 I recommend to use a fresh conda environment
@@ -22,20 +20,29 @@ I recommend to use a fresh conda environment
   - requests
   - joblib
   - tqdm
+  - geemap
+
 
 ## Examples
 ### Download data
-#### Option 1: Download via script
+#### Option 1 NOAA Daily Summaries: Download via script
 Download daily summaries (temperature + precipitation) from Kotzebue (or other station) from 1970-01-01 until 2021-12-31
 * NOAA API Token is required: https://www.ncdc.noaa.gov/cdo-web/token
 
 `python download_data.py -o ./data/kotzebue.csv -sid GHCND:USW00026616 -start 1970-01-01 -end 2021-12-31 -t <NOAA API Token>`
  
- #### Option 2: Download via browser
+ #### Option 2 NOAA Daily Summaries: Download via browser
  CSV files of "daily summaries"
 ("https://www.ncdc.noaa.gov/cdo-web/search")
 * Values: metric
 * File types: csv
+
+ #### Option 3 ERA5 Daily: Download via script
+Download daily summaries (temperature + precipitation) from Potsdam (13.05°E, 52.4°N) from 1980-01-01 until 2021-12-31
+* Google Earthengine account is required
+* Caution: full dataset may take a few minutes
+
+`python download_data_ERA5.py -o ./data/potsdam_ERA5.csv -start 1980-01-01 -end 2021-12-31 -lat 52.4 -lon 13.05`
  
 ### Daily Mean Temperature and Precipitation values vs. Climate
 #### Entire year 1 January until 31 December (e.g. 1992)

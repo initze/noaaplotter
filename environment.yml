@@ -11,3 +11,4 @@ dependencies:
   - requests
   - joblib
   - tqdm
+  - geemap

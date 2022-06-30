@@ -70,6 +70,10 @@ def main():
                         default=[9, 6],
                         help='figure size in inches width x height. 15 10 recommended for 1 year, 30 10 for 2 years ...')
 
+    parser.add_argument('-title', dest='title', type=str, required=False,
+                        default=None,
+                        help='Plot title')
+
     args = parser.parse_args()
 
     ##### Download from NOAA #####
@@ -91,7 +95,8 @@ def main():
                           plot_pmax=args.p_range,
                           plot_snowmax=args.s_range,
                           dpi=args.dpi,
-                          figsize=args.figsize)
+                          figsize=args.figsize,
+                          title=args.title)
 
 if __name__ == "__main__":
     main()

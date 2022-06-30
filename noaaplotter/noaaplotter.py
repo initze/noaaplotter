@@ -10,6 +10,7 @@
 import numpy as np
 ########################
 from matplotlib import pyplot as plt, dates
+import matplotlib.dates as mdates
 
 from .dataset import NOAAPlotterDailyClimateDataset as DS_daily
 from .dataset import NOAAPlotterDailySummariesDataset as Dataset
@@ -80,7 +81,8 @@ class NOAAPlotter(object):
                             plot_pmax='auto', plot_snowmax='auto',
                             plot_extrema=True, show_plot=True,
                             show_snow_accumulation=True, save_path=False,
-                            figsize=(9, 6), legend_fontsize='x-small', dpi=300):
+                            figsize=(9, 6), legend_fontsize='x-small', dpi=300,
+                            title=None):
         """
         Plotting Function to show observed vs climate temperatures and snowfall
         :param dpi:
@@ -203,6 +205,8 @@ class NOAAPlotter(object):
             ax_t.set_ylim(plot_tmin, plot_tmax)
         ax_t.set_ylabel('Temperature in °C')
         ax_t.set_xlabel('Date')
+        if title:
+            ax_t.set_title(title)
 
         # add legend
         legend_handle_t = [fb, cm, cm_hi, fill_r, fill_b]
@@ -281,6 +285,11 @@ class NOAAPlotter(object):
         ax_t.legend(legend_handle_t, legend_text_t, loc='upper center', fontsize=legend_fontsize, ncol=4,
                     bbox_to_anchor=(0.5, -0.2))
         ax_p.legend(legend_handle_p, legend_text_p, loc='upper left', fontsize=legend_fontsize)
+
+        # set locator to monthly
+        locator = dates.MonthLocator()
+        ax_t.xaxis.set_major_locator(locator)
+        ax_p.xaxis.set_major_locator(locator)
 
         fig.tight_layout()
 
