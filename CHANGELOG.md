@@ -1,5 +1,10 @@
-# [0.2.0] - 2021-09-19
+# [0.3.0] - 2022-06-30
+### Added
+* Automated ERA5 download script through Google Earthengine
+### Changed
+* code cleanup and minor changes
 
+# [0.2.0] - 2021-09-19
 ### Added
 * Automated NOAA API download script
 * No Data visual for daily data plot
