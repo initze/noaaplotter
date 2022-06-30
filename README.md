@@ -42,7 +42,7 @@ Download daily summaries (temperature + precipitation) from Potsdam (13.05°E, 5
 * Google Earthengine account is required
 * Caution: full dataset may take a few minutes
 
-`python download_data.py -o ./data/potsda_ERA5.csv -start 1980-01-01 -end 2021-12-31 -lat 52.4 -lon 13.05`
+`python download_data_ERA5.py -o ./data/potsdam_ERA5.csv -start 1980-01-01 -end 2021-12-31 -lat 52.4 -lon 13.05`
  
 ### Daily Mean Temperature and Precipitation values vs. Climate
 #### Entire year 1 January until 31 December (e.g. 1992)
