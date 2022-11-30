@@ -17,5 +17,5 @@ setup(
                       'tqdm',
                       'earthengine-api',
                       'geemap'],
-    scripts=['plot_daily.py', 'plot_monthly.py', 'download_data.py', 'download_data_ERA5.py']
+    scripts=['scripts/plot_daily.py', 'scripts/plot_monthly.py', 'scripts/download_data.py', 'scripts/download_data_ERA5.py']
 )
