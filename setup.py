@@ -15,6 +15,7 @@ setup(
                       'requests',
                       'joblib',
                       'tqdm',
-                      'earthengine-api'],
+                      'earthengine-api',
+                      'geemap'],
     scripts=['plot_daily.py', 'plot_monthly.py', 'download_data.py', 'download_data_ERA5.py']
 )
