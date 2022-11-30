@@ -345,7 +345,7 @@ class NOAAPlotterMonthlyClimateDataset(object):
         df_out['tmin_doy_std'] = data_filtered[['DATE', 'TMIN']].groupby(data_filtered['DATE_YM']).std(numeric_only=numeric_only).TMIN
         if 'SNOW' in data_filtered.columns:
             df_out['snow_doy_mean'] = data_filtered[['DATE', 'SNOW']].groupby(data_filtered['DATE_YM']).mean(numeric_only=numeric_only).SNOW
-        df_out['prcp_sum'] = data_filtered[['DATE', 'PRCP']].groupby(data_filtered['DATE_YM']).sum().PRCP
+        df_out['prcp_sum'] = data_filtered[['DATE', 'PRCP']].groupby(data_filtered['DATE_YM']).sum(numeric_only=numeric_only).PRCP
         self.monthly_aggregate = df_out
 
     def calculate_monthly_climate(self):
