@@ -1,6 +1,7 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
 from noaaplotter.noaaplotter import NOAAPlotter
+import logging
 
 def main():
     logging.basicConfig(filename='example.log', filemode='w', level=logging.DEBUG)
