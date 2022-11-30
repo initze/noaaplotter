@@ -19,7 +19,7 @@ from .plot_utils import *
 from .utils import *
 
 pd.plotting.register_matplotlib_converters()
-
+numeric_only = True
 
 class NOAAPlotter(object):
     """
@@ -180,8 +180,8 @@ class NOAAPlotter(object):
 
         # plot extremes
         if plot_extrema:
-            tmax = self.dataset.data.groupby('DATE_MD').max()['TMEAN']
-            tmin = self.dataset.data.groupby('DATE_MD').min()['TMEAN']
+            tmax = self.dataset.data.groupby('DATE_MD').max(numeric_only=numeric_only)['TMEAN']
+            tmin = self.dataset.data.groupby('DATE_MD').min(numeric_only=numeric_only)['TMEAN']
             local_obs = df_obs[['DATE', 'DATE_MD', 'TMEAN']].set_index('DATE_MD', drop=False)
             idx = local_obs.index
             local_max = tmax.loc[idx] == local_obs['TMEAN']

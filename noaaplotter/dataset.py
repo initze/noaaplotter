@@ -11,7 +11,7 @@
 import numpy as np
 import os
 from .utils import *
-
+numeric_only = True
 
 class NOAAPlotterDailySummariesDataset(object):
     """
@@ -157,15 +157,15 @@ class NOAAPlotterDailySummariesDataset(object):
         :return:
         """
         df_out = pd.DataFrame()
-        df_out['tmean_doy_mean'] = df[['DATE', 'TMEAN']].groupby(df['DATE_YM']).mean().TMEAN
-        df_out['tmean_doy_std'] = df[['DATE', 'TMEAN']].groupby(df['DATE_YM']).std().TMEAN
-        df_out['tmax_doy_max'] = df[['DATE', 'TMAX']].groupby(df['DATE_YM']).max().TMAX
-        df_out['tmax_doy_std'] = df[['DATE', 'TMAX']].groupby(df['DATE_YM']).std().TMAX
-        df_out['tmin_doy_min'] = df[['DATE', 'TMIN']].groupby(df['DATE_YM']).min().TMIN
-        df_out['tmin_doy_std'] = df[['DATE', 'TMIN']].groupby(df['DATE_YM']).std().TMIN
+        df_out['tmean_doy_mean'] = df[['DATE', 'TMEAN']].groupby(df['DATE_YM']).mean(numeric_only=numeric_only).TMEAN
+        df_out['tmean_doy_std'] = df[['DATE', 'TMEAN']].groupby(df['DATE_YM']).std(numeric_only=numeric_only).TMEAN
+        df_out['tmax_doy_max'] = df[['DATE', 'TMAX']].groupby(df['DATE_YM']).max(numeric_only=numeric_only).TMAX
+        df_out['tmax_doy_std'] = df[['DATE', 'TMAX']].groupby(df['DATE_YM']).std(numeric_only=numeric_only).TMAX
+        df_out['tmin_doy_min'] = df[['DATE', 'TMIN']].groupby(df['DATE_YM']).min(numeric_only=numeric_only).TMIN
+        df_out['tmin_doy_std'] = df[['DATE', 'TMIN']].groupby(df['DATE_YM']).std(numeric_only=numeric_only).TMIN
         if 'SNOW' in df.columns:
-            df_out['snow_doy_mean'] = df[['DATE', 'SNOW']].groupby(df['DATE_YM']).mean().SNOW
-        df_out['prcp_sum'] = df[['DATE', 'PRCP']].groupby(df['DATE_YM']).sum().PRCP
+            df_out['snow_doy_mean'] = df[['DATE', 'SNOW']].groupby(df['DATE_YM']).mean(numeric_only=numeric_only).SNOW
+        df_out['prcp_sum'] = df[['DATE', 'PRCP']].groupby(df['DATE_YM']).sum(numeric_only=numeric_only).PRCP
         return df_out
 
     @staticmethod
@@ -177,16 +177,16 @@ class NOAAPlotterDailySummariesDataset(object):
         df_out = pd.DataFrame()
         df = df.data
         df['Month'] = df.reset_index().apply(lambda x: int(x['DATE_MD'][:2]), axis=1).values
-        df_out['tmean_mean'] = df[['Month', 'TMEAN']].groupby(df['Month']).mean().TMEAN
-        df_out['tmean_std'] = df[['Month', 'TMEAN']].groupby(df['Month']).std().TMEAN
-        df_out['tmax_max'] = df[['Month', 'TMAX']].groupby(df['Month']).max().TMAX
-        df_out['tmax_std'] = df[['Month', 'TMAX']].groupby(df['Month']).std().TMAX
-        df_out['tmin_min'] = df[['Month', 'TMIN']].groupby(df['Month']).min().TMIN
-        df_out['tmin_std'] = df[['Month', 'TMIN']].groupby(df['Month']).std().TMIN
+        df_out['tmean_mean'] = df[['Month', 'TMEAN']].groupby(df['Month']).mean(numeric_only=numeric_only).TMEAN
+        df_out['tmean_std'] = df[['Month', 'TMEAN']].groupby(df['Month']).std(numeric_only=numeric_only).TMEAN
+        df_out['tmax_max'] = df[['Month', 'TMAX']].groupby(df['Month']).max(numeric_only=numeric_only).TMAX
+        df_out['tmax_std'] = df[['Month', 'TMAX']].groupby(df['Month']).std(numeric_only=numeric_only).TMAX
+        df_out['tmin_min'] = df[['Month', 'TMIN']].groupby(df['Month']).min(numeric_only=numeric_only).TMIN
+        df_out['tmin_std'] = df[['Month', 'TMIN']].groupby(df['Month']).std(numeric_only=numeric_only).TMIN
         if 'SNOW' in df.columns:
-            df_out['snow_mean'] = df[['Month', 'SNOW']].groupby(df['Month']).mean().SNOW
+            df_out['snow_mean'] = df[['Month', 'SNOW']].groupby(df['Month']).mean(numeric_only=numeric_only).SNOW
         unique_years = len(np.unique(df.apply(lambda x: parse_dates_YM(x['DATE_YM']).year, axis=1)))
-        df_out['prcp_mean'] = df[['Month', 'PRCP']].groupby(df['Month']).mean().PRCP * unique_years
+        df_out['prcp_mean'] = df[['Month', 'PRCP']].groupby(df['Month']).mean(numeric_only=numeric_only).PRCP * unique_years
         return df_out.reset_index(drop=False)
 
 
@@ -245,16 +245,16 @@ class NOAAPlotterDailyClimateDataset(object):
         :return:
         """
         df_out = pd.DataFrame()
-        df_out['tmean_doy_mean'] = self.data_daily[['DATE', 'TMEAN']].groupby(self.data_daily['DATE_MD']).mean().TMEAN
-        df_out['tmean_doy_std'] = self.data_daily[['DATE', 'TMEAN']].groupby(self.data_daily['DATE_MD']).std().TMEAN
-        df_out['tmean_doy_max'] = self.data_daily[['DATE', 'TMEAN']].groupby(self.data_daily['DATE_MD']).max().TMEAN
-        df_out['tmean_doy_min'] = self.data_daily[['DATE', 'TMEAN']].groupby(self.data_daily['DATE_MD']).min().TMEAN
-        df_out['tmax_doy_max'] = self.data_daily[['DATE', 'TMAX']].groupby(self.data_daily['DATE_MD']).max().TMAX
-        df_out['tmax_doy_std'] = self.data_daily[['DATE', 'TMAX']].groupby(self.data_daily['DATE_MD']).std().TMAX
-        df_out['tmin_doy_min'] = self.data_daily[['DATE', 'TMIN']].groupby(self.data_daily['DATE_MD']).min().TMIN
-        df_out['tmin_doy_std'] = self.data_daily[['DATE', 'TMIN']].groupby(self.data_daily['DATE_MD']).std().TMIN
+        df_out['tmean_doy_mean'] = self.data_daily[['DATE', 'TMEAN']].groupby(self.data_daily['DATE_MD']).mean(numeric_only=numeric_only).TMEAN
+        df_out['tmean_doy_std'] = self.data_daily[['DATE', 'TMEAN']].groupby(self.data_daily['DATE_MD']).std(numeric_only=numeric_only).TMEAN
+        df_out['tmean_doy_max'] = self.data_daily[['DATE', 'TMEAN']].groupby(self.data_daily['DATE_MD']).max(numeric_only=numeric_only).TMEAN
+        df_out['tmean_doy_min'] = self.data_daily[['DATE', 'TMEAN']].groupby(self.data_daily['DATE_MD']).min(numeric_only=numeric_only).TMEAN
+        df_out['tmax_doy_max'] = self.data_daily[['DATE', 'TMAX']].groupby(self.data_daily['DATE_MD']).max(numeric_only=numeric_only).TMAX
+        df_out['tmax_doy_std'] = self.data_daily[['DATE', 'TMAX']].groupby(self.data_daily['DATE_MD']).std(numeric_only=numeric_only).TMAX
+        df_out['tmin_doy_min'] = self.data_daily[['DATE', 'TMIN']].groupby(self.data_daily['DATE_MD']).min(numeric_only=numeric_only).TMIN
+        df_out['tmin_doy_std'] = self.data_daily[['DATE', 'TMIN']].groupby(self.data_daily['DATE_MD']).std(numeric_only=numeric_only).TMIN
         if 'SNOW' in self.data_daily.columns:
-            df_out['snow_doy_mean'] = self.data_daily[['DATE', 'SNOW']].groupby(self.data_daily['DATE_MD']).mean().SNOW
+            df_out['snow_doy_mean'] = self.data_daily[['DATE', 'SNOW']].groupby(self.data_daily['DATE_MD']).mean(numeric_only=numeric_only).SNOW
         self.data = df_out
 
     def _impute_feb29(self):
@@ -337,14 +337,14 @@ class NOAAPlotterMonthlyClimateDataset(object):
 
         df_out = pd.DataFrame()
         data_filtered = self.filter_to_date()
-        df_out['tmean_doy_mean'] = data_filtered[['DATE', 'TMEAN']].groupby(data_filtered['DATE_YM']).mean().TMEAN
-        df_out['tmean_doy_std'] = data_filtered[['DATE', 'TMEAN']].groupby(data_filtered['DATE_YM']).std().TMEAN
-        df_out['tmax_doy_max'] = data_filtered[['DATE', 'TMAX']].groupby(data_filtered['DATE_YM']).max().TMAX
-        df_out['tmax_doy_std'] = data_filtered[['DATE', 'TMAX']].groupby(data_filtered['DATE_YM']).std().TMAX
-        df_out['tmin_doy_min'] = data_filtered[['DATE', 'TMIN']].groupby(data_filtered['DATE_YM']).min().TMIN
-        df_out['tmin_doy_std'] = data_filtered[['DATE', 'TMIN']].groupby(data_filtered['DATE_YM']).std().TMIN
+        df_out['tmean_doy_mean'] = data_filtered[['DATE', 'TMEAN']].groupby(data_filtered['DATE_YM']).mean(numeric_only=numeric_only).TMEAN
+        df_out['tmean_doy_std'] = data_filtered[['DATE', 'TMEAN']].groupby(data_filtered['DATE_YM']).std(numeric_only=numeric_only).TMEAN
+        df_out['tmax_doy_max'] = data_filtered[['DATE', 'TMAX']].groupby(data_filtered['DATE_YM']).max(numeric_only=numeric_only).TMAX
+        df_out['tmax_doy_std'] = data_filtered[['DATE', 'TMAX']].groupby(data_filtered['DATE_YM']).std(numeric_only=numeric_only).TMAX
+        df_out['tmin_doy_min'] = data_filtered[['DATE', 'TMIN']].groupby(data_filtered['DATE_YM']).min(numeric_only=numeric_only).TMIN
+        df_out['tmin_doy_std'] = data_filtered[['DATE', 'TMIN']].groupby(data_filtered['DATE_YM']).std(numeric_only=numeric_only).TMIN
         if 'SNOW' in data_filtered.columns:
-            df_out['snow_doy_mean'] = data_filtered[['DATE', 'SNOW']].groupby(data_filtered['DATE_YM']).mean().SNOW
+            df_out['snow_doy_mean'] = data_filtered[['DATE', 'SNOW']].groupby(data_filtered['DATE_YM']).mean(numeric_only=numeric_only).SNOW
         df_out['prcp_sum'] = data_filtered[['DATE', 'PRCP']].groupby(data_filtered['DATE_YM']).sum().PRCP
         self.monthly_aggregate = df_out
 
@@ -360,15 +360,15 @@ class NOAAPlotterMonthlyClimateDataset(object):
         data_filtered['Month'] = data_filtered.apply(lambda x: parse_dates_YM(x['DATE_YM']).month, axis=1)
         data_filtered['Year'] = data_filtered.apply(lambda x: parse_dates_YM(x['DATE_YM']).year, axis=1)
 
-        df_out['tmean_doy_mean'] = data_filtered[['DATE', 'TMEAN']].groupby(data_filtered['Month']).mean().TMEAN
-        df_out['tmean_doy_std'] = data_filtered[['DATE', 'TMEAN']].groupby(data_filtered['Month']).std().TMEAN
-        df_out['tmax_doy_max'] = data_filtered[['DATE', 'TMAX']].groupby(data_filtered['Month']).max().TMAX
-        df_out['tmax_doy_std'] = data_filtered[['DATE', 'TMAX']].groupby(data_filtered['Month']).std().TMAX
-        df_out['tmin_doy_min'] = data_filtered[['DATE', 'TMIN']].groupby(data_filtered['Month']).min().TMIN
-        df_out['tmin_doy_std'] = data_filtered[['DATE', 'TMIN']].groupby(data_filtered['Month']).std().TMIN
+        df_out['tmean_doy_mean'] = data_filtered[['DATE', 'TMEAN']].groupby(data_filtered['Month']).mean(numeric_only=numeric_only).TMEAN
+        df_out['tmean_doy_std'] = data_filtered[['DATE', 'TMEAN']].groupby(data_filtered['Month']).std(numeric_only=numeric_only).TMEAN
+        df_out['tmax_doy_max'] = data_filtered[['DATE', 'TMAX']].groupby(data_filtered['Month']).max(numeric_only=numeric_only).TMAX
+        df_out['tmax_doy_std'] = data_filtered[['DATE', 'TMAX']].groupby(data_filtered['Month']).std(numeric_only=numeric_only).TMAX
+        df_out['tmin_doy_min'] = data_filtered[['DATE', 'TMIN']].groupby(data_filtered['Month']).min(numeric_only=numeric_only).TMIN
+        df_out['tmin_doy_std'] = data_filtered[['DATE', 'TMIN']].groupby(data_filtered['Month']).std(numeric_only=numeric_only).TMIN
         if 'SNOW' in data_filtered.columns:
-            df_out['snow_doy_mean'] = data_filtered[['DATE', 'SNOW']].groupby(data_filtered['Month']).mean().SNOW
-        df_out['prcp_sum'] = data_filtered[['DATE', 'PRCP']].groupby(data_filtered['Month']).mean().PRCP * 30
+            df_out['snow_doy_mean'] = data_filtered[['DATE', 'SNOW']].groupby(data_filtered['Month']).mean(numeric_only=numeric_only).SNOW
+        df_out['prcp_sum'] = data_filtered[['DATE', 'PRCP']].groupby(data_filtered['Month']).mean(numeric_only=numeric_only).PRCP * 30
         # df_out = df_out.set_index('DATE_YM', drop=False)
         self.monthly_climate = df_out
 
