@@ -295,7 +295,7 @@ class NOAAPlotter(object):
 
         # Save Figure
         if save_path:
-            fig.savefig(save_path, figsize=figsize, dpi=dpi)
+            fig.savefig(save_path)#, figsize=figsize, dpi=dpi)
         # Show plot if chosen, destroy figure object at the end
         if show_plot:
             plt.show()
