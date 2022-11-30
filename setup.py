@@ -2,7 +2,7 @@ from distutils.core import setup
 
 setup(
     name='noaaplotter',
-    version='0.2.0',
+    version='0.3.1',
     packages=['noaaplotter'],
     url='https://github.com/initze/noaaplotter',
     license='',
@@ -14,6 +14,7 @@ setup(
                       'matplotlib', 
                       'requests',
                       'joblib',
-                      'tqdm'],
-    scripts=['plot_daily.py', 'plot_monthly.py', 'download_data.py']
+                      'tqdm',
+                      'earthengine-api'],
+    scripts=['plot_daily.py', 'plot_monthly.py', 'download_data.py', 'download_data_ERA5.py']
 )
