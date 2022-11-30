@@ -1,3 +1,8 @@
+# [0.4.0] - 2022-11-30
+### Added
+### Changed
+* moved scripts to subdir and automatic package install 
+
 # [0.3.0] - 2022-06-30
 ### Added
 * Automated ERA5 download script through Google Earthengine
