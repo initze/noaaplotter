@@ -82,7 +82,7 @@ class NOAAPlotter(object):
                             plot_extrema=True, show_plot=True,
                             show_snow_accumulation=True, save_path=False,
                             figsize=(9, 6), legend_fontsize='x-small', dpi=300,
-                            title=None):
+                            title=None, return_plot=False):
         """
         Plotting Function to show observed vs climate temperatures and snowfall
         :param dpi:
@@ -299,6 +299,8 @@ class NOAAPlotter(object):
         # Show plot if chosen, destroy figure object at the end
         if show_plot:
             plt.show()
+        if return_plot:
+            return fig
         else:
             plt.close(fig)
 
