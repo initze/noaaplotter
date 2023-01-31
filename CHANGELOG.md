@@ -1,3 +1,7 @@
+# [0.4.1] - 2023-01-16
+### Added
+* basic support for sst
+
 # [0.4.0] - 2022-11-30
 ### Added
 ### Changed
