@@ -306,7 +306,7 @@ class NOAAPlotter(object):
 
     def plot_monthly_barchart(self, start_date, end_date, information='Temperature', show_plot=True,
                               anomaly=False, anomaly_type='absolute', trailing_mean=None,
-                              save_path=False, figsize=(9, 4), dpi=100, legend_fontsize='x-small'):
+                              save_path=False, figsize=(9, 4), dpi=100, legend_fontsize='x-small', return_plot=False):
 
         # legend handles
         legend_handle = []
@@ -383,5 +383,7 @@ class NOAAPlotter(object):
         # Show plot if chosen, destroy figure object at the end
         if show_plot:
             plt.show()
+        if return_plot:
+            return fig
         else:
             plt.close(fig)
