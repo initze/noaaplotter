@@ -61,7 +61,7 @@ def parse_dates_YM(date):
         raise('Wrong date format. Either use native datetime format or "YYYY-mm-dd"')
 
 
-def dl_noaa_api(i, dtypes_string, station_id, Token, date_start, date_end, split_size):
+def dl_noaa_api(i, dtypes, station_id, Token, date_start, date_end, split_size):
     """
     function to download from NOAA API
     """
@@ -77,15 +77,27 @@ def dl_noaa_api(i, dtypes_string, station_id, Token, date_start, date_end, split
     date_end_split = split_end.strftime('%Y-%m-%d')
 
     # make the api call
+    request_url = 'https://www.ncei.noaa.gov/access/services/data/v1'
+    request_params = dict(
+        dataset = 'daily-summaries',
+        dataTypes = dtypes,#['PRCP', 'TMIN', 'TMAX'],
+        stations = station_id,
+        limit = 1000,
+        startDate = date_start_split,
+        endDate= date_end_split,
+        units='metric',
+        format='json'
+    )
     r = requests.get(
-        f'https://www.ncdc.noaa.gov/cdo-web/api/v2/data?datasetid=GHCND&{dtypes_string}&limit=1000&stationid={station_id}&startdate={date_start_split}&enddate={date_end_split}',
+        request_url,
+        params=request_params,
         headers={'token': Token})
     # load the api response as a json
     d = json.loads(r.text)
 
     # workaround to skip empty returns (no data within period)
     try:
-        result = pd.DataFrame(d['results'])
+        result = pd.DataFrame(d)
     except:
         result = None
     return result
@@ -109,23 +121,33 @@ def download_from_noaa(output_file, start_date, end_date, datatypes, loc_name, s
     # Data Loading
     print('Downloading data through NOAA API')
     datasets_list = Parallel(n_jobs=4)(
-        delayed(dl_noaa_api)(i, dtypes_string, station_id, noaa_api_token, start_date, end_date, split_size)
+        delayed(dl_noaa_api)(i, datatypes, station_id, noaa_api_token, start_date, end_date, split_size)
         for i in tqdm.tqdm(split_range[:])
     )
     # Merge subsets and create DataFrame
     df = pd.concat(datasets_list)
     #### Pivot table to correct form
-    df_pivot = df.pivot(index='date', columns='datatype', values='value')
+    #df_pivot = df.pivot(index='date', columns='datatype', values='value')
+    #df_pivot = df
     #### adapt  factor
-    df_pivot.loc[:, :] /= 10
+    def assign_numeric_datatypes(df):
+        for col in df.columns:
+            if df[col].dtype == 'object':
+                try:
+                    df[col] = pd.to_numeric(df[col])
+                except:
+                    pass
+        return df
+    df_pivot = assign_numeric_datatypes(df)
+    df_pivot['DATE'] = df_pivot.apply(lambda x: datetime.fromisoformat(x['DATE']).strftime('%Y-%m-%d'), axis=1)
+
     df_pivot = df_pivot.reset_index(drop=False)
-    df_pivot['DATE'] = df_pivot.apply(lambda x: datetime.fromisoformat(x['date']).strftime('%Y-%m-%d'), axis=1)
     dr = pd.DataFrame(pd.date_range(start=start_date, end=end_date), columns=['DATE'])
     dr['DATE'] = dr['DATE'].astype(str)
     df_merged = pd.concat([df_pivot.set_index('DATE'), dr.set_index('DATE')], join='outer', axis=1,
                           sort=True)
     df_merged['DATE'] = df_merged.index
-    df_merged['STATION'] = station_id
+    #df_merged['STATION'] = station_id
     df_merged['NAME'] = loc_name
     df_merged['TAVG'] = None
     df_merged['SNWD'] = None

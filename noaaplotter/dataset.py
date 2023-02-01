@@ -246,13 +246,13 @@ class NOAAPlotterDailyClimateDataset(object):
         """
         df_out = pd.DataFrame()
         df_out['tmean_doy_mean'] = self.data_daily[['DATE', 'TMEAN']].groupby(self.data_daily['DATE_MD']).mean(numeric_only=numeric_only).TMEAN
-        df_out['tmean_doy_std'] = self.data_daily[['DATE', 'TMEAN']].groupby(self.data_daily['DATE_MD']).std(numeric_only=numeric_only).TMEAN
+        df_out['tmean_doy_std'] = self.data_daily[['DATE', 'TMEAN']].groupby(self.data_daily['DATE_MD']).std().TMEAN
         df_out['tmean_doy_max'] = self.data_daily[['DATE', 'TMEAN']].groupby(self.data_daily['DATE_MD']).max(numeric_only=numeric_only).TMEAN
         df_out['tmean_doy_min'] = self.data_daily[['DATE', 'TMEAN']].groupby(self.data_daily['DATE_MD']).min(numeric_only=numeric_only).TMEAN
         df_out['tmax_doy_max'] = self.data_daily[['DATE', 'TMAX']].groupby(self.data_daily['DATE_MD']).max(numeric_only=numeric_only).TMAX
-        df_out['tmax_doy_std'] = self.data_daily[['DATE', 'TMAX']].groupby(self.data_daily['DATE_MD']).std(numeric_only=numeric_only).TMAX
+        df_out['tmax_doy_std'] = self.data_daily[['DATE', 'TMAX']].groupby(self.data_daily['DATE_MD']).std().TMAX
         df_out['tmin_doy_min'] = self.data_daily[['DATE', 'TMIN']].groupby(self.data_daily['DATE_MD']).min(numeric_only=numeric_only).TMIN
-        df_out['tmin_doy_std'] = self.data_daily[['DATE', 'TMIN']].groupby(self.data_daily['DATE_MD']).std(numeric_only=numeric_only).TMIN
+        df_out['tmin_doy_std'] = self.data_daily[['DATE', 'TMIN']].groupby(self.data_daily['DATE_MD']).std().TMIN
         if 'SNOW' in self.data_daily.columns:
             df_out['snow_doy_mean'] = self.data_daily[['DATE', 'SNOW']].groupby(self.data_daily['DATE_MD']).mean(numeric_only=numeric_only).SNOW
         self.data = df_out
