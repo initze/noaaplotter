@@ -30,7 +30,7 @@ pip install noaaplotter and dependencies
 Download daily summaries (temperature + precipitation) from Kotzebue (or other station) from 1970-01-01 until 2021-12-31
 * NOAA API Token is required: https://www.ncdc.noaa.gov/cdo-web/token
 
-`download_data.py -o ./data/kotzebue.csv -sid GHCND:USW00026616 -start 1970-01-01 -end 2021-12-31 -t <NOAA API Token>`
+`download_data.py -o ./data/kotzebue.csv -sid USW00026616 -start 1970-01-01 -end 2021-12-31 -t <NOAA API Token>`
  
  #### Option 2 NOAA Daily Summaries: Download via browser
  CSV files of "daily summaries"
