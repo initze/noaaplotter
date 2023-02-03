@@ -282,15 +282,18 @@ class NOAAPlotter(object):
             legend_text_p.append('No Data')
 
         # add Legends
-        ax_t.legend(legend_handle_t, legend_text_t, loc='upper center', fontsize=legend_fontsize, ncol=4,
-                    bbox_to_anchor=(0.5, -0.2))
+        ax_t.legend(legend_handle_t, legend_text_t, loc='lower center', fontsize=legend_fontsize, ncol=4,
+                    bbox_to_anchor=(0.5, 1.02))#-0.35))
         ax_p.legend(legend_handle_p, legend_text_p, loc='upper left', fontsize=legend_fontsize)
 
         # set locator to monthly
         locator = dates.MonthLocator()
         ax_t.xaxis.set_major_locator(locator)
         ax_p.xaxis.set_major_locator(locator)
-
+        plt.setp(ax_t.get_xticklabels(), rotation=45, ha="right",
+                 rotation_mode="anchor")
+        plt.setp(ax_p.get_xticklabels(), rotation=45, ha="right",
+                 rotation_mode="anchor")
         fig.tight_layout()
 
         # Save Figure
