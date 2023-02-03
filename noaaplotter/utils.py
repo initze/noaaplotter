@@ -126,18 +126,7 @@ def download_from_noaa(output_file, start_date, end_date, datatypes, loc_name, s
     )
     # Merge subsets and create DataFrame
     df = pd.concat(datasets_list)
-    #### Pivot table to correct form
-    #df_pivot = df.pivot(index='date', columns='datatype', values='value')
-    #df_pivot = df
-    #### adapt  factor
-    def assign_numeric_datatypes(df):
-        for col in df.columns:
-            if df[col].dtype == 'object':
-                try:
-                    df[col] = pd.to_numeric(df[col])
-                except:
-                    pass
-        return df
+
     df_pivot = assign_numeric_datatypes(df)
     df_pivot['DATE'] = df_pivot.apply(lambda x: datetime.fromisoformat(x['DATE']).strftime('%Y-%m-%d'), axis=1)
 
@@ -147,7 +136,6 @@ def download_from_noaa(output_file, start_date, end_date, datatypes, loc_name, s
     df_merged = pd.concat([df_pivot.set_index('DATE'), dr.set_index('DATE')], join='outer', axis=1,
                           sort=True)
     df_merged['DATE'] = df_merged.index
-    #df_merged['STATION'] = station_id
     df_merged['NAME'] = loc_name
     df_merged['TAVG'] = None
     df_merged['SNWD'] = None
@@ -157,3 +145,13 @@ def download_from_noaa(output_file, start_date, end_date, datatypes, loc_name, s
     print(f'Saving data to {output_file}')
     df_final.to_csv(output_file, index=False, quoting=csv.QUOTE_ALL)
     return 0
+
+
+def assign_numeric_datatypes(df):
+    for col in df.columns:
+        if df[col].dtype == 'object':
+            try:
+                df[col] = pd.to_numeric(df[col])
+            except:
+                pass
+    return df

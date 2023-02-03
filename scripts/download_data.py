@@ -2,13 +2,6 @@
 # -*- coding: utf-8 -*-
 # Imports
 import argparse
-import csv
-from datetime import datetime
-import numpy as np
-import os
-import pandas as pd
-import tqdm
-from joblib import delayed, Parallel
 from noaaplotter.utils import dl_noaa_api, download_from_noaa
 
 
