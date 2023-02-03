@@ -1,3 +1,8 @@
+# [0.5.0] - 2023-03-03
+### Changed
+* fixed NOAA APIv2 bug for losing January February data
+* some code fixes and cleanup
+
 # [0.4.1] - 2023-01-16
 ### Added
 * basic support for sst
