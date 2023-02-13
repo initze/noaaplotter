@@ -29,7 +29,7 @@ def parse_dates(date):
     """
     if isinstance(date, str):
         return dt.datetime.strptime(date, '%Y-%m-%d')
-    elif isinstance(date, dt.datetime):
+    elif isinstance(date, dt.datetime) or isinstance(date, dt.date):
         return date
     else:
         raise ('Wrong date format. Either use native datetime format or "YYYY-mm-dd"')
