@@ -1,4 +1,9 @@
-# [0.5.0] - 2023-03-03
+# [0.5.1] - 2023-02-18
+### Changed
+* created download_utils
+* some code restructuring for noaaplotter_streamlit support (https://github.com/initze/noaaplotter_streamlit)
+
+# [0.5.0] - 2023-02-03
 ### Changed
 * fixed NOAA APIv2 bug for losing January February data
 * some code fixes and cleanup
