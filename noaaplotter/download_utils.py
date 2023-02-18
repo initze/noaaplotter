@@ -7,6 +7,9 @@ import pandas as pd
 import tqdm
 from joblib import Parallel, delayed
 
+import geemap
+import ee
+
 from noaaplotter.utils import dl_noaa_api, assign_numeric_datatypes
 
 
