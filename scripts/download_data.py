@@ -2,7 +2,8 @@
 # -*- coding: utf-8 -*-
 # Imports
 import argparse
-from noaaplotter.utils import dl_noaa_api, download_from_noaa
+from noaaplotter.utils import dl_noaa_api
+from noaaplotter.download_utils import download_from_noaa
 
 
 def main():
