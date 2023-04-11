@@ -5,35 +5,38 @@ import os
 from pathlib import Path
 import pandas as pd
 
+
 class DownloadTest(unittest.TestCase):
 
-    def test_download(self):
+    def test_01_download(self):
         output_file = Path('test_kotzebue.csv')
 
-        start_date= '2020-01-01'
+        start_date = '2020-01-01'
         end_date = '2023-12-31'
         station_id = 'USW00026616'
         token = 'LaVQzwUgOBQLBRwoTpOLyRbIKDTHAVVe'
         datatypes = ['TMIN', 'TMAX', 'PRCP', 'SNOW']
 
-        for n_jobs in [1,2,4]:
+        for n_jobs in [1, 2, 4]:
             if output_file.exists():
                 os.remove(output_file)
-            download_from_noaa(output_file, start_date, end_date, datatypes=datatypes, loc_name='', station_id=station_id, noaa_api_token=token, n_jobs=n_jobs)
+            download_from_noaa(output_file, start_date, end_date, datatypes=datatypes, loc_name='',
+                               station_id=station_id, noaa_api_token=token, n_jobs=n_jobs)
             exists = os.path.exists(output_file)
             self.assertTrue(exists)
 
-    def test_read_csv(self):
+    def test_02_read_csv(self):
         output_file = Path('test_kotzebue.csv')
         df = pd.read_csv(output_file)
         self.assertTrue(isinstance(df, pd.DataFrame))
 
-    def test_create_noaaplotter_object(self):
+    def test_03_create_noaaplotter_object(self):
         input_file = Path('test_kotzebue.csv')
         n = NOAAPlotter(input_file, '')
         self.assertTrue(n is not None)
 
+    def test_04_cleanup(self):
+        os.remove('test_kotzebue.csv')
 
 if __name__ == '__main__':
-
     unittest.main()
