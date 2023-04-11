@@ -13,7 +13,7 @@ import ee
 from noaaplotter.utils import dl_noaa_api, assign_numeric_datatypes
 
 
-def download_from_noaa(output_file, start_date, end_date, datatypes, loc_name, station_id, noaa_api_token, n_jobs=4):
+def download_from_noaa(output_file, start_date, end_date, station_id, noaa_api_token, datatypes=['TMIN', 'TMAX', 'PRCP', 'SNOW'], loc_name='', n_jobs=4):
     # remove file if exists
     if os.path.exists(output_file):
         os.remove(output_file)
