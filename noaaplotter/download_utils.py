@@ -13,7 +13,7 @@ import ee
 from noaaplotter.utils import dl_noaa_api, assign_numeric_datatypes
 
 
-def download_from_noaa(output_file, start_date, end_date, datatypes, loc_name, station_id, noaa_api_token):
+def download_from_noaa(output_file, start_date, end_date, datatypes, loc_name, station_id, noaa_api_token, n_jobs=4):
     # remove file if exists
     if os.path.exists(output_file):
         os.remove(output_file)
@@ -30,7 +30,7 @@ def download_from_noaa(output_file, start_date, end_date, datatypes, loc_name, s
     split_range = np.arange(0, n_days, split_size)
     # Data Loading
     print('Downloading data through NOAA API')
-    datasets_list = Parallel(n_jobs=4)(
+    datasets_list = Parallel(n_jobs=n_jobs)(
         delayed(dl_noaa_api)(i, datatypes, station_id, noaa_api_token, start_date, end_date, split_size)
         for i in tqdm.tqdm(split_range[:])
     )
