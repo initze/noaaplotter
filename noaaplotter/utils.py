@@ -88,11 +88,11 @@ def dl_noaa_api(i, dtypes, station_id, Token, date_start, date_end, split_size):
         request_url,
         params=request_params,
         headers={'token': Token})
-    # load the api response as a json
-    d = json.loads(r.text)
-
+    
     # workaround to skip empty returns (no data within period)
     try:
+        # load the api response as a json
+        d = json.loads(r.text)
         result = pd.DataFrame(d)
     except:
         result = None
