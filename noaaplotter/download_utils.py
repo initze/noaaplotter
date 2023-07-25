@@ -34,6 +34,9 @@ def download_from_noaa(output_file, start_date, end_date, datatypes, loc_name, s
         delayed(dl_noaa_api)(i, datatypes, station_id, noaa_api_token, start_date, end_date, split_size)
         for i in tqdm.tqdm(split_range[:])
     )
+    # drop empty/None from datasets_list
+    datasets_list = [i for i in datasets_list if i is not None]
+    
     # Merge subsets and create DataFrame
     df = pd.concat(datasets_list)
 
