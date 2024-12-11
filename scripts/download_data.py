@@ -38,10 +38,14 @@ def main():
     parser.add_argument('-end', dest='end_date', type=str, required=True,
                         help='end date of plot ("yyyy-mm-dd")')
 
+    parser.add_argument('-n_jobs', dest='n_jobs', type=int, required=False, default=1,
+                        help='number of parallel processes')
+
     args = parser.parse_args()
 
-    download_from_noaa(args.output_file, args.start_date, args.end_date, args.datatypes, args.loc_name, args.station_id, args.token)
-
+    download_from_noaa(output_file=args.output_file, start_date=args.start_date, end_date=args.end_date, \
+                       datatypes=args.datatypes, noaa_api_token=args.token, loc_name=args.loc_name, \
+                       station_id=args.station_id, n_jobs=args.n_jobs)
 
 if __name__ == "__main__":
     main()

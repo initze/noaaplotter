@@ -88,13 +88,14 @@ def dl_noaa_api(i, dtypes, station_id, Token, date_start, date_end, split_size):
         request_url,
         params=request_params,
         headers={'token': Token})
-    
+
     # workaround to skip empty returns (no data within period)
     try:
-        # load the api response as a json
+            # load the api response as a json
         d = json.loads(r.text)
         result = pd.DataFrame(d)
-    except:
+    except json.JSONDecodeError:
+        print(f"Warning: No data available for period {date_start_split} to {date_end_split}. Skipping.")
         result = None
     return result
 
