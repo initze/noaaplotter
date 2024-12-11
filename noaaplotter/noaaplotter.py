@@ -8,16 +8,16 @@
 # version: 2021-09-06
 
 import numpy as np
+from matplotlib import dates
 
 ########################
-from matplotlib import pyplot as plt, dates
-import matplotlib.dates as mdates
+from matplotlib import pyplot as plt
 
-from .dataset import NOAAPlotterDailyClimateDataset as DS_daily
-from .dataset import NOAAPlotterDailySummariesDataset as Dataset
-from .dataset import NOAAPlotterMonthlyClimateDataset as DS_monthly
-from .plot_utils import *
-from .utils import *
+from noaaplotter.utils.dataset import NOAAPlotterDailyClimateDataset as DS_daily
+from noaaplotter.utils.dataset import NOAAPlotterDailySummariesDataset as Dataset
+from noaaplotter.utils.dataset import NOAAPlotterMonthlyClimateDataset as DS_monthly
+from noaaplotter.utils.plot_utils import *
+from noaaplotter.utils.utils import *
 
 pd.plotting.register_matplotlib_converters()
 numeric_only = True
