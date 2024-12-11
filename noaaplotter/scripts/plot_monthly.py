@@ -1,6 +1,6 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
-from noaaplotter.noaaplotter import NOAAPlotter
+from noaaplotter import NOAAPlotter
 import argparse
 
 def main():

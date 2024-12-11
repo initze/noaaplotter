@@ -1,0 +1,36 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "noaaplotter"
+version = "0.6.0"  # Updated version
+description = "A python package to create fancy plots with NOAA weather data."
+requires-python = ">=3.9"
+dependencies = [
+    "joblib",
+    "pandas",
+    "numpy",
+    "matplotlib>=3.6",
+    "earthengine-api",
+    "jupyterlab",
+    "ipython",
+    "tqdm",
+    "requests",
+    "geemap",
+    "xarray",  # Add xarray for handling netCDF data
+    # "cdsapi",  # Uncomment if you plan to use cdsapi for accessing ERA5 data
+]
+
+[project.scripts]
+plot_daily = "scripts.plot_daily:main"      # Assuming you have a main function in plot_daily.py
+plot_monthly = "scripts.plot_monthly:main"  # Assuming you have a main function in plot_monthly.py
+download_data = "scripts.download_data:main"  # Assuming you have a main function in download_data.py
+download_data_ERA5 = "scripts.download_data_ERA5:main"  # Assuming you have a main function in download_data_ERA5.py
+
+[tool.setuptools.packages.find]
+where = ["noaaplotter"]
+include = ["noaaplotter.*"]
+
+[project.urls]
+Homepage = "https://github.com/initze/noaaplotter"  # Replace with your actual homepage URL
