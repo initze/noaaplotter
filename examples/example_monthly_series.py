@@ -7,7 +7,7 @@ using the noaaplotter package
 author: Ingmar Nitze
 """
 
-from noaaplotter.noaaplotter import NOAAPlotter
+from src.noaaplotter import NOAAPlotter
 import logging
 
 def main():

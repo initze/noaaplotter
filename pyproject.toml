@@ -1,0 +1,34 @@
+[build-system]
+requires = ["setuptools>=42", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "noaaplotter"
+version = "0.5.3"
+description = "Package to plot fancy climate/weather data of NOAA"
+authors = [
+    { name = "Ingmar Nitze", email = "ingmar.nitze@awi.de" }
+]
+license = { text = "" }
+readme = "README.md"  # Specify a README file if available
+# homepage = "https://github.com/initze/noaaplotter"
+keywords = ["climate", "weather", "NOAA", "plotting"]
+
+dependencies = [
+    "pandas>=2.2",
+    "numpy>=2.2",
+    "matplotlib>=3.9",
+    "requests",
+    "joblib>=1.4",
+    "tqdm>=4.67",
+    "geemap>=0.35"
+]
+
+[tool.setuptools.packages.find]
+include = ["noaaplotter*"]
+
+[project.scripts]
+plot_daily = "noaaplotter.scripts.plot_daily:main"  # Adjust if necessary
+plot_monthly = "noaaplotter.scripts.plot_monthly:main"  # Adjust if necessary
+download_data = "noaaplotter.scripts.download_data:main"  # Adjust if necessary
+download_data_ERA5 = "noaaplotter.scripts.download_data_ERA5:main"  # Adjust if necessary

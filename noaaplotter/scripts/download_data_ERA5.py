@@ -4,7 +4,7 @@
 import argparse
 import os
 
-from noaaplotter.download_utils import download_era5_from_gee
+from src.download_utils import download_era5_from_gee
 
 
 def main():
