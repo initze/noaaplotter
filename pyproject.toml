@@ -6,6 +6,7 @@ build-backend = "setuptools.build_meta"
 name = "noaaplotter"
 version = "0.5.3"
 description = "Package to plot fancy climate/weather data of NOAA"
+requires-python = ">=3.9"
 authors = [
     { name = "Ingmar Nitze", email = "ingmar.nitze@awi.de" }
 ]
