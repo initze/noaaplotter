@@ -15,6 +15,13 @@ from joblib import Parallel, delayed
 from noaaplotter.utils.utils import assign_numeric_datatypes
 
 
+import polars as pl
+from datetime import datetime
+import numpy as np
+import tqdm
+from joblib import Parallel, delayed
+import os
+
 def download_from_noaa(
     output_file,
     start_date,
@@ -28,17 +35,23 @@ def download_from_noaa(
     # remove file if exists
     if os.path.exists(output_file):
         os.remove(output_file)
+    
     # Make query string
     dtypes_string = "&".join([f"datatypeid={dt}" for dt in datatypes])
+    
     # convert datestring to dt
     dt_start = datetime.strptime(start_date, "%Y-%m-%d")
     dt_end = datetime.strptime(end_date, "%Y-%m-%d")
+    
     # calculate number of days
     n_days = (dt_end - dt_start).days
+    
     # calculate number of splits to fit into 1000 lines/rows
     split_size = np.floor(1000 / len(datatypes))
+    
     # calculate splits
     split_range = np.arange(0, n_days, split_size)
+    
     # Data Loading
     print("Downloading data through NOAA API")
     datasets_list = Parallel(n_jobs=n_jobs)(
@@ -47,6 +60,7 @@ def download_from_noaa(
         )
         for i in tqdm.tqdm(split_range[:])
     )
+    
     # drop empty/None from datasets_list
     datasets_list = [i for i in datasets_list if i is not None]
 
@@ -75,8 +89,9 @@ def download_from_noaa(
     df_final = df_merged[final_cols]
     df_final = df_final.replace({np.nan: None})
     print(f"Saving data to {output_file}")
-    df_final.to_csv(output_file, index=False, quoting=csv.QUOTE_ALL)
+    df_final.to_parquet(output_file)
     return 0
+
 
 
 def dl_noaa_api(i, dtypes, station_id, Token, date_start, date_end, split_size):

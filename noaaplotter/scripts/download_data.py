@@ -19,8 +19,8 @@ def main():
         dest="output_file",
         type=str,
         required=True,
-        default="data/data.csv",
-        help="csv file to save results",
+        default="data/parquet.csv",
+        help="parquet file to save results",
     )
 
     parser.add_argument(
