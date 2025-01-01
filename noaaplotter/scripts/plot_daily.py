@@ -12,7 +12,7 @@ def main():
     parser = argparse.ArgumentParser(description='Parse arguments.')
 
     parser.add_argument('-infile', dest='infile', type=str, required=True,
-                        default='data/temp.csv',
+                        default='data/temp.parquet',
                         help='input file with climate data')
 
     parser.add_argument('-t', dest='token', type=str, required=False,

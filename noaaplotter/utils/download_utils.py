@@ -1,4 +1,3 @@
-import csv
 import datetime as dt
 import json
 import os
@@ -8,19 +7,13 @@ import ee
 import geemap
 import numpy as np
 import pandas as pd
+import polars as pl
 import requests
 import tqdm
 from joblib import Parallel, delayed
 
 from noaaplotter.utils.utils import assign_numeric_datatypes
 
-
-import polars as pl
-from datetime import datetime
-import numpy as np
-import tqdm
-from joblib import Parallel, delayed
-import os
 
 def download_from_noaa(
     output_file,
@@ -32,40 +25,61 @@ def download_from_noaa(
     noaa_api_token,
     n_jobs=4,
 ):
-    # remove file if exists
+    # Check if file exists and load it
     if os.path.exists(output_file):
-        os.remove(output_file)
-    
-    # Make query string
-    dtypes_string = "&".join([f"datatypeid={dt}" for dt in datatypes])
-    
-    # convert datestring to dt
+        existing_df = pl.read_parquet(output_file).drop_nulls(subset='STATION')
+        existing_dates = set(existing_df['DATE'].to_list())
+    else:
+        existing_df = None
+        existing_dates = set()
+
+    # Convert datestrings to datetime
     dt_start = datetime.strptime(start_date, "%Y-%m-%d")
     dt_end = datetime.strptime(end_date, "%Y-%m-%d")
-    
-    # calculate number of days
-    n_days = (dt_end - dt_start).days
-    
-    # calculate number of splits to fit into 1000 lines/rows
-    split_size = np.floor(1000 / len(datatypes))
-    
-    # calculate splits
-    split_range = np.arange(0, n_days, split_size)
-    
+
+    # Calculate date range
+    all_dates = set(pd.date_range(start=dt_start, end=dt_end).strftime("%Y-%m-%d"))
+    missing_dates = sorted(list(all_dates - existing_dates))
+
+    if not missing_dates:
+        print("No new data to download.")
+        return 0
+
+    # Find contiguous date ranges to download
+    date_ranges = []
+    range_start = missing_dates[0]
+    prev_date = datetime.strptime(missing_dates[0], "%Y-%m-%d")
+
+    for date_str in missing_dates[1:] + [None]:  # Add None to handle the last range
+        if date_str is None or datetime.strptime(date_str, "%Y-%m-%d") - prev_date > timedelta(days=1):
+            date_ranges.append((range_start, prev_date.strftime("%Y-%m-%d")))
+            if date_str is not None:
+                range_start = date_str
+        prev_date = datetime.strptime(date_str, "%Y-%m-%d") if date_str else None
+
     # Data Loading
-    print("Downloading data through NOAA API")
-    datasets_list = Parallel(n_jobs=n_jobs)(
-        delayed(dl_noaa_api)(
-            i, datatypes, station_id, noaa_api_token, start_date, end_date, split_size
+    print("Downloading missing data through NOAA API")
+    all_new_data = []
+
+    for start, end in date_ranges:
+        print(f"Downloading data from {start} to {end}")
+        n_days = (datetime.strptime(end, "%Y-%m-%d") - datetime.strptime(start, "%Y-%m-%d")).days + 1
+        split_size = np.floor(1000 / len(datatypes))
+        split_range = np.arange(0, n_days, split_size)
+
+        datasets_list = Parallel(n_jobs=n_jobs)(
+            delayed(dl_noaa_api)(
+                i, datatypes, station_id, noaa_api_token, start, end, split_size
+            )
+            for i in tqdm.tqdm(split_range[:])
         )
-        for i in tqdm.tqdm(split_range[:])
-    )
-    
-    # drop empty/None from datasets_list
-    datasets_list = [i for i in datasets_list if i is not None]
+
+        # Drop empty/None from datasets_list
+        datasets_list = [i for i in datasets_list if i is not None]
+        all_new_data.extend(datasets_list)
 
     # Merge subsets and create DataFrame
-    df = pd.concat(datasets_list)
+    df = pd.concat(all_new_data)
 
     df_pivot = assign_numeric_datatypes(df)
     df_pivot["DATE"] = df_pivot.apply(
@@ -88,6 +102,11 @@ def download_from_noaa(
     final_cols = ["STATION", "NAME", "DATE", "PRCP", "SNWD", "TAVG", "TMAX", "TMIN"]
     df_final = df_merged[final_cols]
     df_final = df_final.replace({np.nan: None})
+
+    # Merge with existing data if it exists
+    if existing_df is not None:
+        df_final = pd.concat([existing_df.to_pandas(), df_final]).drop_duplicates(subset=["DATE"], keep="last")
+
     print(f"Saving data to {output_file}")
     df_final.to_parquet(output_file)
     return 0
