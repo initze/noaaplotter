@@ -97,8 +97,10 @@ def download_from_noaa(
     )
     df_merged["DATE"] = df_merged.index
     df_merged["NAME"] = loc_name
-    df_merged["TAVG"] = None
-    df_merged["SNWD"] = None
+    if "TAVG" not in df_merged.columns:
+        df_merged["TAVG"] = None
+    if "SNWD" not in df_merged.columns:
+        df_merged["SNWD"] = None
     final_cols = ["STATION", "NAME", "DATE", "PRCP", "SNWD", "TAVG", "TMAX", "TMIN"]
     df_final = df_merged[final_cols]
     df_final = df_final.replace({np.nan: None})
