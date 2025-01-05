@@ -9,10 +9,10 @@
 
 ########################
 import os
+import time
 
 import numpy as np
 import polars as pl
-import time
 
 from .utils import *
 
@@ -537,46 +537,46 @@ class NOAAPlotterMonthlyClimateDataset(object):
         df_out = pd.DataFrame()
         data_filtered = self.filter_to_date()
         df_out["tmean_doy_mean"] = (
-            data_filtered[["DATE", "TMEAN"]]
+            data_filtered[["TMEAN"]]
             .groupby(data_filtered["DATE_YM"])
-            .mean(numeric_only=NUMERIC_ONLY)
+            .agg(lambda x: x.mean() if x.notna().any() else np.nan)
             .TMEAN
         )
         df_out["tmean_doy_std"] = (
-            data_filtered[["DATE", "TMEAN"]]
+            data_filtered[["TMEAN"]]
             .groupby(data_filtered["DATE_YM"])
-            .std(numeric_only=NUMERIC_ONLY)
+            .agg(lambda x: x.std() if x.notna().any() else np.nan)
             .TMEAN
         )
         df_out["tmax_doy_max"] = (
-            data_filtered[["DATE", "TMAX"]]
+            data_filtered[["TMAX"]]
             .groupby(data_filtered["DATE_YM"])
-            .max(numeric_only=NUMERIC_ONLY)
+            .agg(lambda x: x.max() if x.notna().any() else np.nan)
             .TMAX
         )
         df_out["tmax_doy_std"] = (
-            data_filtered[["DATE", "TMAX"]]
+            data_filtered[["TMAX"]]
             .groupby(data_filtered["DATE_YM"])
-            .std(numeric_only=NUMERIC_ONLY)
+            .agg(lambda x: x.std() if x.notna().any() else np.nan)
             .TMAX
         )
         df_out["tmin_doy_min"] = (
-            data_filtered[["DATE", "TMIN"]]
+            data_filtered[["TMIN"]]
             .groupby(data_filtered["DATE_YM"])
-            .min(numeric_only=NUMERIC_ONLY)
+            .agg(lambda x: x.min() if x.notna().any() else np.nan)
             .TMIN
         )
         df_out["tmin_doy_std"] = (
-            data_filtered[["DATE", "TMIN"]]
+            data_filtered[["TMIN"]]
             .groupby(data_filtered["DATE_YM"])
-            .std(numeric_only=NUMERIC_ONLY)
+            .agg(lambda x: x.std() if x.notna().any() else np.nan)
             .TMIN
         )
         if "SNOW" in data_filtered.columns:
             df_out["snow_doy_mean"] = (
-                data_filtered[["DATE", "SNOW"]]
+                data_filtered[["SNOW"]]
                 .groupby(data_filtered["DATE_YM"])
-                .mean(numeric_only=NUMERIC_ONLY)
+                .agg(lambda x: x.mean() if x.notna().any() else np.nan)
                 .SNOW
             )
         df_out["prcp_sum"] = (
