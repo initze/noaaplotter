@@ -12,7 +12,7 @@
 # TODO: move to external file
 def setup_monthly_plot_props(information, anomaly):
     plot_kwargs = {}
-    if information == 'Temperature':
+    if information.lower() == 'temperature':
         plot_kwargs['cmap'] = 'RdBu_r'
         plot_kwargs['fc_low'] = '#4393c3'
         plot_kwargs['fc_high'] = '#d6604d'
@@ -29,7 +29,7 @@ def setup_monthly_plot_props(information, anomaly):
             plot_kwargs['legend_label_above'] = 'Above freezing'
             plot_kwargs['legend_label_below'] = 'Below freezing'
 
-    elif information == 'Precipitation':
+    elif information.lower() == 'precipitation':
         plot_kwargs['fc_low'] = '#d6604d'
         plot_kwargs['fc_high'] = '#4393c3'
         if anomaly:
