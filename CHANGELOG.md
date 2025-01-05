@@ -1,3 +1,9 @@
+# [0.5.4] - 2025-01-05
+### Changed
+* fixed streamlit crash
+* added toml for install
+* fixed accounted for nan in monthly aggregates
+
 # [0.5.1] - 2023-02-18
 ### Changed
 * created download_utils
