@@ -15,6 +15,7 @@ from joblib import Parallel, delayed
 from noaaplotter.utils.utils import assign_numeric_datatypes
 
 
+# move some logic outside
 def download_from_noaa(
     output_file,
     start_date,
