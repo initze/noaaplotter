@@ -3,6 +3,7 @@
 # Imports
 import argparse
 
+from noaaplotter.utils.config import get_noaa_token
 from noaaplotter.utils.download_utils import download_from_noaa
 
 
@@ -24,7 +25,8 @@ def main():
     )
 
     parser.add_argument(
-        "-t", dest="token", type=str, required=False, default="", help="NOAA API token"
+        "-t", dest="token", type=str, required=False, default="",
+        help="NOAA API token (default: NOAA_API_TOKEN from environment or .env file)",
     )
 
     parser.add_argument(
@@ -80,12 +82,19 @@ def main():
 
     args = parser.parse_args()
 
+    token = get_noaa_token(args.token)
+    if not token:
+        parser.error(
+            "No NOAA API token found. Set NOAA_API_TOKEN in your environment or a "
+            "local .env file (see .env.example), or pass it with -t."
+        )
+
     download_from_noaa(
         output_file=args.output_file,
         start_date=args.start_date,
         end_date=args.end_date,
         datatypes=args.datatypes,
-        noaa_api_token=args.token,
+        noaa_api_token=token,
         loc_name=args.loc_name,
         station_id=args.station_id,
         n_jobs=args.n_jobs,
