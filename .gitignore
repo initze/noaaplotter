@@ -5,3 +5,6 @@ Session.log
 .env
 *.egg-info/
 .venv/
+
+# plotly renders (regenerable via examples)
+figures/*.html

@@ -26,9 +26,11 @@ dependencies = [
     "polars>=1.18.0",
     "pyarrow>=18.1.0",
     "python-dotenv>=1.0.1",
+    "plotly>=5.18",
     "box>=0.1.5",
     "setuptools>=75.6.0",
     "narwhals>=1.20.1",
+    "plotly>=7.0.0",
 ]
 
 [tool.setuptools.packages.find]

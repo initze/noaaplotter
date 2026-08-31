@@ -96,9 +96,12 @@ class NOAAPlotter(object):
         dpi=300,
         title=None,
         return_plot=False,
+        engine="matplotlib",
     ):
         """
         Plotting Function to show observed vs climate temperatures and snowfall
+        :param engine: "matplotlib" (static, default) or "plotly" (interactive, returned as a plotly Figure)
+        :type engine: str
         :param dpi:
         :param legend_fontsize:
         :param figsize:
@@ -169,7 +172,60 @@ class NOAAPlotter(object):
             show_snow_accumulation = False
             raise Warning("No snow information available")
 
-            # PLOT
+        # ----- plotly engine: interactive figure -----
+        if engine == "plotly":
+            from noaaplotter.figures import make_daily_figure
+
+            ext_hi = ext_lo = None
+            if plot_extrema:
+                tmax = self.dataset.data.groupby("DATE_MD").max(
+                    numeric_only=numeric_only
+                )["TMEAN"]
+                tmin = self.dataset.data.groupby("DATE_MD").min(
+                    numeric_only=numeric_only
+                )["TMEAN"]
+                local_obs = df_obs[["DATE", "DATE_MD", "TMEAN"]].set_index(
+                    "DATE_MD", drop=False
+                )
+                local_max = tmax.loc[local_obs.index] == local_obs["TMEAN"]
+                local_min = tmin.loc[local_obs.index] == local_obs["TMEAN"]
+                ext_hi = (
+                    local_obs[local_max]["DATE"].values,
+                    local_obs[local_max]["TMEAN"].values,
+                )
+                ext_lo = (
+                    local_obs[local_min]["DATE"].values,
+                    local_obs[local_min]["TMEAN"].values,
+                )
+
+            has_snow = show_snow_accumulation and "SNOW" in df_obs.columns
+            fig_pl = make_daily_figure(
+                df_obs, x_dates, x_dates_short,
+                y_clim, y_clim_std_hi, y_clim_std_lo,
+                ext_hi=ext_hi, ext_lo=ext_lo,
+                snow_dates=(
+                    x_dates_short.loc[:last_snow_date, "DATE"].values
+                    if has_snow else None
+                ),
+                snow_acc=snow_acc if has_snow else None,
+                snow_tail=(
+                    x_dates_short.loc[last_snow_date:, "DATE"].values,
+                    (snow_acc / 10)[x_dates_short.index.get_loc(last_snow_date):],
+                ) if has_snow else None,
+                show_snow_accumulation=has_snow,
+                plot_pmax=plot_pmax if isinstance(plot_pmax, (int, float)) else None,
+                plot_snowmax=plot_snowmax if isinstance(plot_snowmax, (int, float)) else None,
+                title=title,
+                figsize=(int(figsize[0] * 100), int(figsize[1] * 100)),
+            )
+            if save_path:
+                fig_pl.write_html(
+                    save_path if str(save_path).endswith(".html")
+                    else str(save_path) + ".html"
+                )
+            return fig_pl
+
+        # ----- matplotlib rendering below -----
         fig = plt.figure(figsize=figsize, dpi=dpi)
         ax_t = fig.add_subplot(211)
         ax_p = fig.add_subplot(212, sharex=ax_t)
@@ -232,7 +288,6 @@ class NOAAPlotter(object):
             alpha=0.7,
         )
 
-        # plot extremes
         if plot_extrema:
             tmax = self.dataset.data.groupby("DATE_MD").max(numeric_only=numeric_only)[
                 "TMEAN"
@@ -419,6 +474,7 @@ class NOAAPlotter(object):
         dpi=100,
         legend_fontsize="x-small",
         return_plot=False,
+        engine="matplotlib",
     ):
         # legend handles
         legend_handle = []
@@ -466,6 +522,19 @@ class NOAAPlotter(object):
             data = calc_trailing_mean(
                 data, trailing_mean, plot_kwargs["value_column"], "trailing_values"
             )
+
+        # ----- plotly engine: interactive figure -----
+        if engine == "plotly":
+            from noaaplotter.figures import make_monthly_figure
+
+            fig_pl = make_monthly_figure(
+                data, plot_kwargs, trailing_mean=trailing_mean,
+                figsize=(int(figsize[0] * 100), int(figsize[1] * 100)),
+            )
+            if save_path:
+                fig_pl.write_html(save_path if str(save_path).endswith(".html")
+                                  else str(save_path) + ".html")
+            return fig_pl
 
         # PLOT part
         fig = plt.figure(figsize=figsize, dpi=dpi)
