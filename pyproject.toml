@@ -30,7 +30,7 @@ dependencies = [
     "box>=0.1.5",
     "setuptools>=75.6.0",
     "narwhals>=1.20.1",
-    "plotly>=7.0.0",
+    "cdsapi>=0.7",
 ]
 
 [tool.setuptools.packages.find]
