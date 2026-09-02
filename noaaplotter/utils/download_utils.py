@@ -3,8 +3,6 @@ import json
 import os
 from datetime import datetime, timedelta
 
-import ee
-import geemap
 import numpy as np
 import pandas as pd
 import polars as pl
@@ -26,6 +24,12 @@ def download_from_noaa(
     noaa_api_token,
     n_jobs=4,
 ):
+    # The CDO *data* API wants the bare station id ("USW00026616"). The "GHCND:"
+    # prefix is only used by the CDO *catalog* and makes the data API silently
+    # return 0 rows — strip it so either form works.
+    if ':' in station_id:
+        station_id = station_id.split(':')[-1]
+
     # Check if file exists and load it
     if os.path.exists(output_file):
         existing_df = pl.read_parquet(output_file).drop_nulls(subset='STATION')
@@ -81,6 +85,13 @@ def download_from_noaa(
 
     # Merge subsets and create DataFrame
     df = pd.concat(all_new_data)
+    if df is None or len(df) == 0 or not list(df.columns):
+        raise ValueError(
+            "No data returned from NOAA for station "
+            f"{station_id} in {start_date}..{end_date}. Use the bare station id "
+            "(e.g. 'USW00026616' — the 'GHCND:' prefix is stripped automatically) "
+            "and check the dates fall within the record."
+        )
 
     df_pivot = assign_numeric_datatypes(df)
     df_pivot["DATE"] = df_pivot.apply(
@@ -100,15 +111,21 @@ def download_from_noaa(
     df_merged["NAME"] = loc_name
     if "TAVG" not in df_merged.columns:
         df_merged["TAVG"] = None
-    if "SNWD" not in df_merged.columns:
-        df_merged["SNWD"] = None
-    final_cols = ["STATION", "NAME", "DATE", "PRCP", "SNWD", "TAVG", "TMAX", "TMIN"]
-    df_final = df_merged[final_cols]
-    df_final = df_final.replace({np.nan: None})
+    if "SNOW" not in df_merged.columns:
+        df_merged["SNOW"] = None
+    final_cols = ["STATION", "NAME", "DATE", "PRCP", "SNOW", "TAVG", "TMAX", "TMIN"]
+    df_final = df_merged[final_cols].copy()
 
     # Merge with existing data if it exists
     if existing_df is not None:
         df_final = pd.concat([existing_df.to_pandas(), df_final]).drop_duplicates(subset=["DATE"], keep="last")
+
+    # Ensure the observed-value columns are real floats (not strings). Parquet
+    # stores NaN as a null and polars reads it back as null — this avoids the
+    # "horizontal_mean expects numeric expressions, found ... (dtype=str)" error.
+    for c in ("PRCP", "SNOW", "TAVG", "TMAX", "TMIN"):
+        if c in df_final.columns:
+            df_final[c] = pd.to_numeric(df_final[c], errors="coerce").astype("float64")
 
     print(f"Saving data to {output_file}")
     df_final.to_parquet(output_file)
@@ -159,6 +176,11 @@ def dl_noaa_api(i, dtypes, station_id, Token, date_start, date_end, split_size):
 
 
 def download_era5_from_gee(latitude, longitude, end_date, start_date, output_file):
+    # GEE/geemap are heavy and optional (only the "ERA5 via GEE" path uses them);
+    # import lazily so the rest of this module loads without them.
+    import ee
+    import geemap
+
     ee.Initialize()
     EE_LAYER = "ECMWF/ERA5/DAILY"
     location = ee.Geometry.Point([longitude, latitude])

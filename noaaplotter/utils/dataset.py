@@ -74,6 +74,14 @@ class NOAAPlotterDailySummariesDataset(object):
             data = pl.read_csv(self.input_filepath)
         if "__index_level_0__" in data.columns:
             data = data.drop("__index_level_0__")
+        # Observed values can be stored as strings (e.g. CSV or legacy parquet
+        # exports); coerce to float so numeric ops (TMEAN, stats) work.
+        # Casting an already-numeric column to Float64 is a no-op.
+        for c in ("PRCP", "SNOW", "TAVG", "TMAX", "TMIN", "SNWD"):
+            if c in data.columns:
+                data = data.with_columns(
+                    pl.col(c).cast(pl.Float64, strict=False)
+                )
         self._pl = data
 
     def _load_noaa(self):

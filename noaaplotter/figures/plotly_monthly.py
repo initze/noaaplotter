@@ -22,12 +22,16 @@ def make_monthly_figure(data, plot_kwargs, trailing_mean=None, title=None,
     d_high = data[value >= 0]
     fig = go.Figure()
 
-    fig.add_trace(go.Bar(x=d_low["DATE"], y=d_low[value_col], width=30,
+    fig.add_trace(go.Bar(x=d_low["DATE"], y=d_low[value_col],
                          name=plot_kwargs.get("legend_label_below") or "Below",
-                         marker_color=plot_kwargs["fc_low"], opacity=1.0))
-    fig.add_trace(go.Bar(x=d_high["DATE"], y=d_high[value_col], width=30,
+                         marker=dict(color=plot_kwargs["fc_low"],
+                                     line=dict(width=0.5, color="white")),
+                         opacity=0.92))
+    fig.add_trace(go.Bar(x=d_high["DATE"], y=d_high[value_col],
                          name=plot_kwargs.get("legend_label_above") or "Above",
-                         marker_color=plot_kwargs["fc_high"], opacity=1.0))
+                         marker=dict(color=plot_kwargs["fc_high"],
+                                     line=dict(width=0.5, color="white")),
+                         opacity=0.92))
 
     if trailing_mean and "trailing_values" in data.columns:
         fig.add_trace(go.Scatter(x=data["DATE"], y=data["trailing_values"],

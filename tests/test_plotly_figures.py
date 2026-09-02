@@ -22,6 +22,10 @@ def test_daily_plotly_figure():
                      "Precipitation", "Above average Temperature",
                      "Below average Temperature"):
         assert expected in names, f"missing trace: {expected}"
+    # the +/- sigma envelope is a single non-hoverable light-grey band (no name)
+    grey = [t for t in fig.data if getattr(t, "fillcolor", None)
+            and "190,190,190" in str(t.fillcolor)]
+    assert grey, "grey climatological band missing"
 
 
 def test_monthly_plotly_parity_vs_matplotlib():

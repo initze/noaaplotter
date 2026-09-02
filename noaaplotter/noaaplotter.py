@@ -547,6 +547,8 @@ class NOAAPlotter(object):
             width=30,
             align="edge",
             color=plot_kwargs["fc_low"],
+            edgecolor="white",
+            linewidth=0.5,
         )
         # Fix for absolute values
         if len(bar_low) > 1:
@@ -558,6 +560,8 @@ class NOAAPlotter(object):
             width=30,
             align="edge",
             color=plot_kwargs["fc_high"],
+            edgecolor="white",
+            linewidth=0.5,
         )
         legend_handle.append(bar_high)
         legend_text.append(plot_kwargs["legend_label_above"])
