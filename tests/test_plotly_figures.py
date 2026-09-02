@@ -57,3 +57,34 @@ def test_engine_default_is_matplotlib():
                                 show_plot=False, show_snow_accumulation=False,
                                 return_plot=True)
     assert hasattr(fig, "savefig")  # matplotlib Figure
+
+
+def test_daily_no_snow_in_window_does_not_crash(tmp_path):
+    # Regression: a window where the SNOW column exists but has zero positive
+    # values used to crash on .iloc[-1] of an empty selection (IndexError).
+    import numpy as np
+    import pandas as pd
+
+    dates = pd.date_range("1981-01-01", "2018-12-31", freq="D")
+    rng = np.random.default_rng(42)
+    df = pd.DataFrame({
+        "STATION": "GHCND:TEST01",
+        "NAME": "Synthetic",
+        "DATE": dates.strftime("%Y-%m-%d"),
+        "TMAX": rng.normal(10, 5, dates.size),
+        "TMIN": rng.normal(0, 5, dates.size),
+        "TAVG": None,
+        "PRCP": rng.poisson(1, dates.size).astype(float),
+        "SNOW": None,  # column present, but no snowfall at all
+    })
+    path = tmp_path / "no_snow.parquet"
+    df.to_parquet(path)
+
+    n = NOAAPlotter(str(path), location="Synthetic")
+    for engine in ("plotly", "matplotlib"):
+        fig = n.plot_weather_series(
+            start_date="2016-07-01", end_date="2016-08-31",
+            show_snow_accumulation=True, plot_extrema=True,
+            show_plot=False, return_plot=True, engine=engine,
+        )
+        assert fig is not None

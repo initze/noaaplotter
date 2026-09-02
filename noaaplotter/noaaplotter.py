@@ -166,8 +166,14 @@ class NOAAPlotter(object):
         if not show_snow_accumulation:
             None
         elif (show_snow_accumulation) and ("SNOW" in df_obs.columns):
-            last_snow_date = df_obs[df_obs["SNOW"] > 0].iloc[-1]["DATE"]
-            snow_acc = np.cumsum(df_obs["SNOW"])
+            snow_pos = df_obs[df_obs["SNOW"] > 0]
+            if len(snow_pos) > 0:
+                last_snow_date = snow_pos.iloc[-1]["DATE"]
+                snow_acc = np.cumsum(df_obs["SNOW"])
+            else:
+                # no snowfall in the plotted window: skip the snow overlay
+                # (previously crashed on .iloc[-1] of an empty selection)
+                show_snow_accumulation = False
         elif "SNOW" not in df_obs.columns:
             show_snow_accumulation = False
             raise Warning("No snow information available")
@@ -366,8 +372,9 @@ class NOAAPlotter(object):
             ax_p.set_ylim(top=plot_pmax)
 
         # snow
-        # TODO: make snowcheck
-        if (show_snow_accumulation) and ("SNOW" in df_obs.columns):
+        # guarded by the show_snow_accumulation reassignment above (skipped when
+        # the window has no snowfall, so last_snow_date/snow_acc exist)
+        if show_snow_accumulation and ("SNOW" in df_obs.columns):
             ax2_snow = ax_p.twinx()
             # plots
             sn_acc = ax2_snow.fill_between(
