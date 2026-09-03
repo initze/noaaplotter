@@ -137,7 +137,9 @@ def make_daily_figure(df_obs, x_dates, x_dates_short, y_clim, y_clim_hi, y_clim_
                              marker_color="rgba(0,0,0,0.2)",
                              name="No Data", showlegend=True), 2, 1)
 
-    # --- snowfall accumulation on secondary axis over precipitation
+    # --- snowfall accumulation: its OWN secondary axis on the precipitation row.
+    # NOTE: add_trace() WITHOUT row/col on purpose — subplot row/col pinning would
+    # force the trace onto the precipitation axis (y2) and hide the rain bars.
     if show_snow_accumulation and snow_dates is not None:
         snow_max = float(np.nanmax(snow_acc) / 10) if np.nanmax(snow_acc) > 0 else 1.0
         snow_top = plot_snowmax if plot_snowmax is not None else snow_max * 1.1
@@ -147,14 +149,15 @@ def make_daily_figure(df_obs, x_dates, x_dates_short, y_clim, y_clim_hi, y_clim_
                                  line=dict(width=0),
                                  fillcolor="rgba(0,0,0,0.2)",
                                  fill="tozeroy", yaxis="y3",
-                                 hovertemplate="Snow: %{y:.2f} cm<extra></extra>"), 2, 1)
-        fig.update_yaxes(title="Cumulative Snowfall in cm", side="right",
-                         overlaying="y2", anchor="free", range=[0, snow_top])
+                                 hovertemplate="Snow: %{y:.2f} cm<extra></extra>"))
+        fig.update_layout(yaxis3=dict(title="Cumulative Snowfall in cm", side="right",
+                                      overlaying="y2", anchor="free", position=1.0,
+                                      range=[0, snow_top]))
         if snow_tail is not None:
             fig.add_trace(go.Scatter(x=list(snow_tail[0]), y=list(snow_tail[1]),
                                      opacity=0.2,
                                      line=dict(color="black", width=1, dash="dash"),
-                                     showlegend=False, yaxis="y3"), 2, 1)
+                                     showlegend=False, yaxis="y3"))
 
     fig.update_layout(height=figsize[1], width=figsize[0],
                       template="plotly_white", hovermode="x unified",

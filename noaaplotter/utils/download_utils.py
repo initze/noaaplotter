@@ -84,8 +84,17 @@ def download_from_noaa(
         all_new_data.extend(datasets_list)
 
     # Merge subsets and create DataFrame
-    df = pd.concat(all_new_data)
+    if all_new_data:
+        df = pd.concat(all_new_data)
+    else:
+        df = None
     if df is None or len(df) == 0 or not list(df.columns):
+        if existing_df is not None and len(existing_df) > 0:
+            # Nothing new to add (e.g. requested dates not yet published by NOAA).
+            # Keep the existing data instead of erroring.
+            print("No new data returned; keeping existing data "
+                  f"({existing_df.height} rows) in {output_file}.")
+            return 0
         raise ValueError(
             "No data returned from NOAA for station "
             f"{station_id} in {start_date}..{end_date}. Use the bare station id "
