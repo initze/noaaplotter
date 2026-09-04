@@ -3,8 +3,6 @@ import json
 import os
 from datetime import datetime, timedelta
 
-import ee
-import geemap
 import numpy as np
 import pandas as pd
 import polars as pl
@@ -26,6 +24,12 @@ def download_from_noaa(
     noaa_api_token,
     n_jobs=4,
 ):
+    # The CDO *data* API wants the bare station id ("USW00026616"). The "GHCND:"
+    # prefix is only used by the CDO *catalog* and makes the data API silently
+    # return 0 rows — strip it so either form works.
+    if ':' in station_id:
+        station_id = station_id.split(':')[-1]
+
     # Check if file exists and load it
     if os.path.exists(output_file):
         existing_df = pl.read_parquet(output_file).drop_nulls(subset='STATION')
@@ -80,35 +84,82 @@ def download_from_noaa(
         all_new_data.extend(datasets_list)
 
     # Merge subsets and create DataFrame
-    df = pd.concat(all_new_data)
+    if all_new_data:
+        df = pd.concat(all_new_data)
+    else:
+        df = None
+    if df is None or len(df) == 0 or not list(df.columns):
+        if existing_df is not None and len(existing_df) > 0:
+            # Nothing new to add (e.g. requested dates not yet published by NOAA).
+            # Keep the existing data instead of erroring.
+            print("No new data returned; keeping existing data "
+                  f"({existing_df.height} rows) in {output_file}.")
+            return 0
+        raise ValueError(
+            "No data returned from NOAA for station "
+            f"{station_id} in {start_date}..{end_date}. Use the bare station id "
+            "(e.g. 'USW00026616' — the 'GHCND:' prefix is stripped automatically) "
+            "and check the dates fall within the record."
+        )
 
     df_pivot = assign_numeric_datatypes(df)
     df_pivot["DATE"] = df_pivot.apply(
         lambda x: datetime.fromisoformat(x["DATE"]).strftime("%Y-%m-%d"), axis=1
     )
 
-    df_pivot = df_pivot.reset_index(drop=False)
-    dr = pd.DataFrame(pd.date_range(start=start_date, end=end_date), columns=["DATE"])
-    dr["DATE"] = dr["DATE"].astype(str)
-    df_merged = pd.concat(
-        [df_pivot.set_index("DATE"), dr.set_index("DATE")],
-        join="outer",
-        axis=1,
-        sort=True,
-    )
-    df_merged["DATE"] = df_merged.index
-    df_merged["NAME"] = loc_name
-    if "TAVG" not in df_merged.columns:
-        df_merged["TAVG"] = None
-    if "SNWD" not in df_merged.columns:
-        df_merged["SNWD"] = None
-    final_cols = ["STATION", "NAME", "DATE", "PRCP", "SNWD", "TAVG", "TMAX", "TMIN"]
-    df_final = df_merged[final_cols]
-    df_final = df_final.replace({np.nan: None})
+    # Drop any API/index column that leaked into the frame, plus empty rows.
+    for c in list(df_pivot.columns):
+        if c.startswith("__index_level"):
+            df_pivot = df_pivot.drop(columns=[c])
+    df_pivot = df_pivot.dropna(subset=["DATE"])
+    if "TAVG" not in df_pivot.columns:
+        df_pivot["TAVG"] = None
+    if "SNOW" not in df_pivot.columns:
+        df_pivot["SNOW"] = None
+    final_cols = ["STATION", "NAME", "DATE", "PRCP", "SNOW", "TAVG", "TMAX", "TMIN"]
+    df_pivot["NAME"] = loc_name
+    df_new = df_pivot[final_cols].copy().drop_duplicates(subset=["DATE"], keep="last")
 
-    # Merge with existing data if it exists
     if existing_df is not None:
-        df_final = pd.concat([existing_df.to_pandas(), df_final]).drop_duplicates(subset=["DATE"], keep="last")
+        # Incremental run: keep only the freshly-downloaded rows and merge them
+        # over the existing cache. keep="last" lets the fresh rows win for the
+        # re-downloaded dates; every other existing date is left untouched. We
+        # deliberately do NOT build a full-window skeleton here — that used to
+        # create NaN rows for every already-cached day and corrupt the cache.
+        df_final = pd.concat(
+            [existing_df.to_pandas()[final_cols], df_new]
+        ).drop_duplicates(subset=["DATE"], keep="last")
+    else:
+        # Fresh run: build a skeleton over the full requested window so any
+        # dates the API didn't return become explicit NaN rows.
+        dr = pd.DataFrame(
+            pd.date_range(start=start_date, end=end_date).strftime("%Y-%m-%d"),
+            columns=["DATE"],
+        )
+        df_merged = pd.concat(
+            [df_pivot.set_index("DATE"), dr.set_index("DATE")],
+            join="outer",
+            axis=1,
+            sort=True,
+        )
+        df_merged["DATE"] = df_merged.index
+        df_merged["NAME"] = loc_name
+        df_final = df_merged[final_cols].copy()
+
+    # Ensure the observed-value columns are real floats (not strings). Parquet
+    # stores NaN as a null and polars reads it back as null — this avoids the
+    # "horizontal_mean expects numeric expressions, found ... (dtype=str)" error.
+    for c in ("PRCP", "SNOW", "TAVG", "TMAX", "TMIN"):
+        if c in df_final.columns:
+            df_final[c] = pd.to_numeric(df_final[c], errors="coerce").astype("float64")
+
+    # Defensive: drop any stray index columns and reset to a default index so
+    # to_parquet does not serialize the (date or integer) index as an extra
+    # `__index_level_0__` column.
+    for c in list(df_final.columns):
+        if c.startswith("__index_level"):
+            df_final = df_final.drop(columns=[c])
+    df_final = df_final.reset_index(drop=True)
 
     print(f"Saving data to {output_file}")
     df_final.to_parquet(output_file)
@@ -159,6 +210,11 @@ def dl_noaa_api(i, dtypes, station_id, Token, date_start, date_end, split_size):
 
 
 def download_era5_from_gee(latitude, longitude, end_date, start_date, output_file):
+    # GEE/geemap are heavy and optional (only the "ERA5 via GEE" path uses them);
+    # import lazily so the rest of this module loads without them.
+    import ee
+    import geemap
+
     ee.Initialize()
     EE_LAYER = "ECMWF/ERA5/DAILY"
     location = ee.Geometry.Point([longitude, latitude])

@@ -1,3 +1,20 @@
 .idea
 noaaplotter/__pycache__
+**/__pycache__/
 Session.log
+.env
+*.egg-info/
+.venv/
+
+# plotly renders (regenerable via examples)
+figures/*.html
+
+# generated data & plot artifacts (regenerable via download_data / plot_daily)
+data/*.parquet
+examples/out/
+*.html
+*.png
+
+# scratch / diagnostics
+scratch_*.py
+.hermes/

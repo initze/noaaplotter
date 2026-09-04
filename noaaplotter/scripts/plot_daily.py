@@ -74,6 +74,11 @@ def main():
                         default=None,
                         help='Plot title')
 
+    parser.add_argument('-engine', dest='engine', type=str, required=False,
+                        default='matplotlib', choices=['matplotlib', 'plotly'],
+                        help="rendering engine: 'matplotlib' (static PNG) or "
+                             "'plotly' (interactive HTML; use -save_plot x.html)")
+
     args = parser.parse_args()
 
     ##### Download from NOAA #####
@@ -96,7 +101,8 @@ def main():
                           plot_snowmax=args.s_range,
                           dpi=args.dpi,
                           figsize=args.figsize,
-                          title=args.title)
+                          title=args.title,
+                          engine=args.engine)
 
 if __name__ == "__main__":
     main()

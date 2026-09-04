@@ -9,19 +9,17 @@
 
 ########################
 import os
-import time
 
-import numpy as np
 import polars as pl
 
-from .utils import *
-
-NUMERIC_ONLY = True
+from .utils import parse_dates
 
 
 class NOAAPlotterDailySummariesDataset(object):
     """
-    This class/module creates nice plots of observed weather data from NOAA
+    Load daily weather observations (NOAA daily summaries format) and
+    prepare the columns used by the plotting functions.
+    Internal data is a polars DataFrame; expose a pandas view via `data`.
     """
 
     def __init__(self, input_filepath=None, location=None, remove_feb29=False):
@@ -67,13 +65,24 @@ class NOAAPlotterDailySummariesDataset(object):
 
     def _load_file(self):
         """
-        load csv file into Pandas DataFrame
+        load file into a polars DataFrame
         :return:
         """
-        data = pl.read_parquet(self.input_filepath).to_pandas()
+        if self.input_filepath.endswith(".parquet"):
+            data = pl.read_parquet(self.input_filepath)
+        else:
+            data = pl.read_csv(self.input_filepath)
         if "__index_level_0__" in data.columns:
-            data = data.drop(columns=["__index_level_0__"])
-        self.data = data
+            data = data.drop("__index_level_0__")
+        # Observed values can be stored as strings (e.g. CSV or legacy parquet
+        # exports); coerce to float so numeric ops (TMEAN, stats) work.
+        # Casting an already-numeric column to Float64 is a no-op.
+        for c in ("PRCP", "SNOW", "TAVG", "TMAX", "TMIN", "SNWD"):
+            if c in data.columns:
+                data = data.with_columns(
+                    pl.col(c).cast(pl.Float64, strict=False)
+                )
+        self._pl = data
 
     def _load_noaa(self):
         """
@@ -81,30 +90,24 @@ class NOAAPlotterDailySummariesDataset(object):
         """
         pass
 
-    def _save_noaa(self):
-        """
-        save loaded NOAA API data to temporary csv file
-        """
-
     def _validate_location(self):
         """
         raise error and message if location name cannot be found
         :return:
         """
-        if not self.location and len(pd.unique(self.data["NAME"]) == 1):
-            pass
-        elif not self.location and len(pd.unique(self.data["NAME"]) > 1):
+        names = self._pl["NAME"].unique().to_list()
+        if not self.location and len(names) > 1:
             raise ValueError(
                 "There is more than one location in the dataset. Please choose a location using the -loc option! "
-                "Valid Location identifiers: {0} ".format(self.data["NAME"].unique())
+                "Valid Location identifiers: {0} ".format(names)
             )
-        else:
-            filt = self.data["NAME"].str.lower().str.contains(self.location.lower())
-            if filt.sum() == 0:
+        if self.location:
+            mask = self._pl["NAME"].str.to_lowercase().str.contains(
+                self.location.lower(), literal=False
+            )
+            if mask.sum() == 0:
                 raise ValueError(
-                    "Location Name is not valid! Valid Location identifiers: {0}".format(
-                        self.data["NAME"].unique()
-                    )
+                    "Location Name is not valid! Valid Location identifiers: {0}".format(names)
                 )
 
     def _update_datatypes(self):
@@ -112,16 +115,19 @@ class NOAAPlotterDailySummariesDataset(object):
         define 'DATE' as datetime
         :return:
         """
-        self.data["DATE"] = pd.to_datetime(self.data["DATE"])
+        if self._pl["DATE"].dtype == pl.String:
+            self._pl = self._pl.with_columns(pl.col("DATE").str.to_datetime())
 
     def _get_datestring(self):
         """
         write specific date formats
         :return:
         """
-        self.data["DATE_MD"] = self.data["DATE"].dt.strftime("%m-%d")
-        self.data["DATE_YM"] = self.data["DATE"].dt.strftime("%Y-%m")
-        self.data["DATE_M"] = self.data["DATE"].dt.strftime("%m")
+        self._pl = self._pl.with_columns(
+            pl.col("DATE").dt.strftime("%m-%d").alias("DATE_MD"),
+            pl.col("DATE").dt.strftime("%Y-%m").alias("DATE_YM"),
+            pl.col("DATE").dt.strftime("%m").alias("DATE_M"),
+        )
 
     def _get_tmean(self):
         """
@@ -129,7 +135,9 @@ class NOAAPlotterDailySummariesDataset(object):
         :return:
         """
         # TODO: check for cases where TMIN and TMAX are empty (e.g. Schonefeld). There TAVG is the main field
-        self.data["TMEAN"] = self.data[["TMIN", "TMAX"]].mean(axis=1)
+        self._pl = self._pl.with_columns(
+            pl.mean_horizontal(["TMIN", "TMAX"]).alias("TMEAN")
+        )
 
     def _remove_feb29(self):
         """
@@ -137,7 +145,7 @@ class NOAAPlotterDailySummariesDataset(object):
         :return:
         """
         if self.remove_feb29:
-            self.data = self.data[self.data["DATE_MD"] != "02-29"]
+            self._pl = self._pl.filter(pl.col("DATE_MD") != "02-29")
 
     def _filter_to_location(self):
         """
@@ -145,11 +153,16 @@ class NOAAPlotterDailySummariesDataset(object):
         :return:
         """
         if self.location:
-            filt = self.data["NAME"].str.lower().str.contains(self.location.lower())
-            if len(filt) > 0:
-                self.data = self.data.loc[filt]
+            filt = self._pl["NAME"].str.to_lowercase().str.contains(
+                self.location.lower(), literal=False
+            )
+            if filt.sum() > 0:
+                self._pl = self._pl.filter(filt)
             else:
                 raise ValueError("Location Name is not valid")
+
+        # pandas view for the plotting code
+        self.data = self._pl.to_pandas()
 
     def filter_to_climate(self, climate_start, climate_end):
         """
@@ -160,132 +173,6 @@ class NOAAPlotterDailySummariesDataset(object):
             (self.data["DATE"] >= climate_start) & (self.data["DATE"] <= climate_end)
         ]
         return df_clim
-
-    @staticmethod
-    def get_monthly_stats(df):
-        """
-        calculate monthly statistics
-        :param df:
-        :type df: pandas.DataFrame
-        :return:
-        """
-        df_out = pd.DataFrame()
-        df_out["tmean_doy_mean"] = (
-            df[["DATE", "TMEAN"]]
-            .groupby(df["DATE_YM"])
-            .mean(numeric_only=NUMERIC_ONLY)
-            .TMEAN
-        )
-        df_out["tmean_doy_std"] = (
-            df[["DATE", "TMEAN"]]
-            .groupby(df["DATE_YM"])
-            .std(numeric_only=NUMERIC_ONLY)
-            .TMEAN
-        )
-        df_out["tmax_doy_max"] = (
-            df[["DATE", "TMAX"]]
-            .groupby(df["DATE_YM"])
-            .max(numeric_only=NUMERIC_ONLY)
-            .TMAX
-        )
-        df_out["tmax_doy_std"] = (
-            df[["DATE", "TMAX"]]
-            .groupby(df["DATE_YM"])
-            .std(numeric_only=NUMERIC_ONLY)
-            .TMAX
-        )
-        df_out["tmin_doy_min"] = (
-            df[["DATE", "TMIN"]]
-            .groupby(df["DATE_YM"])
-            .min(numeric_only=NUMERIC_ONLY)
-            .TMIN
-        )
-        df_out["tmin_doy_std"] = (
-            df[["DATE", "TMIN"]]
-            .groupby(df["DATE_YM"])
-            .std(numeric_only=NUMERIC_ONLY)
-            .TMIN
-        )
-        if "SNOW" in df.columns:
-            df_out["snow_doy_mean"] = (
-                df[["DATE", "SNOW"]]
-                .groupby(df["DATE_YM"])
-                .mean(numeric_only=NUMERIC_ONLY)
-                .SNOW
-            )
-        df_out["prcp_sum"] = (
-            df[["DATE", "PRCP"]]
-            .groupby(df["DATE_YM"])
-            .sum(numeric_only=NUMERIC_ONLY)
-            .PRCP
-        )
-        return df_out
-
-    @staticmethod
-    def get_monthy_climate(df):
-        """
-        :param df:
-        :return:
-        """
-        df_out = pd.DataFrame()
-        df = df.data
-        df["Month"] = (
-            df.reset_index().apply(lambda x: int(x["DATE_MD"][:2]), axis=1).values
-        )
-        df_out["tmean_mean"] = (
-            df[["Month", "TMEAN"]]
-            .groupby(df["Month"])
-            .mean(numeric_only=NUMERIC_ONLY)
-            .TMEAN
-        )
-        df_out["tmean_std"] = (
-            df[["Month", "TMEAN"]]
-            .groupby(df["Month"])
-            .std(numeric_only=NUMERIC_ONLY)
-            .TMEAN
-        )
-        df_out["tmax_max"] = (
-            df[["Month", "TMAX"]]
-            .groupby(df["Month"])
-            .max(numeric_only=NUMERIC_ONLY)
-            .TMAX
-        )
-        df_out["tmax_std"] = (
-            df[["Month", "TMAX"]]
-            .groupby(df["Month"])
-            .std(numeric_only=NUMERIC_ONLY)
-            .TMAX
-        )
-        df_out["tmin_min"] = (
-            df[["Month", "TMIN"]]
-            .groupby(df["Month"])
-            .min(numeric_only=NUMERIC_ONLY)
-            .TMIN
-        )
-        df_out["tmin_std"] = (
-            df[["Month", "TMIN"]]
-            .groupby(df["Month"])
-            .std(numeric_only=NUMERIC_ONLY)
-            .TMIN
-        )
-        if "SNOW" in df.columns:
-            df_out["snow_mean"] = (
-                df[["Month", "SNOW"]]
-                .groupby(df["Month"])
-                .mean(numeric_only=NUMERIC_ONLY)
-                .SNOW
-            )
-        unique_years = len(
-            np.unique(df.apply(lambda x: parse_dates_YM(x["DATE_YM"]).year, axis=1))
-        )
-        df_out["prcp_mean"] = (
-            df[["Month", "PRCP"]]
-            .groupby(df["Month"])
-            .mean(numeric_only=NUMERIC_ONLY)
-            .PRCP
-            * unique_years
-        )
-        return df_out.reset_index(drop=False)
 
 
 class NOAAPlotterDailyClimateDataset(object):
@@ -322,11 +209,7 @@ class NOAAPlotterDailyClimateDataset(object):
         # mean imputation for 29 February
         self._impute_feb29()
         # filter if desired
-        start_time = time.time()
         self._run_filter()
-        # self._run_filter_polars()
-        end_time = time.time()
-        print(f"_run_filter  took {end_time - start_time:.2f} seconds to run.")
         # make completeness report
 
     def _validate_date_range(self):
@@ -350,67 +233,31 @@ class NOAAPlotterDailyClimateDataset(object):
 
     def _calculate_climate_statistics(self):
         """
-        Function to calculate major statistics
+        Function to calculate major statistics (polars).
         :param self.data_daily:
-        :type self.data_daily: pandas.DataFrame
+        :type self.data_daily: pandas.DataFrame (converted to polars)
         :return:
         """
-        df_out = pd.DataFrame()
-        df_out["tmean_doy_mean"] = (
-            self.data_daily[["DATE", "TMEAN"]]
-            .groupby(self.data_daily["DATE_MD"])
-            .mean(numeric_only=NUMERIC_ONLY)
-            .TMEAN
+        d = pl.from_pandas(self.data_daily)
+        aggs = [
+            pl.col("TMEAN").mean().alias("tmean_doy_mean"),
+            pl.col("TMEAN").std().alias("tmean_doy_std"),
+            pl.col("TMEAN").max().alias("tmean_doy_max"),
+            pl.col("TMEAN").min().alias("tmean_doy_min"),
+            pl.col("TMAX").max().alias("tmax_doy_max"),
+            pl.col("TMAX").std().alias("tmax_doy_std"),
+            pl.col("TMIN").min().alias("tmin_doy_min"),
+            pl.col("TMIN").std().alias("tmin_doy_std"),
+        ]
+        if "SNOW" in d.columns:
+            aggs.append(pl.col("SNOW").mean().alias("snow_doy_mean"))
+        df_out = (
+            d.group_by("DATE_MD", maintain_order=True)
+            .agg(aggs)
+            .sort("DATE_MD")
+            .to_pandas()
+            .set_index("DATE_MD")
         )
-        df_out["tmean_doy_std"] = (
-            self.data_daily[["DATE", "TMEAN"]]
-            .groupby(self.data_daily["DATE_MD"])
-            .std()
-            .TMEAN
-        )
-        df_out["tmean_doy_max"] = (
-            self.data_daily[["DATE", "TMEAN"]]
-            .groupby(self.data_daily["DATE_MD"])
-            .max(numeric_only=NUMERIC_ONLY)
-            .TMEAN
-        )
-        df_out["tmean_doy_min"] = (
-            self.data_daily[["DATE", "TMEAN"]]
-            .groupby(self.data_daily["DATE_MD"])
-            .min(numeric_only=NUMERIC_ONLY)
-            .TMEAN
-        )
-        df_out["tmax_doy_max"] = (
-            self.data_daily[["DATE", "TMAX"]]
-            .groupby(self.data_daily["DATE_MD"])
-            .max(numeric_only=NUMERIC_ONLY)
-            .TMAX
-        )
-        df_out["tmax_doy_std"] = (
-            self.data_daily[["DATE", "TMAX"]]
-            .groupby(self.data_daily["DATE_MD"])
-            .std()
-            .TMAX
-        )
-        df_out["tmin_doy_min"] = (
-            self.data_daily[["DATE", "TMIN"]]
-            .groupby(self.data_daily["DATE_MD"])
-            .min(numeric_only=NUMERIC_ONLY)
-            .TMIN
-        )
-        df_out["tmin_doy_std"] = (
-            self.data_daily[["DATE", "TMIN"]]
-            .groupby(self.data_daily["DATE_MD"])
-            .std()
-            .TMIN
-        )
-        if "SNOW" in self.data_daily.columns:
-            df_out["snow_doy_mean"] = (
-                self.data_daily[["DATE", "SNOW"]]
-                .groupby(self.data_daily["DATE_MD"])
-                .mean(numeric_only=NUMERIC_ONLY)
-                .SNOW
-            )
         self.data = df_out
 
     def _impute_feb29(self):
@@ -424,51 +271,26 @@ class NOAAPlotterDailyClimateDataset(object):
 
     def _run_filter(self):
         """
-        Function to run rolling mean filter on climate series to smooth out short fluctuations
+        Function to run rolling mean filter on climate series to smooth out
+        short fluctuations (polars).
         :return:
         """
         if self.filtersize % 2 != 0:
-            data_roll = (
-                pd.concat(
-                    [
-                        self.data.iloc[-self.filtersize :],
-                        self.data,
-                        self.data[: self.filtersize],
-                    ]
-                )
-                .rolling(self.filtersize)
-                .mean()
+            f = self.filtersize
+            # include_index=True: the DATE_MD index is needed for the wraparound
+            # frame to be sliced back with it
+            d = pl.from_pandas(self.data, include_index=True)
+            # wraparound window: pandas rolling(7) with min_periods=7 gives
+            # NaN for the first f-1 rows of the extended frame, which are
+            # sliced away below. pandas only rolls numeric columns; DATE_MD
+            # passes through unchanged.
+            extended = pl.concat([d.tail(f), d, d.head(f)], how="vertical")
+            rolled = extended.with_columns(
+                pl.selectors.numeric().rolling_mean(window_size=f, min_samples=f)
             )
-            self.data = data_roll[self.filtersize : -self.filtersize]
-
-    # TODO: produces different reults than pandas version
-    def _run_filter_polars(self):
-        """
-        Function to run rolling mean filter on climate series to smooth out short fluctuations using Polars
-        """
-        if self.filtersize % 2 != 0:
-            # Convert pandas DataFrame to Polars DataFrame
-            idx = self.data.index
-            df = pl.from_pandas(self.data)
-
-            # Prepare data for rolling operation
-            extended_df = pl.concat(
-                [df.tail(self.filtersize), df, df.head(self.filtersize)]
+            self.data = (
+                rolled.slice(f, len(d)).to_pandas().set_index("DATE_MD")
             )
-
-            # Apply rolling mean
-            rolled = extended_df.select(
-                [pl.all().rolling_mean(window_size=self.filtersize)]
-            )
-
-            # Slice the result to match original data size
-            result = rolled.slice(self.filtersize, len(df)).to_pandas()
-            result.index = idx
-
-            # Convert back to pandas DataFrame and update self.data
-            self.data = result
-        else:
-            raise ValueError("Filter size must be odd")
 
     def _make_report(self):
         """
@@ -530,132 +352,60 @@ class NOAAPlotterMonthlyClimateDataset(object):
 
     def calculate_monthly_statistics(self):
         """
-        Function to calculate monthly statistics.
+        Function to calculate monthly statistics (polars).
         :return:
         """
-
-        df_out = pd.DataFrame()
-        data_filtered = self.filter_to_date()
-        df_out["tmean_doy_mean"] = (
-            data_filtered[["TMEAN"]]
-            .groupby(data_filtered["DATE_YM"])
-            .agg(lambda x: x.mean() if x.notna().any() else np.nan)
-            .TMEAN
-        )
-        df_out["tmean_doy_std"] = (
-            data_filtered[["TMEAN"]]
-            .groupby(data_filtered["DATE_YM"])
-            .agg(lambda x: x.std() if x.notna().any() else np.nan)
-            .TMEAN
-        )
-        df_out["tmax_doy_max"] = (
-            data_filtered[["TMAX"]]
-            .groupby(data_filtered["DATE_YM"])
-            .agg(lambda x: x.max() if x.notna().any() else np.nan)
-            .TMAX
-        )
-        df_out["tmax_doy_std"] = (
-            data_filtered[["TMAX"]]
-            .groupby(data_filtered["DATE_YM"])
-            .agg(lambda x: x.std() if x.notna().any() else np.nan)
-            .TMAX
-        )
-        df_out["tmin_doy_min"] = (
-            data_filtered[["TMIN"]]
-            .groupby(data_filtered["DATE_YM"])
-            .agg(lambda x: x.min() if x.notna().any() else np.nan)
-            .TMIN
-        )
-        df_out["tmin_doy_std"] = (
-            data_filtered[["TMIN"]]
-            .groupby(data_filtered["DATE_YM"])
-            .agg(lambda x: x.std() if x.notna().any() else np.nan)
-            .TMIN
-        )
-        if "SNOW" in data_filtered.columns:
-            df_out["snow_doy_mean"] = (
-                data_filtered[["SNOW"]]
-                .groupby(data_filtered["DATE_YM"])
-                .agg(lambda x: x.mean() if x.notna().any() else np.nan)
-                .SNOW
-            )
-        df_out["prcp_sum"] = (
-            data_filtered[["PRCP"]]
-            .groupby(data_filtered["DATE_YM"])
-            .agg(lambda x: x.sum() if x.notna().any() else np.nan)
-            .PRCP
+        d = pl.from_pandas(self.filter_to_date())
+        aggs = [
+            pl.col("TMEAN").mean().alias("tmean_doy_mean"),
+            pl.col("TMEAN").std().alias("tmean_doy_std"),
+            pl.col("TMAX").max().alias("tmax_doy_max"),
+            pl.col("TMAX").std().alias("tmax_doy_std"),
+            pl.col("TMIN").min().alias("tmin_doy_min"),
+            pl.col("TMIN").std().alias("tmin_doy_std"),
+        ]
+        if "SNOW" in d.columns:
+            aggs.append(pl.col("SNOW").mean().alias("snow_doy_mean"))
+        aggs.append(pl.col("PRCP").sum().alias("prcp_sum"))
+        df_out = (
+            d.group_by("DATE_YM", maintain_order=True)
+            .agg(aggs)
+            .sort("DATE_YM")
+            .to_pandas()
+            .set_index("DATE_YM")
         )
         self.monthly_aggregate = df_out
 
     def calculate_monthly_climate(self):
         """
-        Function to calculate monthly climate statistics.
+        Function to calculate monthly climate statistics (polars).
         :return:
         """
-        df_out = pd.DataFrame()
-        data_filtered = self.filter_to_date()
-
-        data_filtered["DATE"] = data_filtered.apply(
-            lambda x: parse_dates_YM(x["DATE_YM"]), axis=1
+        d = pl.from_pandas(self.filter_to_date())
+        d = d.with_columns(
+            pl.col("DATE").dt.month().alias("Month"),
+            pl.col("DATE").dt.year().alias("Year"),
         )
-        data_filtered["Month"] = data_filtered.apply(
-            lambda x: parse_dates_YM(x["DATE_YM"]).month, axis=1
+        # unique year count for the (bug-compatible) precipitation scaling
+        n_years = d["Year"].n_unique()
+        aggs = [
+            pl.col("TMEAN").mean().alias("tmean_doy_mean"),
+            pl.col("TMEAN").std().alias("tmean_doy_std"),
+            pl.col("TMAX").max().alias("tmax_doy_max"),
+            pl.col("TMAX").std().alias("tmax_doy_std"),
+            pl.col("TMIN").min().alias("tmin_doy_min"),
+            pl.col("TMIN").std().alias("tmin_doy_std"),
+        ]
+        if "SNOW" in d.columns:
+            aggs.append(pl.col("SNOW").mean().alias("snow_doy_mean"))
+        aggs.append((pl.col("PRCP").mean() * 30).alias("prcp_sum"))
+        df_out = (
+            d.group_by("Month", maintain_order=True)
+            .agg(aggs)
+            .sort("Month")
+            .to_pandas()
+            .set_index("Month")
         )
-        data_filtered["Year"] = data_filtered.apply(
-            lambda x: parse_dates_YM(x["DATE_YM"]).year, axis=1
-        )
-
-        df_out["tmean_doy_mean"] = (
-            data_filtered[["DATE", "TMEAN"]]
-            .groupby(data_filtered["Month"])
-            .mean(numeric_only=NUMERIC_ONLY)
-            .TMEAN
-        )
-        df_out["tmean_doy_std"] = (
-            data_filtered[["DATE", "TMEAN"]]
-            .groupby(data_filtered["Month"])
-            .std(numeric_only=NUMERIC_ONLY)
-            .TMEAN
-        )
-        df_out["tmax_doy_max"] = (
-            data_filtered[["DATE", "TMAX"]]
-            .groupby(data_filtered["Month"])
-            .max(numeric_only=NUMERIC_ONLY)
-            .TMAX
-        )
-        df_out["tmax_doy_std"] = (
-            data_filtered[["DATE", "TMAX"]]
-            .groupby(data_filtered["Month"])
-            .std(numeric_only=NUMERIC_ONLY)
-            .TMAX
-        )
-        df_out["tmin_doy_min"] = (
-            data_filtered[["DATE", "TMIN"]]
-            .groupby(data_filtered["Month"])
-            .min(numeric_only=NUMERIC_ONLY)
-            .TMIN
-        )
-        df_out["tmin_doy_std"] = (
-            data_filtered[["DATE", "TMIN"]]
-            .groupby(data_filtered["Month"])
-            .std(numeric_only=NUMERIC_ONLY)
-            .TMIN
-        )
-        if "SNOW" in data_filtered.columns:
-            df_out["snow_doy_mean"] = (
-                data_filtered[["DATE", "SNOW"]]
-                .groupby(data_filtered["Month"])
-                .mean(numeric_only=NUMERIC_ONLY)
-                .SNOW
-            )
-        df_out["prcp_sum"] = (
-            data_filtered[["DATE", "PRCP"]]
-            .groupby(data_filtered["Month"])
-            .mean(numeric_only=NUMERIC_ONLY)
-            .PRCP
-            * 30
-        )
-        # df_out = df_out.set_index('DATE_YM', drop=False)
         self.monthly_climate = df_out
 
     def _make_report(self):

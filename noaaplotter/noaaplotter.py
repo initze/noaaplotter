@@ -96,9 +96,12 @@ class NOAAPlotter(object):
         dpi=300,
         title=None,
         return_plot=False,
+        engine="matplotlib",
     ):
         """
         Plotting Function to show observed vs climate temperatures and snowfall
+        :param engine: "matplotlib" (static, default) or "plotly" (interactive, returned as a plotly Figure)
+        :type engine: str
         :param dpi:
         :param legend_fontsize:
         :param figsize:
@@ -163,13 +166,72 @@ class NOAAPlotter(object):
         if not show_snow_accumulation:
             None
         elif (show_snow_accumulation) and ("SNOW" in df_obs.columns):
-            last_snow_date = df_obs[df_obs["SNOW"] > 0].iloc[-1]["DATE"]
-            snow_acc = np.cumsum(df_obs["SNOW"])
+            snow_pos = df_obs[df_obs["SNOW"] > 0]
+            if len(snow_pos) > 0:
+                last_snow_date = snow_pos.iloc[-1]["DATE"]
+                snow_acc = np.cumsum(df_obs["SNOW"])
+            else:
+                # no snowfall in the plotted window: skip the snow overlay
+                # (previously crashed on .iloc[-1] of an empty selection)
+                show_snow_accumulation = False
         elif "SNOW" not in df_obs.columns:
             show_snow_accumulation = False
             raise Warning("No snow information available")
 
-            # PLOT
+        # ----- plotly engine: interactive figure -----
+        if engine == "plotly":
+            from noaaplotter.figures import make_daily_figure
+
+            ext_hi = ext_lo = None
+            if plot_extrema:
+                tmax = self.dataset.data.groupby("DATE_MD").max(
+                    numeric_only=numeric_only
+                )["TMEAN"]
+                tmin = self.dataset.data.groupby("DATE_MD").min(
+                    numeric_only=numeric_only
+                )["TMEAN"]
+                local_obs = df_obs[["DATE", "DATE_MD", "TMEAN"]].set_index(
+                    "DATE_MD", drop=False
+                )
+                local_max = tmax.loc[local_obs.index] == local_obs["TMEAN"]
+                local_min = tmin.loc[local_obs.index] == local_obs["TMEAN"]
+                ext_hi = (
+                    local_obs[local_max]["DATE"].values,
+                    local_obs[local_max]["TMEAN"].values,
+                )
+                ext_lo = (
+                    local_obs[local_min]["DATE"].values,
+                    local_obs[local_min]["TMEAN"].values,
+                )
+
+            has_snow = show_snow_accumulation and "SNOW" in df_obs.columns
+            fig_pl = make_daily_figure(
+                df_obs, x_dates, x_dates_short,
+                y_clim, y_clim_std_hi, y_clim_std_lo,
+                ext_hi=ext_hi, ext_lo=ext_lo,
+                snow_dates=(
+                    x_dates_short.loc[:last_snow_date, "DATE"].values
+                    if has_snow else None
+                ),
+                snow_acc=snow_acc if has_snow else None,
+                snow_tail=(
+                    x_dates_short.loc[last_snow_date:, "DATE"].values,
+                    (snow_acc / 10)[x_dates_short.index.get_loc(last_snow_date):],
+                ) if has_snow else None,
+                show_snow_accumulation=has_snow,
+                plot_pmax=plot_pmax if isinstance(plot_pmax, (int, float)) else None,
+                plot_snowmax=plot_snowmax if isinstance(plot_snowmax, (int, float)) else None,
+                title=title,
+                figsize=(int(figsize[0] * 100), int(figsize[1] * 100)),
+            )
+            if save_path:
+                fig_pl.write_html(
+                    save_path if str(save_path).endswith(".html")
+                    else str(save_path) + ".html"
+                )
+            return fig_pl
+
+        # ----- matplotlib rendering below -----
         fig = plt.figure(figsize=figsize, dpi=dpi)
         ax_t = fig.add_subplot(211)
         ax_p = fig.add_subplot(212, sharex=ax_t)
@@ -232,7 +294,6 @@ class NOAAPlotter(object):
             alpha=0.7,
         )
 
-        # plot extremes
         if plot_extrema:
             tmax = self.dataset.data.groupby("DATE_MD").max(numeric_only=numeric_only)[
                 "TMEAN"
@@ -311,8 +372,9 @@ class NOAAPlotter(object):
             ax_p.set_ylim(top=plot_pmax)
 
         # snow
-        # TODO: make snowcheck
-        if (show_snow_accumulation) and ("SNOW" in df_obs.columns):
+        # guarded by the show_snow_accumulation reassignment above (skipped when
+        # the window has no snowfall, so last_snow_date/snow_acc exist)
+        if show_snow_accumulation and ("SNOW" in df_obs.columns):
             ax2_snow = ax_p.twinx()
             # plots
             sn_acc = ax2_snow.fill_between(
@@ -419,6 +481,7 @@ class NOAAPlotter(object):
         dpi=100,
         legend_fontsize="x-small",
         return_plot=False,
+        engine="matplotlib",
     ):
         # legend handles
         legend_handle = []
@@ -467,6 +530,19 @@ class NOAAPlotter(object):
                 data, trailing_mean, plot_kwargs["value_column"], "trailing_values"
             )
 
+        # ----- plotly engine: interactive figure -----
+        if engine == "plotly":
+            from noaaplotter.figures import make_monthly_figure
+
+            fig_pl = make_monthly_figure(
+                data, plot_kwargs, trailing_mean=trailing_mean,
+                figsize=(int(figsize[0] * 100), int(figsize[1] * 100)),
+            )
+            if save_path:
+                fig_pl.write_html(save_path if str(save_path).endswith(".html")
+                                  else str(save_path) + ".html")
+            return fig_pl
+
         # PLOT part
         fig = plt.figure(figsize=figsize, dpi=dpi)
         ax = fig.add_subplot(111)
@@ -478,6 +554,8 @@ class NOAAPlotter(object):
             width=30,
             align="edge",
             color=plot_kwargs["fc_low"],
+            edgecolor="white",
+            linewidth=0.5,
         )
         # Fix for absolute values
         if len(bar_low) > 1:
@@ -489,6 +567,8 @@ class NOAAPlotter(object):
             width=30,
             align="edge",
             color=plot_kwargs["fc_high"],
+            edgecolor="white",
+            linewidth=0.5,
         )
         legend_handle.append(bar_high)
         legend_text.append(plot_kwargs["legend_label_above"])
