@@ -1,0 +1,29 @@
+noaaplotter Fixes Summary
+========================
+
+This directory contains examples demonstrating the fixes implemented:
+
+1. Cache Corruption Fix (download_utils.py)
+   - Problem: Incremental downloads corrupted cache files with NaN data and spurious index columns
+   - Solution: Avoid full-range skeletons and add defensive index reset before save
+   - Result: Clean, preserved data for all stations
+
+2. Widget Auto-run Fix (streamlit_app.py)
+   - Problem: Every widget change re-triggered processing instead of only explicit Start button
+   - Solution: Changed process_started logic to be a transient button press trigger
+   - Result: Only explicit Start Process button runs the pipeline
+
+3. Future Date Handling Fix (plotly_daily.py)
+   - Problem: Future end dates crashed with 'operands could not be broadcast together' errors
+   - Solution: Keep two climatology sets - full-window for reference lines, observed-span for fills
+   - Result: Interactive plots work with future dates without crashing
+
+Files in this directory:
+- demo_data.parquet: Sample weather data for testing
+- cache_fix_explanation.txt: Details on cache corruption fix
+- fixes_summary.txt: This file
+
+These fixes resolve the issues where:
+- Fairbanks/Kotzebue plots showed "No Data" fields
+- Widget changes would trigger unwanted re-processing
+- Future date ranges in interactive plots would crash

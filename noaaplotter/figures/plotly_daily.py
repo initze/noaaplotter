@@ -15,6 +15,7 @@ C_LOW = "#4393c3"
 
 
 def _clean(v):
+    """Convert value to float or None if NaN."""
     v = float(v)
     return None if np.isnan(v) else v
 
@@ -50,10 +51,22 @@ def make_daily_figure(df_obs, x_dates, x_dates_short, y_clim, y_clim_hi, y_clim_
     dates = list(x_dates_short["DATE"])
     xfull = list(x_dates["DATE"])
     obs = np.asarray(df_obs["TMEAN"], dtype=float)
-    clim = np.asarray(y_clim, dtype=float)
-    clim_hi = np.asarray(y_clim_hi, dtype=float)
-    clim_lo = np.asarray(y_clim_lo, dtype=float)
     prcp = np.asarray(df_obs["PRCP"], dtype=float)
+    # Full-window climatology (drives the reference lines, so the x-axis still
+    # runs to the requested end date even when it lies in the future).
+    clim_full = np.asarray(y_clim, dtype=float)
+    clim_hi_full = np.asarray(y_clim_hi, dtype=float)
+    clim_lo_full = np.asarray(y_clim_lo, dtype=float)
+    # Climatology aligned to the OBSERVED span. The requested window may extend
+    # past the last available data (future end date); every trace derived from
+    # the observed series must line up with it — mirroring the static render,
+    # which fills against y_clim.loc[clim_locs_short].
+    clim = np.asarray(y_clim.reindex(df_obs["DATE"]), dtype=float)
+    clim_hi = np.asarray(y_clim_hi.reindex(df_obs["DATE"]), dtype=float)
+    clim_lo = np.asarray(y_clim_lo.reindex(df_obs["DATE"]), dtype=float)
+    
+    # Create 7-day rolling sum of precipitation
+    prcp_rolling = pd.Series(prcp).rolling(window=7, min_periods=1, center=True).sum()
 
     fig = make_subplots(rows=2, cols=1, shared_xaxes=True,
                         row_heights=[0.6, 0.4], vertical_spacing=0.07)
@@ -84,13 +97,13 @@ def make_daily_figure(df_obs, x_dates, x_dates_short, y_clim, y_clim_hi, y_clim_
     # --- reference lines + observed (visual weight matched to the static render:
     #     normals lw=2 @ 50% alpha, observed lw=1.2 @ 40% alpha,
     #     sigma edges lw=1 @ 40% alpha). Hover values truncated to 2 decimals.
-    fig.add_trace(go.Scatter(x=xfull, y=clim, name="Climatological Mean",
+    fig.add_trace(go.Scatter(x=xfull, y=clim_full, name="Climatological Mean",
                              line=dict(color="rgba(0,0,0,0.5)", width=2),
                              hovertemplate="Climatology: %{y:.2f} °C<extra></extra>"), 1, 1)
-    fig.add_trace(go.Scatter(x=xfull, y=clim_hi, name="Std of Climatological Mean",
+    fig.add_trace(go.Scatter(x=xfull, y=clim_hi_full, name="Std of Climatological Mean",
                              line=dict(color="rgba(0,0,0,0.4)", width=1, dash="dot"),
                              hovertemplate="Upper 1σ: %{y:.2f} °C<extra></extra>"), 1, 1)
-    fig.add_trace(go.Scatter(x=xfull, y=clim_lo, showlegend=False,
+    fig.add_trace(go.Scatter(x=xfull, y=clim_lo_full, showlegend=False,
                              line=dict(color="rgba(0,0,0,0.4)", width=1, dash="dot"),
                              hovertemplate="Lower 1σ: %{y:.2f} °C<extra></extra>"), 1, 1)
     fig.add_trace(go.Scatter(x=dates, y=list(pd.Series(obs).where(pd.notna(obs))),
@@ -99,9 +112,9 @@ def make_daily_figure(df_obs, x_dates, x_dates_short, y_clim, y_clim_hi, y_clim_
                              hovertemplate="Observed: %{y:.2f} °C<extra></extra>"), 1, 1)
 
     # --- temperature: y-range + no-data shading + zero line
-    span_hi = float(np.nanmax(np.concatenate([obs, clim_hi])))
-    span_lo = float(np.nanmin(np.concatenate([obs, clim_lo])))
-    fig.update_yaxes(range=[span_lo, span_hi], title="Temperature in \u00b0C",
+    span_hi = float(np.nanmax(np.concatenate([obs, clim_hi_full])))
+    span_lo = float(np.nanmin(np.concatenate([obs, clim_lo_full])))
+    fig.update_yaxes(range=[span_lo, span_hi], title="Temperature in °C",
                      row=1, col=1)
     nan_t = [d for d, v in zip(dates, obs) if v is None or pd.isna(v)]
     if nan_t:
@@ -136,6 +149,14 @@ def make_daily_figure(df_obs, x_dates, x_dates_short, y_clim, y_clim_hi, y_clim_
         fig.add_trace(go.Bar(x=nan_p, y=[prcp_top] * len(nan_p), base=0, width=1,
                              marker_color="rgba(0,0,0,0.2)",
                              name="No Data", showlegend=True), 2, 1)
+    
+    # --- rolling 7-day precipitation sum: line + no-data shading
+    # Convert to list for Plotly
+    prcp_rolling_list = list(prcp_rolling.where(pd.notna(prcp_rolling)))
+    fig.add_trace(go.Scatter(x=dates, y=prcp_rolling_list,
+                             name="7-Day Rolling Sum of Precipitation",
+                             line=dict(color="rgba(30,144,255,0.7)", width=2),
+                             hovertemplate="7-day Rolling Sum: %{y:.2f} mm<extra></extra>"), 2, 1)
 
     # --- snowfall accumulation: its OWN secondary axis on the precipitation row.
     # NOTE: add_trace() WITHOUT row/col on purpose — subplot row/col pinning would
