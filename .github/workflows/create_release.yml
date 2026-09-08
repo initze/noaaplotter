@@ -1,0 +1,106 @@
+name: create-release
+
+# Bumps the version in pyproject.toml, commits + tags it, builds the
+# package with uv and creates a GitHub Release with the wheel/sdist.
+#
+# Trigger:  Settings-independent manual dispatch (Actions tab -> create-release):
+#           bump:    patch | minor | major   (applied to the CURRENT version in pyproject.toml)
+#           publish: create the release (default: true)
+
+permissions:
+  contents: read
+
+on:
+  workflow_dispatch:
+    inputs:
+      bump:
+        description: 'Version bump to apply to the current version in pyproject.toml'
+        required: true
+        type: choice
+        options:
+          - patch
+          - minor
+          - major
+      publish:
+        description: 'Build the package and create a GitHub Release with the artifacts'
+        required: false
+        type: boolean
+        default: true
+
+jobs:
+  # Job 1: read the current version, bump it in pyproject.toml, commit + tag.
+  update-version:
+    runs-on: ubuntu-latest
+    if: github.event_name == 'workflow_dispatch'
+    permissions:
+      contents: write
+    outputs:
+      VERSION: ${{ steps.bump.outputs.version }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Bump version in pyproject.toml (relative to the current version)
+        id: bump
+        env:
+          BUMP: ${{ github.event.inputs.bump }}
+        run: |
+          NEW_VERSION="$(python3 scripts/bump_version.py --"$BUMP")"
+          echo "version=${NEW_VERSION}" >> "$GITHUB_OUTPUT"
+          echo "New version: ${NEW_VERSION}"
+
+      - name: Commit, tag and push
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          VERSION: ${{ steps.bump.outputs.version }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add pyproject.toml
+          git commit -m "chore(release): $VERSION"
+          git push origin HEAD
+          git tag "v$VERSION"
+          git push origin "v$VERSION"
+
+  # Job 2: build and create the release (only if publish=true).
+  # On a re-run of failed jobs, only this job is re-executed, so the
+  # version from Job 1 is never bumped twice.
+  create-release:
+    runs-on: ubuntu-latest
+    needs: update-version
+    if: github.event_name == 'workflow_dispatch' && github.event.inputs.publish == 'true'
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout repository at the new tag
+        uses: actions/checkout@v4
+        with:
+          ref: v${{ needs.update-version.outputs.VERSION }}
+          fetch-depth: 0
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          version: '0.6.7'
+
+      - name: Set up Python (as required by pyproject.toml)
+        run: uv python install
+
+      - name: Build package (wheel + sdist)
+        run: uv build
+
+      - name: Verify artifacts
+        run: ls -lh dist/
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: v${{ needs.update-version.outputs.VERSION }}
+          files: |
+            dist/*.whl
+            dist/*.tar.gz
+          generate_release_notes: true
