@@ -31,13 +31,15 @@ dependencies = [
     "setuptools>=75.6.0",
     "narwhals>=1.20.1",
     "cdsapi>=0.7",
+    "typer>=0.9.0",  # Add typer for CLI support
 ]
 
 [tool.setuptools.packages.find]
 include = ["noaaplotter*"]
 
 [project.scripts]
-plot_daily = "noaaplotter.scripts.plot_daily:main"  # Adjust if necessary
-plot_monthly = "noaaplotter.scripts.plot_monthly:main"  # Adjust if necessary
-download_data = "noaaplotter.scripts.download_data:main"  # Adjust if necessary
-download_data_ERA5 = "noaaplotter.scripts.download_data_ERA5:main"  # Adjust if necessary
+noaaplotter = "noaaplotter.__main__:app"
+plot_daily = "noaaplotter.scripts.plot_daily:main"
+plot_monthly = "noaaplotter.scripts.plot_monthly:main"
+download_data = "noaaplotter.scripts.download_data:main"
+download_data_ERA5 = "noaaplotter.scripts.download_data_ERA5:main"
