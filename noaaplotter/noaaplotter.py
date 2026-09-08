@@ -127,6 +127,8 @@ class NOAAPlotter(object):
         :type save_path:
         :return:
         """
+        import warnings
+
         start_date = parse_dates(start_date)
         end_date = parse_dates(end_date)
         x_dates, x_dates_short = self._make_short_dateseries(start_date, end_date)
@@ -135,9 +137,46 @@ class NOAAPlotter(object):
 
         df_clim["DATE"] = x_dates["DATE"].values
         df_clim = df_clim.set_index("DATE", drop=False)
-        df_obs = self.dataset.data.set_index("DATE", drop=False).loc[
-            x_dates_short["DATE"]
-        ]
+
+        # The requested window may extend beyond the last available data date,
+        # and the underlying record may have internal gaps (missing observation
+        # days). Select only dates that actually exist so no KeyError is
+        # raised; missing days simply appear as gaps in the plotted line.
+        data = self.dataset.data
+        avail_dates = set(pd.to_datetime(data["DATE"]))
+        data_first = pd.Timestamp(data["DATE"].min())
+        data_last  = pd.Timestamp(data["DATE"].max())
+
+        # x_dates_short has a DatetimeIndex (DATE) plus a DATE column; filter
+        # it down to the dates that actually exist in the data file so the
+        # observed-panel x-axis and the climate-alignment below use the same
+        # (shorter) set of dates. Keeps the DatetimeIndex for later .loc[]
+        # use (e.g. `x_dates_short.loc[:last_snow_date, ...]`).
+        selected = [d for d in x_dates_short.index if d in avail_dates]
+        if not selected:
+            raise ValueError(
+                f"No data available for the requested window "
+                f"({start_date.date()} .. {end_date.date()}). "
+                f"Data file covers {data_first.date()} to {data_last.date()}."
+            )
+        df_obs = data.set_index("DATE", drop=False).loc[selected]
+        x_dates_short = x_dates_short.loc[selected]
+
+        # Warn when the user asked for a range wider than what the data file
+        # actually covers, so an accidental typo (or a future end date) is
+        # visible instead of silently clipped.
+        if end_date > data_last:
+            warnings.warn(
+                f"end date {end_date.date()} is beyond the last available "
+                f"data date {data_last.date()}; plot stops at the last available date.",
+                stacklevel=2,
+            )
+        if start_date < data_first:
+            warnings.warn(
+                f"start date {start_date.date()} is before the first available "
+                f"data date {data_first.date()}; plot starts at the first available date.",
+                stacklevel=2,
+            )
 
         clim_locs_short = x_dates_short[
             "DATE"
