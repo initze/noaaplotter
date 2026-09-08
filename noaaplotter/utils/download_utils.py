@@ -27,13 +27,13 @@ def download_from_noaa(
     # The CDO *data* API wants the bare station id ("USW00026616"). The "GHCND:"
     # prefix is only used by the CDO *catalog* and makes the data API silently
     # return 0 rows — strip it so either form works.
-    if ':' in station_id:
-        station_id = station_id.split(':')[-1]
+    if ":" in station_id:
+        station_id = station_id.split(":")[-1]
 
     # Check if file exists and load it
     if os.path.exists(output_file):
-        existing_df = pl.read_parquet(output_file).drop_nulls(subset='STATION')
-        existing_dates = set(existing_df['DATE'].to_list())
+        existing_df = pl.read_parquet(output_file).drop_nulls(subset="STATION")
+        existing_dates = set(existing_df["DATE"].to_list())
     else:
         existing_df = None
         existing_dates = set()
@@ -56,7 +56,9 @@ def download_from_noaa(
     prev_date = datetime.strptime(missing_dates[0], "%Y-%m-%d")
 
     for date_str in missing_dates[1:] + [None]:  # Add None to handle the last range
-        if date_str is None or datetime.strptime(date_str, "%Y-%m-%d") - prev_date > timedelta(days=1):
+        if date_str is None or datetime.strptime(
+            date_str, "%Y-%m-%d"
+        ) - prev_date > timedelta(days=1):
             date_ranges.append((range_start, prev_date.strftime("%Y-%m-%d")))
             if date_str is not None:
                 range_start = date_str
@@ -68,7 +70,9 @@ def download_from_noaa(
 
     for start, end in date_ranges:
         print(f"Downloading data from {start} to {end}")
-        n_days = (datetime.strptime(end, "%Y-%m-%d") - datetime.strptime(start, "%Y-%m-%d")).days + 1
+        n_days = (
+            datetime.strptime(end, "%Y-%m-%d") - datetime.strptime(start, "%Y-%m-%d")
+        ).days + 1
         split_size = np.floor(1000 / len(datatypes))
         split_range = np.arange(0, n_days, split_size)
 
@@ -92,8 +96,10 @@ def download_from_noaa(
         if existing_df is not None and len(existing_df) > 0:
             # Nothing new to add (e.g. requested dates not yet published by NOAA).
             # Keep the existing data instead of erroring.
-            print("No new data returned; keeping existing data "
-                  f"({existing_df.height} rows) in {output_file}.")
+            print(
+                "No new data returned; keeping existing data "
+                f"({existing_df.height} rows) in {output_file}."
+            )
             return 0
         raise ValueError(
             "No data returned from NOAA for station "
@@ -166,7 +172,6 @@ def download_from_noaa(
     return 0
 
 
-
 def dl_noaa_api(i, dtypes, station_id, Token, date_start, date_end, split_size):
     """
     function to download from NOAA API
@@ -176,8 +181,7 @@ def dl_noaa_api(i, dtypes, station_id, Token, date_start, date_end, split_size):
 
     split_start = dt_start + timedelta(days=i)
     split_end = dt_start + timedelta(days=i + split_size - 1)
-    if split_end > dt_end:
-        split_end = dt_end
+    split_end = min(split_end, dt_end)
 
     date_start_split = split_start.strftime("%Y-%m-%d")
     date_end_split = split_end.strftime("%Y-%m-%d")
