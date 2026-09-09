@@ -222,7 +222,7 @@ class NOAAPlotter(object):
         # can browse past the selected period (zoom buttons: 1y / 3y / All);
         # the initial visible window is set from the requested start/end.
         if engine == "plotly":
-            from noaaplotter.figures import make_daily_figure
+            from noaaplotter.figures import make_daily_figure, write_daily_html
 
             # Full-window observed series (all dates actually available)
             df_all = self.dataset.data.sort_values("DATE")
@@ -282,9 +282,14 @@ class NOAAPlotter(object):
                 window=(pd.Timestamp(start_date), pd.Timestamp(end_date)),
             )
             if save_path:
-                fig_pl.write_html(
-                    save_path if str(save_path).endswith(".html")
-                    else str(save_path) + ".html"
+                out_path = (save_path if str(save_path).endswith(".html")
+                            else str(save_path) + ".html")
+                # write_daily_html() injects the zoom-button click handlers
+                # (the Figure object does not accept a post-script attribute)
+                write_daily_html(
+                    fig_pl, out_path,
+                    data_lo=pd.Timestamp(df_all["DATE"].min()).strftime("%Y-%m-%d"),
+                    data_hi=pd.Timestamp(df_all["DATE"].max()).strftime("%Y-%m-%d"),
                 )
             return fig_pl
 

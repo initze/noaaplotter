@@ -246,18 +246,88 @@ def make_daily_figure(df_obs, x_dates, x_dates_short, y_clim, y_clim_hi, y_clim_
                   title=dict(text=title, y=0.98) if title else None,
                   xaxis_rangeslider_visible=False,
                   xaxis_title="Date")
+    # --- initial x-view + zoom-out controls (window = user-selected period)
+    # NOTE: with shared_xaxes the visible master axis is x2 (xaxis "matches"
+    # it and is hidden), so the initial range must be applied to BOTH.
     if window is not None:
-        # Initial view = the selected period; zoom buttons let the user
-        # step out (1 year / 3 years / All) to browse the full record.
-        layout["xaxis_range"] = [
-            pd.Timestamp(window[0]).strftime("%Y-%m-%d"),
-            pd.Timestamp(window[1]).strftime("%Y-%m-%d"),
+        d0 = pd.Timestamp(window[0]).strftime("%Y-%m-%d")
+        d1 = pd.Timestamp(window[1]).strftime("%Y-%m-%d")
+        layout["xaxis_range"] = [d0, d1]
+        layout["xaxis2_range"] = [d0, d1]
+
+        data_lo = min(dates).strftime("%Y-%m-%d")
+        data_hi = max(dates).strftime("%Y-%m-%d")
+
+        # Visible "legend-style" zoom buttons (top row, right side; the
+        # legend is anchored left, so nothing is covered).  Clicks are
+        # wired by the post-script (injected by write_html); each button
+        # keeps the CENTER of the current view and widens around it, so
+        # repeated presses step outward instead of drifting to later years.
+        layout["annotations"] = [
+            dict(text=lab, xref="paper", yref="paper",
+                 x=0.975 - 0.045 * i, y=0.99,
+                 showarrow=False, align="center",
+                 bordercolor="#94a3b8", borderwidth=1, borderpad=3,
+                 bgcolor="white",
+                 font=dict(size=13, color="#1f2937",
+                           family="Segoe UI, Arial, sans-serif"),
+                 opacity=1)
+            for i, lab in enumerate(["1y", "3y", "All"])
         ]
-        layout["xaxis_rangeselector"] = dict(
-            buttons=[
-                dict(count=1, label="1y", step="year", stepmode="backward"),
-                dict(count=3, label="3y", step="year", stepmode="backward"),
-                dict(step="all", label="All"),
-            ])
     fig.update_layout(**layout)
     return fig
+
+
+def write_daily_html(fig, path, data_lo=None, data_hi=None):
+    """Write the figure HTML, then inject the zoom-button click behaviour.
+
+    The plotly Figure object rejects non-standard attributes (e.g.
+    ``post_script``), so the small click handler is appended to the saved
+    HTML file directly — which is fully under our control.
+    """
+    import re
+
+    fig.write_html(path)
+    with open(path, "r", encoding="utf-8") as f:
+        html = f.read()
+
+    if data_lo is None or data_hi is None:
+        return
+
+    script = (
+        "<script>(function(){"
+        "function getGd(){"
+        "if(window.Plotly&&Plotly.figs){var k=Object.keys(Plotly.figs);if(k.length)return Plotly.figs[k[0]];} "
+        "var d=document.querySelectorAll('div');"
+        "for(var i=0;i<d.length;i++){if(d[i]._fullLayout)return d[i];}"
+        "return null;"
+        "}"
+        "var div=getGd();"
+        "if(!div)return;"
+        "var full=['" + data_lo + "','" + data_hi + "'];"
+        "var DAY=86400000;"
+        "function iso(ms){return new Date(ms).toISOString().slice(0,10);} "
+        "function setRange(a,b){Plotly.relayout(div,{'xaxis.range':[a,b],'xaxis2.range':[a,b]});} "
+        "function centerZoom(months){"
+        "var r=(div.layout&&div.layout.xaxis2&&div.layout.xaxis2.range)||"
+        "(div.layout&&div.layout.xaxis.range);"
+        "if(!r)return;"
+        "var a=Date.parse(r[0]),b=Date.parse(r[1]);"
+        "if(isNaN(a)||isNaN(b))return;"
+        "var span=Math.max(b-a,months*30*DAY);"
+        "var mid=a+(b-a)/2;"
+        "setRange(iso(mid-span/2),iso(mid+span/2));"
+        "}"
+        "div.addEventListener('click',function(e){"
+        "var el=e.target;"
+        "var g=el&&el.closest?el.closest('g'):null;"
+        "var txt=((g&&g.textContent)||(el&&el.textContent)||'').trim();"
+        "if(txt==='1y')centerZoom(12);"
+        "else if(txt==='3y')centerZoom(36);"
+        "else if(txt==='All')setRange(full[0],full[1]);"
+        "});"
+        "})();</script>"
+    )
+    html = html.replace("</body>", script + "\n</body>", 1)
+    with open(path, "w", encoding="utf-8") as f:
+        f.write(html)
