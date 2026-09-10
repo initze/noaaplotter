@@ -6,15 +6,22 @@ build-backend = "setuptools.build_meta"
 name = "noaaplotter"
 version = "0.6.3"
 description = "Package to plot fancy climate/weather data of NOAA"
+readme = "README.md"
 requires-python = ">=3.11"
+license = { text = "MIT" }
 authors = [
     { name = "Ingmar Nitze", email = "ingmar.nitze@awi.de" }
 ]
-license = { text = "" }
-readme = "README.md"  # Specify a README file if available
-# homepage = "https://github.com/initze/noaaplotter"
+classifiers = [
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3 :: Only",
+    "Topic :: Scientific/Engineering :: Atmospheric Science",
+    "Intended Audience :: Science/Research",
+]
 keywords = ["climate", "weather", "NOAA", "plotting"]
-
 dependencies = [
     "pandas>=2.2",
     "numpy>=2,<3",
@@ -22,7 +29,6 @@ dependencies = [
     "requests",
     "joblib>=1.4",
     "tqdm>=4.67",
-    "geemap>=0.35.1",
     "polars>=1.18.0",
     "pyarrow>=18.1.0",
     "python-dotenv>=1.0.1",
@@ -31,15 +37,19 @@ dependencies = [
     "setuptools>=75.6.0",
     "narwhals>=1.20.1",
     "cdsapi>=0.7",
-    "typer>=0.9.0",  # Add typer for CLI support
+    "typer>=0.9.0",
 ]
 
-[tool.setuptools.packages.find]
-include = ["noaaplotter*"]
+[project.urls]
+"Homepage" = "https://github.com/initze/noaaplotter"
+"Repository" = "https://github.com/initze/noaaplotter"
+"Issues" = "https://github.com/initze/noaaplotter/issues"
 
 [project.scripts]
 noaaplotter = "noaaplotter.__main__:app"
 plot_daily = "noaaplotter.scripts.plot_daily:main"
 plot_monthly = "noaaplotter.scripts.plot_monthly:main"
 download_data = "noaaplotter.scripts.download_data:main"
-download_data_ERA5 = "noaaplotter.scripts.download_data_ERA5:main"
+
+[tool.setuptools.packages.find]
+include = ["noaaplotter*"]
