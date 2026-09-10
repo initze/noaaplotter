@@ -97,11 +97,16 @@ class NOAAPlotter(object):
         title=None,
         return_plot=False,
         engine="matplotlib",
+        full_series=False,
     ):
         """
         Plotting Function to show observed vs climate temperatures and snowfall
         :param engine: "matplotlib" (static, default) or "plotly" (interactive, returned as a plotly Figure)
         :type engine: str
+        :param full_series: plotly only — carry the ENTIRE observed record in the figure
+            and only limit the initial view to the requested window (default: plot only
+            the requested window, lightweight)
+        :type full_series: bool
         :param dpi:
         :param legend_fontsize:
         :param figsize:
@@ -202,6 +207,7 @@ class NOAAPlotter(object):
         ).min(axis=0)
 
         # Calculate the date of last snowfall and cumulative sum of snowfall
+        snow_requested = show_snow_accumulation
         if not show_snow_accumulation:
             None
         elif (show_snow_accumulation) and ("SNOW" in df_obs.columns):
@@ -218,69 +224,127 @@ class NOAAPlotter(object):
             raise Warning("No snow information available")
 
         # ----- plotly engine: interactive figure -----
-        # The interactive figure carries the ENTIRE observed record;
-        # the initial visible window is set from the requested start/end
-        # (users can zoom out manually to browse the full record).
+        # Default: plot ONLY the requested window (lightweight). With
+        # full_series=True the figure carries the ENTIRE observed record and
+        # only the initial view is limited to the requested period.
         if engine == "plotly":
             from noaaplotter.figures import make_daily_figure
 
-            # Full-window observed series (all dates actually available)
-            df_all = self.dataset.data.sort_values("DATE")
-            x_all = pd.DataFrame({
-                "DATE": df_all["DATE"].values,
-                "DATE_MD": df_all["DATE"].dt.strftime("%m-%d").values,
-            }, index=df_all.index)
+            if not full_series:
+                # Lightweight: plot ONLY the requested window. All series are
+                # aligned to the dates that actually exist in the window.
+                src_df = df_obs
+                src_x = x_dates_short
 
-            # Climatology over the full observed window
-            clim_df_all = self.df_clim_.data.loc[x_all["DATE_MD"]].copy()
-            clim_df_all["DATE"] = x_all["DATE"].values
-            clim_df_all = clim_df_all.set_index("DATE", drop=False)
-            y_clim_all = clim_df_all["tmean_doy_mean"]
-            y_clim_std_hi_all = clim_df_all[["tmean_doy_mean", "tmean_doy_std"]].sum(axis=1)
-            y_clim_std_lo_all = clim_df_all["tmean_doy_mean"] - clim_df_all["tmean_doy_std"]
+                # Climatology aligned to the windowed dates
+                y_clim_w = y_clim.reindex(df_obs["DATE"])
+                y_clim_hi_w = y_clim_std_hi.reindex(df_obs["DATE"])
+                y_clim_lo_w = y_clim_std_lo.reindex(df_obs["DATE"])
 
-            # Record extremes over the full window (per month-day)
-            ext_hi = ext_lo = None
-            if plot_extrema:
-                tmax = df_all.groupby("DATE_MD").max(numeric_only=numeric_only)["TMEAN"]
-                tmin = df_all.groupby("DATE_MD").min(numeric_only=numeric_only)["TMEAN"]
-                local_obs = df_all[["DATE", "DATE_MD", "TMEAN"]].set_index(
-                    "DATE_MD", drop=False)
-                local_max = tmax.loc[local_obs.index] == local_obs["TMEAN"]
-                local_min = tmin.loc[local_obs.index] == local_obs["TMEAN"]
-                ext_hi = (
-                    local_obs[local_max]["DATE"].values,
-                    local_obs[local_max]["TMEAN"].values,
+                # Record extremes over the window (per month-day), matching
+                # the static render (which groups the requested window)
+                ext_hi = ext_lo = None
+                if plot_extrema:
+                    tmax = src_df.groupby("DATE_MD").max(numeric_only=numeric_only)["TMEAN"]
+                    tmin = src_df.groupby("DATE_MD").min(numeric_only=numeric_only)["TMEAN"]
+                    local_obs = src_df[["DATE", "DATE_MD", "TMEAN"]].set_index(
+                        "DATE_MD", drop=False)
+                    local_max = tmax.loc[local_obs.index] == local_obs["TMEAN"]
+                    local_min = tmin.loc[local_obs.index] == local_obs["TMEAN"]
+                    ext_hi = (
+                        local_obs[local_max]["DATE"].values,
+                        local_obs[local_max]["TMEAN"].values,
+                    )
+                    ext_lo = (
+                        local_obs[local_min]["DATE"].values,
+                        local_obs[local_min]["TMEAN"].values,
+                    )
+
+                # Snow accumulation over the window (only when requested AND
+                # the window contains snowfall)
+                snow_dates = snow_acc_w = snow_tail = None
+                has_snow = bool(snow_requested and "SNOW" in src_df.columns
+                                and (src_df["SNOW"] > 0).any())
+                if has_snow:
+                    snow_acc_w = np.cumsum(src_df["SNOW"].to_numpy(dtype=float))
+                    pos = int((src_df["DATE"] <= src_df.loc[src_df["SNOW"] > 0, "DATE"].iloc[-1]).sum())
+                    snow_dates = src_df.iloc[:pos]["DATE"].values
+                    snow_tail = (src_df.iloc[pos:]["DATE"].values,
+                                 (snow_acc_w[pos:] / 10))
+
+                fig_pl = make_daily_figure(
+                    src_df, src_x, None,
+                    y_clim_w, y_clim_hi_w, y_clim_lo_w,
+                    ext_hi=ext_hi, ext_lo=ext_lo,
+                    snow_dates=snow_dates,
+                    snow_acc=snow_acc_w,
+                    snow_tail=snow_tail,
+                    show_snow_accumulation=has_snow,
+                    plot_pmax=plot_pmax if isinstance(plot_pmax, (int, float)) else None,
+                    plot_snowmax=plot_snowmax if isinstance(plot_snowmax, (int, float)) else None,
+                    title=title,
+                    figsize=(int(figsize[0] * 100), int(figsize[1] * 100)),
+                    window=None,
                 )
-                ext_lo = (
-                    local_obs[local_min]["DATE"].values,
-                    local_obs[local_min]["TMEAN"].values,
+            else:
+                # Full-window observed series (all dates actually available)
+                src_df = self.dataset.data.sort_values("DATE")
+                src_x = pd.DataFrame({
+                    "DATE": src_df["DATE"].values,
+                    "DATE_MD": src_df["DATE"].dt.strftime("%m-%d").values,
+                }, index=src_df.index)
+
+                # Climatology over the full observed window
+                clim_df_all = self.df_clim_.data.loc[src_x["DATE_MD"]].copy()
+                clim_df_all["DATE"] = src_x["DATE"].values
+                clim_df_all = clim_df_all.set_index("DATE", drop=False)
+                y_clim_w = clim_df_all["tmean_doy_mean"]
+                y_clim_hi_w = clim_df_all[["tmean_doy_mean", "tmean_doy_std"]].sum(axis=1)
+                y_clim_lo_w = clim_df_all["tmean_doy_mean"] - clim_df_all["tmean_doy_std"]
+
+                # Record extremes over the full window (per month-day)
+                ext_hi = ext_lo = None
+                if plot_extrema:
+                    tmax = src_df.groupby("DATE_MD").max(numeric_only=numeric_only)["TMEAN"]
+                    tmin = src_df.groupby("DATE_MD").min(numeric_only=numeric_only)["TMEAN"]
+                    local_obs = src_df[["DATE", "DATE_MD", "TMEAN"]].set_index(
+                        "DATE_MD", drop=False)
+                    local_max = tmax.loc[local_obs.index] == local_obs["TMEAN"]
+                    local_min = tmin.loc[local_obs.index] == local_obs["TMEAN"]
+                    ext_hi = (
+                        local_obs[local_max]["DATE"].values,
+                        local_obs[local_max]["TMEAN"].values,
+                    )
+                    ext_lo = (
+                        local_obs[local_min]["DATE"].values,
+                        local_obs[local_min]["TMEAN"].values,
+                    )
+
+                # Snow accumulation over the full window
+                snow_dates = snow_acc_w = snow_tail = None
+                has_snow = bool(snow_requested and "SNOW" in src_df.columns
+                                and (src_df["SNOW"] > 0).any())
+                if has_snow:
+                    snow_acc_w = np.cumsum(src_df["SNOW"].to_numpy(dtype=float))
+                    pos = int((src_df["DATE"] <= src_df.loc[src_df["SNOW"] > 0, "DATE"].iloc[-1]).sum())
+                    snow_dates = src_df.iloc[:pos]["DATE"].values
+                    snow_tail = (src_df.iloc[pos:]["DATE"].values,
+                                 (snow_acc_w[pos:] / 10))
+
+                fig_pl = make_daily_figure(
+                    src_df, src_x, None,
+                    y_clim_w, y_clim_hi_w, y_clim_lo_w,
+                    ext_hi=ext_hi, ext_lo=ext_lo,
+                    snow_dates=snow_dates,
+                    snow_acc=snow_acc_w,
+                    snow_tail=snow_tail,
+                    show_snow_accumulation=has_snow,
+                    plot_pmax=plot_pmax if isinstance(plot_pmax, (int, float)) else None,
+                    plot_snowmax=plot_snowmax if isinstance(plot_snowmax, (int, float)) else None,
+                    title=title,
+                    figsize=(int(figsize[0] * 100), int(figsize[1] * 100)),
+                    window=(pd.Timestamp(start_date), pd.Timestamp(end_date)),
                 )
-
-            # Snow accumulation over the full window
-            has_snow = show_snow_accumulation and "SNOW" in df_all.columns and bool(
-                (df_all["SNOW"] > 0).any())
-            snow_dates_all = snow_acc_all = snow_tail_all = None
-            if has_snow:
-                snow_acc_all = np.cumsum(df_all["SNOW"].to_numpy(dtype=float))
-                pos = int((df_all["DATE"] <= df_all.loc[df_all["SNOW"] > 0, "DATE"].iloc[-1]).sum())
-                snow_dates_all = df_all.iloc[:pos]["DATE"].values
-                snow_tail_all = (df_all.iloc[pos:]["DATE"].values, (snow_acc_all[pos:] / 10))
-
-            fig_pl = make_daily_figure(
-                df_all, x_all, None,
-                y_clim_all, y_clim_std_hi_all, y_clim_std_lo_all,
-                ext_hi=ext_hi, ext_lo=ext_lo,
-                snow_dates=snow_dates_all,
-                snow_acc=snow_acc_all,
-                snow_tail=snow_tail_all,
-                show_snow_accumulation=has_snow,
-                plot_pmax=plot_pmax if isinstance(plot_pmax, (int, float)) else None,
-                plot_snowmax=plot_snowmax if isinstance(plot_snowmax, (int, float)) else None,
-                title=title,
-                figsize=(int(figsize[0] * 100), int(figsize[1] * 100)),
-                window=(pd.Timestamp(start_date), pd.Timestamp(end_date)),
-            )
             if save_path:
                 fig_pl.write_html(
                     save_path if str(save_path).endswith(".html")

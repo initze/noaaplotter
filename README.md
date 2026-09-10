@@ -81,6 +81,7 @@ noaaplotter plot-daily -infile data/kotzebue.parquet -start 2017-07-01 -end 2018
 | `-save_plot` | write the plot (`.png` for matplotlib, `.html` for plotly) |
 | `--plot` | open in a browser/GUI |
 | `--engine` | `matplotlib` (default) or `plotly` |
+| `--full-series` | plotly only: include the entire observed record in the HTML plot — the view still opens on the selected period (default: plot only the selected period, smaller file) |
 
 ### `noaaplotter plot-monthly`
 Monthly bar chart of temperature or precipitation, with anomaly and trailing mean.
