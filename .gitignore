@@ -19,10 +19,18 @@ examples/out/
 *.html
 *.png
 
+# keep the committed example figures (overrides *.png above)
+!figures/
+!figures/*.png
+
 # ── docs ────────────────────────────────────────────────────────────────────────
 # keep docs example figure (overrides *.png above)
 !docs/figures/
 !docs/figures/*.png
+
+# live interactive examples embedded in the docs Examples page (overrides *.html above)
+!docs/interactive/
+!docs/interactive/*.html
 
 # scratch / diagnostics
 scratch_*.py

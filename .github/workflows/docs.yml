@@ -61,8 +61,13 @@ jobs:
           test -f "site/${page}/index.html" || test -f "site/${page}.html"
         done
         test -f site/search/search_index.json
-        test -f site/figures/Kotzebue_1992.png
-        echo "all expected pages + search index + example figure present"
+        test -f site/figures/kotzebue_daily_1992.png
+        test -f site/figures/kotzebue_monthly_t.png
+        # live interactive examples (embedded in the Examples page)
+        test -f site/interactive/kotzebue_daily_1992.html
+        test -f site/interactive/potsdam_era5_daily.html
+        test -f site/interactive/kotzebue_daily_winter.html
+        echo "all expected pages + search index + figures + interactive examples present"
     - name: Upload site (for deploy job)
       uses: actions/upload-artifact@v4
       with:

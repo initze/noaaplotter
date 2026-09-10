@@ -1,13 +1,11 @@
 <!--
-  GENERATED from the live CLI by `scripts/gen_cli_docs.py`. Do not hand-edit
-  the code blocks — update the CLI, then run:
+  GENERATED. Do not hand-edit the code blocks — change the CLI, then run:
 
       uv run python scripts/gen_cli_docs.py
 
-  The script captures `--help` from the installed CLI and normalises line
-  endings, ANSI escapes, and box-drawing characters so the text is portable.
-  CI regenerates it just before each build, so the page always reflects the
-  CLI as it ships on the build host.
+  This script captures the exact `--help` output from the installed CLI (via a
+  subprocess) and normalises it so the text is byte-identical on Windows,
+  macOS, and Linux. CI re-runs it and fails the build if docs/cli.md drifted.
 -->
 
 # CLI reference

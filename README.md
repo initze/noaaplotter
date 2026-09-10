@@ -128,24 +128,26 @@ Entire year 1 January until 31 December (e.g. 1992):
 
 `noaaplotter plot-daily -infile data/kotzebue.parquet -start 1992-01-01 -end 1992-12-31 -t_range -45 25 -p_range 50 -save_plot figures/kotzebue_daily_1992.png`
 
+![Kotzebue daily 1992 — temperature (top) vs. climate ±1σ, precipitation (bottom) with 7-day rolling sum](figures/kotzebue_daily_1992.png)
+
 ### Monthly aggregates
 Temperature, absolute (12-month trailing mean):
 
 `noaaplotter plot-monthly -infile data/kotzebue.parquet -start 1980-01-01 -end 2021-08-31 -type Temperature -trail 12 -save_plot figures/kotzebue_monthly_t.png`
 
-![Kotzebue monthly temperature](https://user-images.githubusercontent.com/4864803/133925329-540933c1-b30a-4d31-a66f-0ba624223abf.png)
+![Kotzebue monthly temperature](figures/kotzebue_monthly_t.png)
 
 Temperature, anomaly from climate (1981-2010):
 
 `noaaplotter plot-monthly -infile data/kotzebue.parquet -start 1980-01-01 -end 2021-08-31 -type Temperature -trail 12 -anomaly -save_plot figures/kotzebue_monthly_t_anomaly.png`
 
-![Kotzebue monthly temperature anomaly](https://user-images.githubusercontent.com/4864803/133923928-9ca78105-3718-48d9-80c5-efaf0bfa3217.png)
+![Kotzebue monthly temperature anomaly](figures/kotzebue_monthly_t_anomaly.png)
 
 Precipitation, absolute (12-month trailing mean):
 
 `noaaplotter plot-monthly -infile data/kotzebue.parquet -start 1980-01-01 -end 2021-08-31 -type Precipitation -trail 12 -save_plot figures/kotzebue_monthly_p.png`
 
-![Kotzebue monthly precipitation](https://user-images.githubusercontent.com/4864803/133925351-5d7513df-2794-472a-b00d-780538f68ce6.png)
+![Kotzebue monthly precipitation](figures/kotzebue_monthly_p.png)
 
 ## Advanced Usage
 
