@@ -15,6 +15,11 @@ examples/out/
 *.html
 *.png
 
+# ── docs ────────────────────────────────────────────────────────────────────────
+# keep docs example figure (overrides *.png above)
+!docs/figures/
+!docs/figures/*.png
+
 # scratch / diagnostics
 scratch_*.py
 .hermes/
