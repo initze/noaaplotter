@@ -1,6 +1,10 @@
 # noaaplotter
 A python package to create fancy plots with NOAA weather data (stations) and ERA5 reanalysis (by coordinates).
 
+> 📚 **Docs & API reference:** [initze.github.io/noaaplotter](https://initze.github.io/noaaplotter)
+>
+> **Install:** `uv pip install "git+https://github.com/initze/noaaplotter.git"`
+
 ## Install
 
 ### Recommended: uv
