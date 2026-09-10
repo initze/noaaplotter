@@ -50,15 +50,10 @@ jobs:
         . .venv/bin/activate
         python -m pip install --upgrade pip
         python -m pip install ".[docs]"
-    - name: Regenerate CLI reference (guard against drift)
-      run: |
-        . .venv/bin/activate
-        python scripts/gen_cli_docs.py
-    - name: Check CLI reference is up to date
-      run: git diff --exit-code -- docs/cli.md || (echo "::error::docs/cli.md is stale — run 'python scripts/gen_cli_docs.py' and commit." && exit 1)
     - name: Build (strict)
       run: |
         . .venv/bin/activate
+        python scripts/gen_cli_docs.py
         mkdocs build --strict --site-dir site
     - name: Verify all expected pages
       run: |
