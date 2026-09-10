@@ -241,12 +241,13 @@ class NOAAPlotter(object):
                 y_clim_hi_w = y_clim_std_hi.reindex(df_obs["DATE"])
                 y_clim_lo_w = y_clim_std_lo.reindex(df_obs["DATE"])
 
-                # Record extremes over the window (per month-day), matching
-                # the static render (which groups the requested window)
+                # Record extremes: analysis over the ENTIRE record (per
+                # month-day), then cropped to the plotted window — exactly
+                # like the static render (groupby on the full dataset).
                 ext_hi = ext_lo = None
                 if plot_extrema:
-                    tmax = src_df.groupby("DATE_MD").max(numeric_only=numeric_only)["TMEAN"]
-                    tmin = src_df.groupby("DATE_MD").min(numeric_only=numeric_only)["TMEAN"]
+                    tmax = self.dataset.data.groupby("DATE_MD").max(numeric_only=numeric_only)["TMEAN"]
+                    tmin = self.dataset.data.groupby("DATE_MD").min(numeric_only=numeric_only)["TMEAN"]
                     local_obs = src_df[["DATE", "DATE_MD", "TMEAN"]].set_index(
                         "DATE_MD", drop=False)
                     local_max = tmax.loc[local_obs.index] == local_obs["TMEAN"]
