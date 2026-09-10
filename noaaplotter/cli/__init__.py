@@ -107,6 +107,7 @@ def plot_daily(
     figsize: Optional[Tuple[float, float]] = typer.Option(None, "-figsize", help="Figure size in inches, width height (e.g. 15 10 for 2 years)"),
     title: Optional[str] = typer.Option(None, "-title", help="Plot title"),
     engine: str = typer.Option("matplotlib", "--engine", help="Rendering engine: matplotlib (static) or plotly (interactive HTML)"),
+    full_series: bool = typer.Option(False, "--full-series", help="plotly only: include the ENTIRE observed record in the interactive plot; the initial view is still limited to the requested period (default: plot only the requested period, lightweight)"),
 ):
     """Create a daily temperature/precipitation plot vs. climate.
 
@@ -137,6 +138,7 @@ def plot_daily(
         figsize=fsize,
         title=title,
         engine=engine,
+        full_series=full_series,
     )
     _report(save_path, show_plot, engine)
 
