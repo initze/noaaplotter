@@ -1,9 +1,14 @@
 # noaaplotter documentation — MkDocs Material
 # Local:  uv run mkdocs serve        (http://127.0.0.1:8000, live reload)
 # Build:  uv run mkdocs build --strict   (output in ./site)
+# Deploy: GitHub Pages serves `site/` at https://initze.github.io/noaaplotter/
 site_name: noaaplotter
 site_description: Plot fancy climate & weather data from NOAA stations and coordinate-based reanalysis.
 site_author: Ingmar Nitze
+# Public URL — used by Material for the sitemap, meta tags, and OpenGraph.
+# It is *not* the asset base; Material outputs relative asset URLs anyway,
+# which is what we want under GitHub Pages subpath /noaaplotter/.
+site_url: https://initze.github.io/noaaplotter/
 
 repo_name: initze/noaaplotter
 repo_url: https://github.com/initze/noaaplotter

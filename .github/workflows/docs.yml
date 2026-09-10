@@ -1,0 +1,92 @@
+# Deploy the noaaplotter docs to GitHub Pages.
+#
+#  Jobs:
+#   docs    — install the package + .[docs] extra, run `mkdocs build --strict`,
+#             and assert the expected pages exist. This is the CI gate: it runs
+#             on every PR and push to master, so a broken docs build fails review.
+#   deploy  — pushes `site/` to the `gh-pages` branch on push to master.
+#
+#  GitHub Pages (Settings → Pages) is served from the `gh-pages` branch / root.
+#  The canonical URL is https://initze.github.io/noaaplotter/ (see `site_url`
+#  in mkdocs.yml and the "Documentation" link in pyproject.toml).
+#
+#  Local:
+#      uv venv --python 3.11 && uv pip install ".[docs]"
+#      uv run mkdocs serve            # live reload on http://127.0.0.1:8000
+#      uv run mkdocs build --strict   # one-shot strict build
+#
+#  After changing CLI options, regenerate the CLI reference:
+#      uv run python scripts/gen_cli_docs.py
+
+name: docs
+
+on:
+  push:
+    branches: [master, main]
+  pull_request:
+    branches: [master, main]
+
+permissions:
+  # deploy pushes the built site to the `gh-pages` branch (peaceiris action)
+  contents: write
+
+env:
+  PYTHON_VERSION: "3.11"
+
+jobs:
+  docs:
+    name: Build docs (strict)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+    - uses: actions/checkout@v5
+    - name: Set up Python ${{ env.PYTHON_VERSION }}
+      uses: actions/setup-python@v6
+      with:
+        python-version: ${{ env.PYTHON_VERSION }}
+    - name: Install package + docs extra
+      run: |
+        python -m venv .venv
+        . .venv/bin/activate
+        python -m pip install --upgrade pip
+        python -m pip install ".[docs]"
+    - name: Build (strict)
+      run: |
+        . .venv/bin/activate
+        python scripts/gen_cli_docs.py
+        mkdocs build --strict --site-dir site
+    - name: Verify all expected pages
+      run: |
+        for page in index cli api getting-started examples changelog license rolling_sum 404; do
+          test -f "site/${page}/index.html" || test -f "site/${page}.html"
+        done
+        test -f site/search/search_index.json
+        test -f site/figures/Kotzebue_1992.png
+        echo "all expected pages + search index + example figure present"
+    - name: Upload site (for deploy job)
+      uses: actions/upload-artifact@v4
+      with:
+        name: docs-site
+        path: site
+        retention-days: 3
+
+  deploy:
+    name: Publish to GitHub Pages
+    needs: docs
+    if: github.event_name == 'push' && github.ref == 'refs/heads/master'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+    - name: Download built site
+      uses: actions/download-artifact@v4
+      with:
+        name: docs-site
+        path: site
+    - name: Publish to gh-pages (GitHub Pages)
+      uses: peaceiris/actions-gh-pages@v4
+      with:
+        github_token: ${{ secrets.GITHUB_TOKEN }}
+        publish_dir: ./site
+        publish_branch: gh-pages
+        force_orphan: true
+        keep_history: false

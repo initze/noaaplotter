@@ -1,10 +1,13 @@
 <!--
-  GENERATED. Do not hand-edit the code blocks — change the CLI, then run:
+  GENERATED from the live CLI by `scripts/gen_cli_docs.py`. Do not hand-edit
+  the code blocks — update the CLI, then run:
 
       uv run python scripts/gen_cli_docs.py
 
-  This script captures the *exact* `--help` output from the installed CLI,
-  so this page always matches what a user sees.
+  The script captures `--help` from the installed CLI and normalises line
+  endings, ANSI escapes, and box-drawing characters so the text is portable.
+  CI regenerates it just before each build, so the page always reflects the
+  CLI as it ships on the build host.
 -->
 
 # CLI reference
@@ -13,17 +16,17 @@
 `--help`, and the app supports `--install-completion` / `--show-completion`
 for shell integration.
 
-The code blocks below are verbatim from the running CLI.
+The console blocks below are verbatim from the running CLI, so they always
+match the installed version.
 
 !!! tip
-    Run any command with `--help` for the options of that command.
-
+    Run any command with `--help` for the options of that specific command.
 
 ## `noaaplotter --help`
 
 ```console
-Usage: noaaplotter [OPTIONS] COMMAND [ARGS]...                                
-                                                                               
+Usage: noaaplotter [OPTIONS] COMMAND [ARGS]...
+
 ┌─ Options ───────────────────────────────────────────────────────────────────┐
 │ --install-completion          Install completion for the current shell.     │
 │ --show-completion             Show completion for the current shell, to     │
@@ -40,18 +43,18 @@ Usage: noaaplotter [OPTIONS] COMMAND [ARGS]...
 
 ## `noaaplotter download-data`
 
-Download weather data to a Parquet file — NOAA station data **or** coordinate-based (Open-Meteo, CDS/ERA5).
+Download weather data to a Parquet file — a NOAA station **or** a coordinate-based source (Open-Meteo, CDS/ERA5).
 
 ```console
-Usage: noaaplotter download-data [OPTIONS]                                    
-                                                                               
- Download weather data (NOAA station or reanalysis by coordinates).            
-                                                                               
- NOAA station:        noaaplotter download-data -o data/kotzebue.parquet -sid  
- USW00026616 -start 1970-01-01 -end 2021-12-31                                 
- ERA5 (open_meteo):   noaaplotter download-data -o data/potsdam.parquet        
- --source open_meteo -lat 52.4 -lon 13.05 -start 1980-01-01 -end 2021-12-31    
-                                                                               
+Usage: noaaplotter download-data [OPTIONS]
+
+ Download weather data (NOAA station or reanalysis by coordinates).
+
+ NOAA station:        noaaplotter download-data -o data/kotzebue.parquet -sid
+ USW00026616 -start 1970-01-01 -end 2021-12-31
+ ERA5 (open_meteo):   noaaplotter download-data -o data/potsdam.parquet
+ --source open_meteo -lat 52.4 -lon 13.05 -start 1980-01-01 -end 2021-12-31
+
 ┌─ Options ───────────────────────────────────────────────────────────────────┐
 │ *  --output-file    -o           <str>    Output file path (parquet)        │
 │                                           [required]                        │
@@ -85,17 +88,17 @@ Usage: noaaplotter download-data [OPTIONS]
 
 ## `noaaplotter plot-daily`
 
-Create a daily temperature/precipitation plot vs. climate: static PNG (matplotlib, default) or interactive HTML (Plotly). Records are marked red/blue against the climate baseline.
+Create a daily temperature/precipitation plot vs. climate: static PNG (matplotlib, default) or interactive HTML (Plotly). Records show as red (high) / blue (low) ticks and a 7-day rolling precipitation sum is included. `--full-series` embeds the entire record for Plotly.
 
 ```console
-Usage: noaaplotter plot-daily [OPTIONS]                                       
-                                                                               
- Create a daily temperature/precipitation plot vs. climate.                    
-                                                                               
- Example: noaaplotter plot-daily -infile data/kotzebue.parquet -start          
- 1992-01-01 -end 1992-12-31 -t_range -45 25 -p_range 50 -save_plot             
- figures/kotzebue_1992.png                                                     
-                                                                               
+Usage: noaaplotter plot-daily [OPTIONS]
+
+ Create a daily temperature/precipitation plot vs. climate.
+
+ Example: noaaplotter plot-daily -infile data/kotzebue.parquet -start
+ 1992-01-01 -end 1992-12-31 -t_range -45 25 -p_range 50 -save_plot
+ figures/kotzebue_1992.png
+
 ┌─ Options ───────────────────────────────────────────────────────────────────┐
 │ *  --input-file       -infile          <str>             Input file         │
 │                                                          (parquet/csv) with │
@@ -168,17 +171,17 @@ Usage: noaaplotter plot-daily [OPTIONS]
 
 ## `noaaplotter plot-monthly`
 
-Create a monthly temperature/precipitation bar chart. Use `-anomaly` to show anomalies against a 30-day trailing mean.
+Create a monthly temperature/precipitation bar chart.
 
 ```console
-Usage: noaaplotter plot-monthly [OPTIONS]                                     
-                                                                               
- Create a monthly temperature/precipitation bar chart.                         
-                                                                               
- Example: noaaplotter plot-monthly -infile data/kotzebue.parquet -start        
- 1980-01-01 -end 2021-12-31 -type Temperature -trail 12 -anomaly -save_plot    
- figures/kotzebue_t_anomaly.png                                                
-                                                                               
+Usage: noaaplotter plot-monthly [OPTIONS]
+
+ Create a monthly temperature/precipitation bar chart.
+
+ Example: noaaplotter plot-monthly -infile data/kotzebue.parquet -start
+ 1980-01-01 -end 2021-12-31 -type Temperature -trail 12 -anomaly -save_plot
+ figures/kotzebue_t_anomaly.png
+
 ┌─ Options ───────────────────────────────────────────────────────────────────┐
 │ *  --input-file        -infile         <str>             Input file         │
 │                                                          (parquet/csv) with │
