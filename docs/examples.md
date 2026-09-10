@@ -60,3 +60,30 @@ noaaplotter plot-daily \
     --engine plotly \
     -save_plot figures/winter.html
 ```
+
+## ERA5 / reanalysis (no API key)
+
+`noaaplotter` also pulls **ERA5 reanalysis** by coordinates. The
+`open_meteo` source uses Open-Meteo's public archive — **no API key, no
+account** — and is the simplest way to plot a station-less location (e.g. a
+city centre, a lake, a remote site).
+
+```bash
+noaaplotter download-data --source open_meteo \
+    -lat 52.4 -lon 13.05 \
+    -start 1980-01-01 -end 2021-12-31 \
+    -o data/potsdam_ERA5.parquet
+
+noaaplotter plot-daily \
+    -infile data/potsdam_ERA5.parquet \
+    -loc "52.40,13.05" \
+    -start 2016-01-01 -end 2018-12-31 \
+    -t_range -5 20 -p_range 20 \
+    -save_plot figures/era5_potsdam_daily.png
+```
+
+![ERA5 daily plot — Potsdam, 2016-2018](figures/era5_potsdam_daily.png)
+
+*Note:* for coordinate-based data, the `-loc` / `location=` argument is the
+**coordinate string** (e.g. `52.40,13.05`), not a human-readable name, because
+reanalysis points have no station ID.

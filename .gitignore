@@ -9,8 +9,12 @@ Session.log
 # plotly renders (regenerable via examples)
 figures/*.html
 
+# docs build output (built by CI, never committed)
+site/
+
 # generated data & plot artifacts (regenerable via download_data / plot_daily)
 data/*.parquet
+data/*.csv
 examples/out/
 *.html
 *.png

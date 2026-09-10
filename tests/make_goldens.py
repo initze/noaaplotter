@@ -4,8 +4,8 @@ One-off script: capture golden outputs from the CURRENT (pandas)
 implementation BEFORE switching to polars. Run once; the resulting
 parquet files are committed under tests/fixtures/golden/.
 
-Also builds tests/fixtures/kotzebue.parquet from the legacy
-data/Kotzebue.csv (the current loader only reads parquet).
+Also builds tests/fixtures/kotzebue.parquet from the seed
+tests/fixtures/kotzebue.csv (the current loader only reads parquet).
 """
 import os
 import sys
@@ -31,7 +31,7 @@ os.makedirs(OUT, exist_ok=True)
 # build canonical fixture from the legacy CSV (keep the columns the
 # package actually uses); pandas handles the quoted-empty CSV dialect
 fixture_cols = ["STATION", "NAME", "DATE", "PRCP", "SNOW", "TAVG", "TMAX", "TMIN"]
-raw = pd.read_csv("data/Kotzebue.csv", usecols=fixture_cols)
+raw = pd.read_csv(os.path.join(FIX, "kotzebue.csv"), usecols=fixture_cols)
 raw["TAVG"] = pd.to_numeric(raw["TAVG"], errors="coerce")
 raw["PRCP"] = pd.to_numeric(raw["PRCP"], errors="coerce")
 raw["SNOW"] = pd.to_numeric(raw["SNOW"], errors="coerce")
