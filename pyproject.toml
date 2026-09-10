@@ -44,6 +44,14 @@ dependencies = [
 "Homepage" = "https://github.com/initze/noaaplotter"
 "Repository" = "https://github.com/initze/noaaplotter"
 "Issues" = "https://github.com/initze/noaaplotter/issues"
+"Documentation" = "https://initze.github.io/noaaplotter"
+
+[project.optional-dependencies]
+docs = [
+    "mkdocs>=1.6",
+    "mkdocs-material>=9.5",
+    "mkdocstrings[python]>=1.0",
+]
 
 [project.scripts]
 noaaplotter = "noaaplotter.__main__:app"

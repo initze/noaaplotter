@@ -1,0 +1,66 @@
+# noaaplotter documentation — MkDocs Material
+# Local:  uv run mkdocs serve        (http://127.0.0.1:8000, live reload)
+# Build:  uv run mkdocs build --strict   (output in ./site)
+site_name: noaaplotter
+site_description: Plot fancy climate & weather data from NOAA stations and coordinate-based reanalysis.
+site_author: Ingmar Nitze
+
+repo_name: initze/noaaplotter
+repo_url: https://github.com/initze/noaaplotter
+docs_dir: docs
+site_dir: site
+use_directory_urls: true
+
+theme:
+  name: material
+  palette:
+    # Light (default) — ice-blue accent on white, matching noaaplotter's design language.
+    - scheme: default
+      primary: blue grey
+      accent: light blue
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    # Dark — slate / night sky, same accent family.
+    - scheme: slate
+      primary: blue grey
+      accent: light blue
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+  features:
+    - navigation.instant
+    - navigation.sections
+    - toc.follow
+    - content.code.copy
+    - search.highlight
+
+markdown_extensions:
+  - toc:
+      permalink: true
+  - admonition
+  - pymdownx.details
+  - pymdownx.superfences
+  - attr_list
+  - md_in_html
+
+plugins:
+  - search
+  - mkdocstrings:
+      # Per-member styling is set inline in each `:::` block in the pages.
+      # The handler config here stays minimal to satisfy mkdocstrings-python 2.x
+      # (`options: dict` only).
+      handlers:
+        python: {}
+
+nav:
+  - Home: index.md
+  - Getting started: getting-started.md
+  - CLI reference: cli.md
+  - API reference: api.md
+  - Examples: examples.md
+  - Rolling precipitation sum: rolling_sum.md
+  - Changelog: changelog.md
+  - License: license.md
+
+strict: true
