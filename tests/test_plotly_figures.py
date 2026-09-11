@@ -59,6 +59,28 @@ def test_engine_default_is_matplotlib():
     assert hasattr(fig, "savefig")  # matplotlib Figure
 
 
+def test_snow_accumulation_off_by_default():
+    # Regression: the Python API historically defaulted show_snow_accumulation
+    # to True, so plots generated without the flag (e.g. ERA5 examples, or any
+    # non-winter window) silently drew a snowfall axis. It must be opt-in,
+    # matching the CLI's `--snow_acc` (default off).
+    import inspect
+    from noaaplotter.noaaplotter import NOAAPlotter
+
+    sig = inspect.signature(NOAAPlotter.plot_weather_series)
+    assert sig.parameters["show_snow_accumulation"].default is False
+
+    # and the default actually produces no snowfall trace, even for a window
+    # that does contain snowfall (Nov 2017 - Mar 2018 at Kotzebue):
+    n = NOAAPlotter(FIXTURE, location="Kotzebue")
+    fig = n.plot_weather_series(
+        start_date="2017-11-01", end_date="2018-03-01",
+        engine="plotly", show_plot=False,
+    )  # note: no show_snow_accumulation arg -> default
+    names = [t.name for t in fig.data]
+    assert "Cumulative Snowfall" not in names
+
+
 def test_daily_no_snow_in_window_does_not_crash(tmp_path):
     # Regression: a window where the SNOW column exists but has zero positive
     # values used to crash on .iloc[-1] of an empty selection (IndexError).
