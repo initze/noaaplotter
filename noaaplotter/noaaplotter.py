@@ -89,7 +89,7 @@ class NOAAPlotter(object):
         plot_snowmax="auto",
         plot_extrema=True,
         show_plot=True,
-        show_snow_accumulation=True,
+        show_snow_accumulation=False,
         save_path=False,
         figsize=(9, 6),
         legend_fontsize="x-small",
@@ -126,8 +126,9 @@ class NOAAPlotter(object):
         :type plot_extrema:
         :param show_plot:
         :type show_plot:
-        :param show_snow_accumulation:
-        :type show_snow_accumulation:
+        :param show_snow_accumulation: show the cumulative snowfall axis (opt-in;
+            defaults to ``False`` to match the CLI's ``--snow_acc`` default).
+        :type show_snow_accumulation: bool
         :param save_path:
         :type save_path:
         :return:
