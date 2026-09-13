@@ -51,6 +51,21 @@ def test_monthly_plotly_precipitation():
     assert any(t.type == "bar" for t in fig.data)
 
 
+def test_cli_dpi_default_is_print_quality():
+    # Regression: the CLI used to default `--dpi` to 100 while the Python
+    # API defaulted to 300, so `plot-daily ... -save_plot x.png` produced
+    # low-resolution 900x600 images by default. Both must be print
+    # quality (300) unless the user asks otherwise.
+    from typer.main import get_command
+    from noaaplotter.cli import app
+
+    cmd = get_command(app)
+    for sub in ("plot-daily", "plot-monthly"):
+        params = cmd.commands[sub].params
+        dpi = next(p for p in params if p.name == "dpi")
+        assert dpi.default == 300, f"{sub} --dpi default should be 300, got {dpi.default}"
+
+
 def test_engine_default_is_matplotlib():
     n = NOAAPlotter(FIXTURE, location="Kotzebue")
     fig = n.plot_weather_series("2018-01-01", "2018-12-31",
