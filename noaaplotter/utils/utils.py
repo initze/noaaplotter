@@ -57,7 +57,7 @@ def parse_dates_YM(date):
         raise('Wrong date format. Either use native datetime format or "YYYY-mm-dd"')
 
 
-def dl_noaa_api(i, dtypes, station_id, Token, date_start, date_end, split_size):
+def dl_noaa_api(i, dtypes, station_id, noaa_api_token, date_start, date_end, split_size):
     """
     function to download from NOAA API
     """
@@ -87,7 +87,7 @@ def dl_noaa_api(i, dtypes, station_id, Token, date_start, date_end, split_size):
     r = requests.get(
         request_url,
         params=request_params,
-        headers={'token': Token})
+        headers={'token': noaa_api_token} if noaa_api_token else {})
 
     # workaround to skip empty returns (no data within period)
     try:

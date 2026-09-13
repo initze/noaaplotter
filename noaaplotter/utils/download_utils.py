@@ -1,6 +1,7 @@
 import datetime as dt
 import json
 import os
+import warnings
 from datetime import datetime, timedelta
 
 import numpy as np
@@ -21,12 +22,17 @@ def download_from_noaa(
     datatypes,
     loc_name,
     station_id,
-    noaa_api_token,
+    noaa_api_token="",
     n_jobs=4,
 ):
-    # The CDO *data* API wants the bare station id ("USW00026616"). The "GHCND:"
-    # prefix is only used by the CDO *catalog* and makes the data API silently
-    # return 0 rows — strip it so either form works.
+    # Data comes from the NCEI Access Data Service (
+    # https://www.ncei.noaa.gov/access/services/data/v1 ), a public endpoint
+    # that requires no token. `noaa_api_token` is accepted for backward
+    # compatibility (it was needed by the earlier token-based CDO API) but is
+    # not required — pass an empty string when no token is available.
+    # The service wants the bare station id ("USW00026616"). The "GHCND:"
+    # prefix is only used by the older CDO *catalog* and would make the data
+    # request silently return 0 rows — strip it so either form works.
     if ":" in station_id:
         station_id = station_id.split(":")[-1]
 
@@ -172,7 +178,7 @@ def download_from_noaa(
     return 0
 
 
-def dl_noaa_api(i, dtypes, station_id, Token, date_start, date_end, split_size):
+def dl_noaa_api(i, dtypes, station_id, noaa_api_token, date_start, date_end, split_size):
     """
     function to download from NOAA API
     """
@@ -185,6 +191,14 @@ def dl_noaa_api(i, dtypes, station_id, Token, date_start, date_end, split_size):
 
     date_start_split = split_start.strftime("%Y-%m-%d")
     date_end_split = split_end.strftime("%Y-%m-%d")
+    if noaa_api_token:
+        warnings.warn(
+            "a NOAA token was supplied but is ignored: the endpoint in use "
+            "(https://www.ncei.noaa.gov/access/services/data/v1) is public and "
+            "needs no token.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
 
     # make the api call
     request_url = "https://www.ncei.noaa.gov/access/services/data/v1"
@@ -198,7 +212,12 @@ def dl_noaa_api(i, dtypes, station_id, Token, date_start, date_end, split_size):
         units="metric",
         format="json",
     )
-    r = requests.get(request_url, params=request_params, headers={"token": Token})
+    # token is not required by this endpoint; send it only if one is provided
+    # (kept for any legacy/optional use, harmless if ignored on the server)
+    r = requests.get(
+        request_url, params=request_params,
+        headers={"token": noaa_api_token} if noaa_api_token else {},
+    )
 
     # workaround to skip empty returns (no data within period)
     try:

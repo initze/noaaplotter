@@ -37,7 +37,7 @@ def main():
 
     parser.add_argument(
         "-t", dest="token", type=str, required=False, default="",
-        help="NOAA API token (default: NOAA_API_TOKEN from environment or .env file)",
+        help="NOAA token (optional; the public NCEI endpoint needs none). Defaults to NOAA_API_TOKEN from environment or .env if set",
     )
 
     parser.add_argument(
@@ -133,11 +133,6 @@ def main():
 
     # NOAA path (default)
     token = get_noaa_token(args.token)
-    if not token:
-        parser.error(
-            "No NOAA API token found. Set NOAA_API_TOKEN in your environment or a "
-            "local .env file (see .env.example), or pass it with -t."
-        )
 
     download_from_noaa(
         output_file=args.output_file,

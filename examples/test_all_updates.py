@@ -4,7 +4,7 @@ noaaplotter update — try-it examples
 ====================================
 Runs each new feature and writes the results under examples/out/:
 
-  1. NOAA station data        — needs NOAA_API_TOKEN in .env (skipped if absent)
+  1. NOAA station data        — keyless NCEI service, no token required
   2. Open-Meteo reanalysis    — by coordinates, NO key needed
   3. CDS/ERA5 reanalysis      — needs CDS_API_TOKEN in .env (skipped if absent)
   4. For every dataset: daily + monthly figures, BOTH engines
@@ -139,44 +139,43 @@ def main():
     ok, failed = [], []
 
     # ------------------------------------------------------------------
-    # 1) NOAA station data (if token available)
+    # 1) NOAA station data (keyless — no token required; cached if present)
     # ------------------------------------------------------------------
-    hr("1) NOAA station data")
-    if token_set("NOAA_API_TOKEN"):
-        import glob
+    hr("1) NOAA station data (GHCND daily)")
+    import glob
 
-        cands = glob.glob(os.path.join(DATA, f"NOAA_{args.station}*.parquet"))
-        if cands:
-            data_path = cands[0]
-            print(f"  reusing {os.path.relpath(data_path, ROOT)}")
-        else:
-            data_path = None
+    cands = glob.glob(os.path.join(DATA, f"NOAA_{args.station}*.parquet"))
+    if cands:
+        data_path = cands[0]
+        print(f"  reusing {os.path.relpath(data_path, ROOT)}")
+    else:
+        data_path = None
+        print("  downloading NOAA GHCND 1981-2010 ... (keyless NCEI service)")
+        data_path = os.path.join(DATA, f"NOAA_{args.station}.parquet")
+        os.makedirs(DATA, exist_ok=True)
         try:
-            if data_path is None:
-                from noaaplotter.utils.config import get_noaa_token
-                from noaaplotter.utils.download_utils import download_from_noaa
-
-                print("  downloading NOAA GHCND 1981-2010 ...")
-                data_path = os.path.join(DATA, f"NOAA_{args.station}.parquet")
-                os.makedirs(DATA, exist_ok=True)
-                download_from_noaa(
-                    output_file=data_path,
-                    start_date="1981-01-01",
-                    end_date="2010-12-31",
-                    datatypes=["TMIN", "TMAX", "PRCP", "SNOW"],
-                    loc_name="",
-                    station_id=args.station,
-                    noaa_api_token=get_noaa_token(),
-                )
+            from noaaplotter.utils.download_utils import download_from_noaa
+            download_from_noaa(
+                output_file=data_path,
+                start_date="1981-01-01",
+                end_date="2010-12-31",
+                datatypes=["TMIN", "TMAX", "PRCP", "SNOW"],
+                loc_name="",
+                station_id=args.station,
+                noaa_api_token="",  # optional — not required by the NCEI endpoint
+            )
+        except Exception as e:  # noqa: BLE001 — keep going for the other sources
+            failed.append(("noaa", e))
+            print(f"  NOAA download failed: {e}")
+            data_path = None
+    if data_path:
+        try:
             n = load(data_path, namer_from(data_path))
             plot_all(n, "noaa")
             ok.append("noaa")
-        except Exception as e:  # noqa: BLE001 — keep going for the other sources
+        except Exception as e:  # noqa: BLE001
             failed.append(("noaa", e))
             print(f"  NOAA failed: {e}")
-    else:
-        print("  skipped — no NOAA_API_TOKEN in .env (see .env.example). "
-              "Add it and re-run.")
 
     # ------------------------------------------------------------------
     # 2) Open-Meteo reanalysis (no key)

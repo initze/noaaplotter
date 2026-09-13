@@ -125,3 +125,86 @@ def test_daily_no_snow_in_window_does_not_crash(tmp_path):
             show_plot=False, return_plot=True, engine=engine,
         )
         assert fig is not None
+
+
+def test_download_cli_runs_without_token(tmp_path, monkeypatch):
+    # Regression: download-data used to hard-fail with "No NOAA API token
+    # found" unless a token was set. The NCEI endpoint is public, so it must
+    # run with no token and pass an empty one through.
+    import noaaplotter.cli as cli_mod
+
+    captured = {}
+    monkeypatch.setattr(cli_mod, "get_noaa_token", lambda t=None: "")
+    monkeypatch.setattr(
+        cli_mod, "download_from_noaa",
+        lambda **kw: (captured.update(kw), 0)[1],
+    )
+    from typer.testing import CliRunner
+
+    r = CliRunner().invoke(
+        cli_mod.app,
+        ["download-data", "-o", str(tmp_path / "x.parquet"),
+         "-sid", "USW00026616", "-start", "2020-01-01", "-end", "2020-01-02"],
+    )
+    assert r.exit_code == 0, r.output
+    assert "token" not in r.output.lower()
+    assert captured.get("noaa_api_token", None) in ("", None)
+
+
+def test_noaa_source_runs_without_token(tmp_path, monkeypatch):
+    # Regression: get_source("noaa") raised ValueError when no token was set.
+    import noaaplotter.utils.config as cfg
+    import noaaplotter.utils.download_utils as dutils
+
+    captured = {}
+    monkeypatch.setattr(cfg, "get_noaa_token", lambda t=None: "")
+    monkeypatch.setattr(
+        dutils, "download_from_noaa",
+        lambda **kw: (captured.update(kw), str(tmp_path / "out.parquet"))[1],
+    )
+    from noaaplotter.sources import get_source
+
+    get_source("noaa")(
+        station_id="USW00026616", start="2020-01-01", end="2020-01-02",
+        output_file=str(tmp_path / "out.parquet"),
+    )
+    assert captured.get("noaa_api_token", None) in ("", None)
+
+
+def _install_get(d, cap):
+    def _get(url, params=None, headers=None, *a, **k):
+        class FakeResp:
+            text = "[]"  # empty result set; no network, no error
+        cap["url"] = url
+        cap["headers"] = headers
+        return FakeResp()
+    return _get
+
+
+def test_dl_noaa_api_warns_when_token_supplied(monkeypatch):
+    import warnings as pyw
+    import noaaplotter.utils.download_utils as d
+
+    cap = {}
+    monkeypatch.setattr(d.requests, "get", _install_get(d, cap))
+    with pyw.catch_warnings(record=True) as w:
+        pyw.simplefilter("always")
+        d.dl_noaa_api(0, ["TMAX"], "USW00026616", "MY_TOKEN",
+                      "2020-01-01", "2020-01-02", 10)
+    assert any(issubclass(x.category, DeprecationWarning) for x in w), \
+        "a supplied token should raise a DeprecationWarning"
+
+
+def test_dl_noaa_api_keyless_sends_no_token_header(monkeypatch):
+    import warnings as pyw
+    import noaaplotter.utils.download_utils as d
+
+    cap = {}
+    monkeypatch.setattr(d.requests, "get", _install_get(d, cap))
+    with pyw.catch_warnings(record=True) as w:
+        pyw.simplefilter("always")
+        d.dl_noaa_api(0, ["TMAX"], "USW00026616", "",
+                      "2020-01-01", "2020-01-02", 10)
+    assert cap["headers"] in (None, {}), \
+        f"no token header expected when keyless, got {cap['headers']!r}"
+    assert not any(issubclass(x.category, DeprecationWarning) for x in w)

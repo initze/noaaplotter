@@ -23,18 +23,13 @@ def validate_schema(df: pl.DataFrame) -> pl.DataFrame:
 def _noaa_source(**kwargs):
     """NOAA GHCND source (existing download_from_noaa, incremental parquet).
 
-    Requires `station_id`, `start`, `end`, `output_file`; token from
-    `token` kwarg or NOAA_API_TOKEN (env / .env).
+    Requires `station_id`, `start`, `end`, `output_file`. The token is
+    optional and only used if provided; the NCEI service endpoint is public.
     """
     from noaaplotter.utils.config import get_noaa_token
     from noaaplotter.utils.download_utils import download_from_noaa
 
     token = get_noaa_token(kwargs.pop("token", None))
-    if not token:
-        raise ValueError(
-            "NOAA source needs an API token: set NOAA_API_TOKEN (env or .env) "
-            "or pass token=. See .env.example."
-        )
     required = ["station_id", "start", "end"]
     missing = [k for k in required if kwargs.get(k) in (None, "")]
     if missing:

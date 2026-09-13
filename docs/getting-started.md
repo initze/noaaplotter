@@ -21,8 +21,8 @@ Requires Python 3.11+.
 
 ### Station data (NOAA GHCN-D)
 
-Get a NOAA CDO token first ([ncdc.noaa.gov/cdo-web/token](https://www.ncdc.noaa.gov/cdo-web/token)) and either
-pass it explicitly (`-t`) or export it (`NOAA_API_TOKEN`):
+No token needed — data comes from the public [NCEI Access Data
+Service](https://www.ncei.noaa.gov/access/search/documentation/data-service):
 
 ```bash
 noaaplotter download-data \
@@ -103,9 +103,10 @@ Full API documentation on the [API reference](api.md) page.
 ## Troubleshooting
 
 !!! tip
-    If you get a 401 from NOAA, check your token isn't expired and that you
-    have a station id that exists in the GHCN-D catalogue (try
-    [NCDC station list](https://www.ncei.noaa.gov/access/monitor/location-search.html)).
+    If `download-data` fails for station data, check the station id exists in
+    the [NOAA station catalogue](https://www.ncei.noaa.gov/access/monitor/location-search.html)
+    and that the dates fall inside its record. No token is required for the
+    NOAA source — if one is set anyway it is ignored with a `DeprecationWarning`.
 
     If plotting a window fails because the record is short or has gaps, widen
     the window or use `--full-series` (Plotly only) to embed the entire record.
