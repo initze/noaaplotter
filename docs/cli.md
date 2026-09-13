@@ -67,9 +67,10 @@ Usage: noaaplotter download-data [OPTIONS]
 │ *  --start-date     -start       <str>    Start date (YYYY-MM-DD)           │
 │                                           [required]                        │
 │ *  --end-date       -end         <str>    End date (YYYY-MM-DD) [required]  │
-│    --token          -t           <str>    NOAA API token (default:          │
-│                                           NOAA_API_TOKEN from environment   │
-│                                           or .env)                          │
+│    --token          -t           <str>    NOAA token (optional; the public  │
+│                                           NCEI endpoint needs none).        │
+│                                           Defaults to NOAA_API_TOKEN from   │
+│                                           environment or .env if set        │
 │    --source                      <str>    Data source: noaa, open_meteo, or │
 │                                           cds                               │
 │                                           [default: noaa]                   │
@@ -135,8 +136,11 @@ Usage: noaaplotter plot-daily [OPTIONS]
 │                                                          7)                 │
 │                                                          [default: 7]       │
 │    --dpi                               <float>           DPI for plot       │
-│                                                          output             │
-│                                                          [default: 100.0]   │
+│                                                          output (print      │
+│                                                          quality; matches   │
+│                                                          the Python API     │
+│                                                          default)           │
+│                                                          [default: 300.0]   │
 │    --plot,--show-pl…                                     Open the plot in a │
 │                                                          browser/GUI        │
 │                       -figsize         <float float>...  Figure size in     │
@@ -209,8 +213,11 @@ Usage: noaaplotter plot-monthly [OPTIONS]
 │                        -anomaly                          Show anomaly from  │
 │                                                          climate baseline   │
 │    --dpi                               <float>           DPI for plot       │
-│                                                          output             │
-│                                                          [default: 100.0]   │
+│                                                          output (print      │
+│                                                          quality; matches   │
+│                                                          the Python API     │
+│                                                          default)           │
+│                                                          [default: 300.0]   │
 │    --plot,--show-plot                                    Open the plot in a │
 │                                                          browser/GUI        │
 │                        -figsize        <float float>...  Figure size in     │

@@ -22,8 +22,8 @@ python-dotenv, typer (all listed in `pyproject.toml` and installed automatically
 ## Quick start (3 steps)
 
 ```bash
-# 1. Download data (NOAA station data needs an API token from
-#    https://www.ncdc.noaa.gov/cdo-web/token - or put NOAA_API_TOKEN in a local .env)
+# 1. Download data (no token needed — NOAA data comes from the public
+#    NCEI Access Data Service)
 noaaplotter download-data -o data/kotzebue.parquet -sid USW00026616 -start 1970-01-01 -end 2021-12-31
 
 # 2. Create a daily plot (temperature vs. climate + precipitation, incl. 7-day rolling sum)
@@ -42,7 +42,7 @@ Every command supports `-h` / `--help` for detailed usage.
 Download weather data to a parquet file.
 
 ```bash
-# NOAA station (token required; from env, .env, or -t)
+# NOAA station (no token needed — public NCEI service)
 noaaplotter download-data -o data/kotzebue.parquet -sid USW00026616 -start 1970-01-01 -end 2021-12-31
 
 # ERA5 reanalysis by coordinates (open_meteo, no token needed)
@@ -55,7 +55,7 @@ noaaplotter download-data -o data/potsdam.parquet --source open_meteo -lat 52.4 
 | `-sid` / `--station-id` | NOAA station id, e.g. `USW00026616` (Kotzebue) |
 | `-lat`, `-lon` | coordinates for `--source open_meteo` / `cds` |
 | `-start`, `-end` | start / end date, `YYYY-MM-DD` |
-| `-t` / `--token` | NOAA API token (defaults to `NOAA_API_TOKEN` env / `.env`) |
+| `-t` / `--token` | NOAA token (optional; the public endpoint needs none). Defaults to `NOAA_API_TOKEN` env / `.env` if set |
 | `--source` | `noaa` (default), `open_meteo`, `cds` |
 | `--datatypes` | `TMIN,TMAX,PRCP,SNOW` (NOAA only) |
 | `-n_jobs` | parallel processes (NOAA only) |
@@ -112,7 +112,7 @@ noaaplotter plot-monthly -infile data/kotzebue.parquet -start 1980-01-01 -end 20
 
 ### Download data
 **Option 1 — NOAA Daily Summaries via CLI** (Kotzebue, 1970-2021)
-* NOAA API Token required: https://www.ncdc.noaa.gov/cdo-web/token
+* No token required — served by the public NCEI Access Data Service.
 
 `noaaplotter download-data -o data/kotzebue.parquet -sid USW00026616 -start 1970-01-01 -end 2021-12-31`
 

@@ -24,7 +24,7 @@ def download_data(
     longitude: Optional[float] = typer.Option(None, "-lon", "--longitude", help="Longitude for coordinate-based sources (required for open_meteo/cds)"),
     start_date: str = typer.Option(..., "-start", "--start-date", help="Start date (YYYY-MM-DD)"),
     end_date: str = typer.Option(..., "-end", "--end-date", help="End date (YYYY-MM-DD)"),
-    token: Optional[str] = typer.Option(None, "-t", "--token", help="NOAA API token (default: NOAA_API_TOKEN from environment or .env)"),
+    token: Optional[str] = typer.Option(None, "-t", "--token", help="NOAA token (optional; the public NCEI endpoint needs none). Defaults to NOAA_API_TOKEN from environment or .env if set"),
     source: str = typer.Option("noaa", "--source", help="Data source: noaa, open_meteo, or cds"),
     datatypes: str = typer.Option("TMIN,TMAX,PRCP,SNOW", "--datatypes", help="Comma-separated datatypes (NOAA only)"),
     n_jobs: int = typer.Option(1, "-n_jobs", "--n-jobs", help="Number of parallel processes (NOAA only)"),
@@ -56,12 +56,10 @@ def download_data(
     if not station_id:
         raise typer.BadParameter("NOAA data requires -sid (station id)")
 
+    # token is optional: the NCEI service endpoint this hits is public. It is
+    # only forwarded if the user has one set (legacy/defensive), and a
+    # DeprecationWarning is raised if so.
     api_token = get_noaa_token(token)
-    if not api_token:
-        raise typer.BadParameter(
-            "No NOAA API token found. Set NOAA_API_TOKEN in your environment or a "
-            "local .env file (see .env.example), or pass it with -t."
-        )
 
     datatypes_list = [dt.strip() for dt in datatypes.split(",") if dt.strip()]
 
