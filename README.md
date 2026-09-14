@@ -3,11 +3,16 @@ A python package to create fancy plots with NOAA weather data (stations) and ERA
 
 > 📚 **Docs & API reference:** [initze.github.io/noaaplotter](https://initze.github.io/noaaplotter)
 >
-> **Install:** `uv pip install "git+https://github.com/initze/noaaplotter.git"`
+> **Install:** `pip install noaaplotter`
 
 ## Install
 
-### Recommended: uv
+### PyPI (recommended for end users)
+```bash
+pip install noaaplotter
+```
+
+### From source (development)
 ```bash
 uv venv
 uv pip install -e .          # install this package + all dependencies
