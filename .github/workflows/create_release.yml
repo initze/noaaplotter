@@ -26,12 +26,20 @@ on:
         required: false
         type: boolean
         default: true
+      publish_existing:
+        description: 'One-off: publish the CURRENT (already-versioned) master build to PyPI only. Use for 1.0.0. Leave "no" for normal releases (which must bump + release instead).'
+        required: false
+        type: choice
+        default: no
+        options:
+          - no
+          - yes
 
 jobs:
   # Job 1: read the current version, bump it in pyproject.toml, commit + tag.
   update-version:
     runs-on: ubuntu-latest
-    if: github.event_name == 'workflow_dispatch'
+    if: github.event_name == 'workflow_dispatch' && github.event.inputs.publish_existing != 'yes'
     permissions:
       contents: write
     outputs:
@@ -104,3 +112,81 @@ jobs:
             dist/*.whl
             dist/*.tar.gz
           generate_release_notes: true
+
+  # Job 3: publish the package to PyPI (only if publish=true).
+  # Uses GitHub Actions OIDC "trusted publishing" — NO PyPI token is stored
+  # in the repo. One-time prerequisite (account-level, works even before the
+  # project's first upload):
+  #   https://pypi.org/manage/account/publishing/ -> Add new trusted publisher:
+  #     project: noaaplotter | owner: initze | repository: noaaplotter |
+  #     workflow: create_release.yml
+  # If the project does not exist yet, create it first (e.g. one manual
+  # `twine upload` with a personal PyPI token), then add the trusted publisher.
+  pypi-publish:
+    runs-on: ubuntu-latest
+    needs: [update-version, create-release]
+    if: github.event_name == 'workflow_dispatch' && github.event.inputs.publish == 'true' && github.event.inputs.publish_existing != 'yes'
+    permissions:
+      id-token: write   # required for OIDC to PyPI
+      contents: read
+    steps:
+      - name: Checkout repository at the new tag
+        uses: actions/checkout@v5
+        with:
+          ref: v${{ needs.update-version.outputs.VERSION }}
+          fetch-depth: 0
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v7
+        with:
+          version: '0.6.7'
+
+      - name: Set up Python (as required by pyproject.toml)
+        run: uv python install
+
+      - name: Build package (wheel + sdist)
+        run: uv build
+
+      - name: Verify artifacts
+        run: ls -lh dist/
+
+      - name: Publish to PyPI (OIDC trusted publishing — no API token)
+        uses: pypa/gh-action-pypi-publish@release/v1
+
+  # One-off job: publish whatever version the checked-out build has, with no
+  # version bump and no new GitHub Release. Used for 1.0.0, because v1.0.0 was
+  # tagged/created BEFORE this workflow had a PyPI publish job, and a normal
+  # re-run would bump the version to 2.0.0 instead of publishing 1.0.0.
+  # After 1.0.0 is on PyPI this job can simply be left idle (or removed).
+  append-existing:
+    runs-on: ubuntu-latest
+    if: github.event_name == 'workflow_dispatch' && github.event.inputs.publish_existing == 'yes'
+    permissions:
+      id-token: write   # required for OIDC to PyPI
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v7
+        with:
+          version: '0.6.7'
+
+      - name: Set up Python (as required by pyproject.toml)
+        run: uv python install
+
+      - name: Show version about to be published
+        run: |
+          python -c "import tomllib; v = tomllib.load(open('pyproject.toml', 'rb'))['project']['version']; print(f'publishing noaaplotter {v} to PyPI')"
+
+      - name: Build package (wheel + sdist)
+        run: uv build
+
+      - name: Verify artifacts
+        run: ls -lh dist/
+
+      - name: Publish to PyPI (OIDC trusted publishing — no API token)
+        uses: pypa/gh-action-pypi-publish@release/v1
