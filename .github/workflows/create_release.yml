@@ -30,10 +30,10 @@ on:
         description: 'One-off: publish the CURRENT (already-versioned) master build to PyPI only. Use for 1.0.0. Leave "no" for normal releases (which must bump + release instead).'
         required: false
         type: choice
-        default: no
+        default: 'no'
         options:
-          - no
-          - yes
+          - 'no'
+          - 'yes'
 
 jobs:
   # Job 1: read the current version, bump it in pyproject.toml, commit + tag.
