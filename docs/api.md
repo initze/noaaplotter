@@ -5,12 +5,14 @@ handful of internal helpers (not a stable API).
 
 ## `NOAAPlotter`
 
-The plotting class — load a data file, then render the daily or monthly
-figures. Three methods:
+The plotting class — load a data file, then render the daily, monthly, or
+anomaly "stripes / heatmap" figures. Five methods:
 
 - `NOAAPlotter(...)` — constructor
 - `plot_weather_series(...)` — the daily plot (static or interactive)
 - `plot_monthly_barchart(...)` — the monthly bar chart
+- `plot_warming_stripes(...)` — warming stripes (yearly or monthly anomaly)
+- `plot_activity_heatmap(...)` — GitHub-style months × years anomaly heatmap
 
 ::: noaaplotter.NOAAPlotter
     options:

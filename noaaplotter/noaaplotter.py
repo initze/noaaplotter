@@ -724,3 +724,311 @@ class NOAAPlotter(object):
             return fig
         else:
             plt.close(fig)
+
+    # ------------------------------------------------------------------
+    # New plot types (warming stripes + activity heatmap)
+    # ------------------------------------------------------------------
+    @staticmethod
+    def _diverging_cmap():
+        """House diverging colormap: cool-blue -> white -> warm-red.
+
+        Uses the exact package palette (#4393c3 / #d6604d) so the new plots
+        look identical to the existing figures.
+        """
+        import matplotlib.colors as mcolors
+
+        def _hex2rgb(h):
+            h = h.lstrip("#")
+            return tuple(int(h[i:i + 2], 16) / 255.0 for i in (0, 2, 4))
+
+        return mcolors.LinearSegmentedColormap.from_list(
+            "noaaplotter_diverging",
+            [_hex2rgb("#4393c3"), (1.0, 1.0, 1.0), _hex2rgb("#d6604d")],
+        )
+
+    def _monthly_anomaly(self, end_date):
+        """Monthly anomalies vs the configured climate, for the full record
+        up to ``end_date``. Returns a DataFrame with columns
+        Year, Month, value (the month's mean), clim, anomaly."""
+        dmax = self.dataset.data["DATE"].max()
+        if parse_dates(end_date) > dmax:
+            end_date = dmax
+
+        data_clim = DS_monthly(
+            self.dataset, start=self.climate_start, end=self.climate_end
+        )
+        data_clim.calculate_monthly_climate()
+        clim_by_month = {
+            int(m): v for m, v in data_clim.monthly_climate["tmean_doy_mean"].items()
+        }
+        clim_pr = {
+            int(m): v for m, v in data_clim.monthly_climate["prcp_sum"].items()
+        }
+
+        data_monthly = DS_monthly(
+            self.dataset, start=self.dataset.data["DATE"].min(), end=end_date
+        )
+        data_monthly.calculate_monthly_statistics()
+        monthly = data_monthly.monthly_aggregate.reset_index(drop=False)
+        monthly["Year"] = monthly["DATE_YM"].str[:4].astype(int)
+        monthly["Month"] = monthly["DATE_YM"].str[5:7].astype(int)
+        monthly["clim_t"] = monthly["Month"].map(clim_by_month)
+        monthly["clim_p"] = monthly["Month"].map(clim_pr)
+        monthly["anom_t"] = monthly["tmean_doy_mean"] - monthly["clim_t"]
+        monthly["anom_p"] = monthly["prcp_sum"] - monthly["clim_p"]
+        return monthly, end_date
+
+    def plot_warming_stripes(
+        self,
+        start_date,
+        end_date,
+        information="Temperature",
+        resolution="year",
+        title=None,
+        figsize=(12, 2.2),
+        dpi=300,
+        show_plot=False,
+        save_path=False,
+        return_plot=False,
+        engine="matplotlib",
+    ):
+        """Warming stripes (Ed Hawkins style).
+
+        A single horizontal band, one cell per year (resolution='year') or per
+        month (resolution='month'), coloured by the anomaly from the climate
+        mean: cool-blue below, warm-red above, white at zero (symmetric scale).
+        temperature or precipitation.
+        """
+        information = information.lower()
+        if information not in ("temperature", "precipitation"):
+            raise ValueError("information must be 'Temperature' or 'Precipitation'")
+        if resolution not in ("year", "month"):
+            raise ValueError("resolution must be 'year' or 'month'")
+
+        monthly, dmax = self._monthly_anomaly(end_date)
+
+        if information == "temperature":
+            val_col, unit, kind = "anom_t", "C", "Temperature"
+        else:
+            val_col, unit, kind = "anom_p", "mm", "Precipitation"
+
+        start_ts = parse_dates(start_date)
+        monthly["MDATE"] = pd.to_datetime(list(monthly["DATE_YM"]))
+        window = monthly[(monthly["MDATE"] >= start_ts) & (monthly["MDATE"] <= dmax)]
+
+        if resolution == "year":
+            cells = window.groupby("Year", sort=True)[val_col].mean()
+        else:
+            monshort = ["Jan", "Feb", "Mar", "Apr", "May", "Jun",
+                        "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
+            window = window.sort_values(["Year", "Month"])
+            cells = window[val_col]
+            months_labels = [
+                "{0}-{1}".format(monshort[int(m) - 1], int(y))
+                for y, m in zip(window["Year"].astype(int), window["Month"].astype(int))
+            ]
+
+        values = [float(v) if v is not None else None for v in
+                  (cells.values.tolist() if resolution == "year" else list(cells))]
+        labels = [str(int(y)) for y in cells.index] if resolution == "year" else months_labels
+
+        unit_label = "\N{DEGREE SIGN}C" if unit == "C" else "mm"
+        title = title or "{0} warming stripes ({1}) vs climate".format(
+            kind, "per year" if resolution == "year" else "per month"
+        )
+
+        # ----- plotly engine -----
+        if engine == "plotly":
+            from noaaplotter.figures import make_stripes_figure
+
+            fig_pl = make_stripes_figure(
+                values, labels, title,
+                height=(int(figsize[1] * 100) if figsize else 230),
+                unit=unit_label,
+            )
+            if save_path:
+                fig_pl.write_html(
+                    save_path if str(save_path).endswith(".html")
+                    else str(save_path) + ".html"
+                )
+            return fig_pl
+
+        # ----- matplotlib engine -----
+        import numpy as np
+        import matplotlib.cm as cm
+        import matplotlib.patches as mpatches
+        from matplotlib.colors import TwoSlopeNorm
+
+        arr = np.asarray([None if v is None else v for v in values], dtype=float)
+        missing = ~np.isfinite(arr)
+        finite = arr[~missing]
+        half = float(np.max(np.abs(finite))) if finite.size else 1.0
+        norm = TwoSlopeNorm(vmin=-half, vcenter=0.0, vmax=half)
+        cmap = self._diverging_cmap()
+
+        ncell = len(arr)
+        height = figsize[1] if figsize else 2.2
+        fig = plt.figure(figsize=(max(ncell * 0.12, 3.0), height), dpi=dpi)
+        ax = fig.add_subplot(111)
+        for i in range(ncell):
+            fc = "lightgrey" if missing[i] else cmap(norm(arr[i]))
+            ax.add_patch(
+                mpatches.Rectangle((i, 0), 1, 1, facecolor=fc, edgecolor="white", linewidth=0.4)
+            )
+        ax.set_xlim(-0.5, ncell - 0.5)
+        ax.set_ylim(0, 1)
+        step = max(1, ncell // 25)
+        ticks = list(range(0, ncell, step))
+        ax.set_xticks([t + 0.5 for t in ticks])
+        ax.set_xticklabels(
+            [labels[t] for t in ticks], rotation=90, fontsize=6, ha="left",
+            rotation_mode="anchor",
+        )
+        ax.set_yticks([])
+        for side in ("top", "right", "left"):
+            ax.spines[side].set_visible(False)
+        ax.set_title(title, fontsize=11, loc="left", pad=12)
+
+        sm = cm.ScalarMappable(cmap=cmap, norm=norm)
+        sm.set_array([])
+        cbar = fig.colorbar(sm, ax=ax, anchor=(1, 0.5), shrink=0.55, aspect=28, pad=0.06)
+        cbar.set_label("Anomaly ({0})".format(unit_label), fontsize=8)
+
+        fig.tight_layout()
+        if save_path:
+            fig.savefig(save_path)
+        if show_plot:
+            plt.show()
+        if return_plot:
+            return fig
+        else:
+            plt.close(fig)
+
+    def plot_activity_heatmap(
+        self,
+        start_date,
+        end_date,
+        information="Temperature",
+        title=None,
+        figsize=(9, None),
+        dpi=300,
+        show_plot=False,
+        save_path=False,
+        return_plot=False,
+        engine="matplotlib",
+    ):
+        """GitHub-activity-style heatmap.
+
+        Months on x, years on y (most recent on top); each cell is a monthly
+        anomaly from the climate mean (cool-blue below / warm-red above, white
+        at zero). temperature or precipitation.
+        """
+        information = information.lower()
+        if information not in ("temperature", "precipitation"):
+            raise ValueError("information must be 'Temperature' or 'Precipitation'")
+
+        monthly, dmax = self._monthly_anomaly(end_date)
+
+        if information == "temperature":
+            val_col, unit, kind = "anom_t", "C", "Temperature"
+        else:
+            val_col, unit, kind = "anom_p", "mm", "Precipitation"
+
+        start_ts = parse_dates(start_date)
+        monthly["MDATE"] = pd.to_datetime(list(monthly["DATE_YM"]))
+        window = monthly[(monthly["MDATE"] >= start_ts) & (monthly["MDATE"] <= dmax)]
+
+        years = sorted(int(y) for y in window["Year"].unique())
+        matrix = []
+        for y in years:
+            sub = window[(window["Year"] == y)]
+            m2v = dict(
+                zip(
+                    sub["Month"].astype(int),
+                    [None if pd.isna(v) else float(v) for v in sub[val_col]],
+                )
+            )
+            matrix.append([m2v.get(m) for m in range(1, 13)])
+        # most recent year on top
+        matrix = list(reversed(matrix))
+        years_top = list(reversed(years))
+
+        unit_label = "\N{DEGREE SIGN}C" if unit == "C" else "mm"
+        title = title or "{0} anomaly by month and year (vs climate)".format(kind)
+
+        # ----- plotly engine -----
+        if engine == "plotly":
+            from noaaplotter.figures import make_heatmap_figure
+
+            fig_pl = make_heatmap_figure(
+                matrix, years_top, title,
+                height=(int(figsize[1] * 100) if figsize and figsize[1] else None),
+                unit=unit_label,
+            )
+            if save_path:
+                fig_pl.write_html(
+                    save_path if str(save_path).endswith(".html")
+                    else str(save_path) + ".html"
+                )
+            return fig_pl
+
+        # ----- matplotlib engine -----
+        import numpy as np
+        import matplotlib.cm as cm
+        from matplotlib.colors import TwoSlopeNorm
+
+        n_years = len(matrix)
+        arr = np.full((n_years, 12), np.nan, dtype=float)
+        for r in range(n_years):
+            for c in range(12):
+                v = matrix[r][c]
+                if v is not None and np.isfinite(v):
+                    arr[r, c] = v
+        finite = arr[np.isfinite(arr)]
+        half = float(np.max(np.abs(finite))) if finite.size else 1.0
+        norm = TwoSlopeNorm(vmin=-half, vcenter=0.0, vmax=half)
+        cmap = self._diverging_cmap()
+        masked = np.ma.array(arr, mask=~np.isfinite(arr))
+
+        months_short = ["J", "F", "M", "A", "M", "J", "J", "A", "S", "O", "N", "D"]
+        width = figsize[0] if figsize and figsize[0] else 9
+        height = figsize[1] if figsize and figsize[1] else max(1.6, 0.28 * n_years + 1.6)
+        fig, ax = plt.subplots(figsize=(width, height), dpi=dpi)
+        ax.imshow(
+            masked, aspect="auto", origin="upper", cmap=cmap, norm=norm,
+            interpolation="nearest",
+        )
+        ax.set_xlim(-0.5, 11.5)
+        ax.set_ylim(n_years - 0.5, -0.5)
+        ax.set_xticks(range(12))
+        ax.set_xticklabels(months_short)
+        ax.set_yticks(range(n_years))
+        ax.set_yticklabels([str(y) for y in years_top])
+        for tick in ax.get_xticklabels():
+            tick.set_fontsize(9)
+        for tick in ax.get_yticklabels():
+            tick.set_fontsize(8)
+        ax.set_title(title, loc="left", fontsize=11, pad=12)
+        ax.set_xlabel("Month", fontsize=9)
+        # cell grid
+        ax.set_xticks(np.arange(-0.5, 12, 1), minor=True)
+        ax.set_yticks(np.arange(-0.5, n_years, 1), minor=True)
+        ax.grid(which="minor", color="white", linewidth=0.9)
+        ax.tick_params(which="minor", bottom=False, left=False)
+        for side in ("top", "right"):
+            ax.spines[side].set_visible(False)
+
+        sm = cm.ScalarMappable(cmap=cmap, norm=norm)
+        sm.set_array([])
+        cbar = fig.colorbar(sm, ax=ax, fraction=0.046, pad=0.04)
+        cbar.set_label("Anomaly ({0})".format(unit_label), fontsize=8)
+
+        fig.tight_layout()
+        if save_path:
+            fig.savefig(save_path)
+        if show_plot:
+            plt.show()
+        if return_plot:
+            return fig
+        else:
+            plt.close(fig)

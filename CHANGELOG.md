@@ -5,6 +5,17 @@ Newer entries are added here automatically by the release workflow.
 
 ## Unreleased
 
+- **New plot types — warming stripes & activity heatmap.** Two new anomaly
+  figures, both centred on the climate mean with the package palette
+  (cool-blue → white → warm-red, white = exactly average), temperature or
+  precipitation:
+  - `plot_warming_stripes` / `plot-stripes` — one band, a stripe per year
+    (`-res year`, default) or per month (`-res month`), coloured by its
+    anomaly from the climate (Ed Hawkins' "warming stripes").
+  - `plot_activity_heatmap` / `plot-heatmap` — a GitHub-style matrix, months
+    on x, years on y (most recent on top), each cell a monthly anomaly.
+  Both support `--engine plotly` for an interactive HTML version (hover for
+  values, zoom, pan) as well as the default static matplotlib PNG.
 - **NOAA source is now keyless.** The NOAA downloader already used NOAA's
   public **NCEI Access Data Service**
   ([`…/access/services/data/v1`](https://www.ncei.noaa.gov/access/search/documentation/data-service)),

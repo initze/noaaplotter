@@ -80,6 +80,38 @@ noaaplotter plot-monthly \
     -save_plot figures/kotzebue_monthly.png
 ```
 
+### Warming stripes & activity heatmap (anomaly vs climate)
+
+Two at-a-glance views of change over time. Both use the same cool-blue →
+white → warm-red palette, centred on the climate mean (1981–2010 by default),
+so "white" = exactly average. Temperature by default; `-type Precipitation`
+works too.
+
+**Warming stripes** — one band, a stripe per year (default) or per month,
+coloured by its anomaly from the climate:
+
+```bash
+noaaplotter plot-stripes \
+    -infile data/kotzebue.parquet \
+    -start 1980-01-01 -end 2021-12-31 \
+    -type Temperature -res year \
+    -save_plot figures/kotzebue_stripes.png
+```
+
+**Activity heatmap** — months on x, years on y (most recent on top), each cell
+a monthly anomaly:
+
+```bash
+noaaplotter plot-heatmap \
+    -infile data/kotzebue.parquet \
+    -start 1980-01-01 -end 2021-12-31 \
+    -type Temperature \
+    -save_plot figures/kotzebue_heatmap.png
+```
+
+Both also support `--engine plotly` for an interactive HTML version (hover for
+values, zoom, pan).
+
 ## Using the Python API
 
 The CLI is a thin wrapper over `NOAAPlotter`. The same figure in code:

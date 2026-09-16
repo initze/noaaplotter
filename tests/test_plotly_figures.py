@@ -208,3 +208,110 @@ def test_dl_noaa_api_keyless_sends_no_token_header(monkeypatch):
     assert cap["headers"] in (None, {}), \
         f"no token header expected when keyless, got {cap['headers']!r}"
     assert not any(issubclass(x.category, DeprecationWarning) for x in w)
+
+
+# ----------------------------------------------------------------------
+# Warming stripes (Ed Hawkins style)
+# ----------------------------------------------------------------------
+def test_stripes_matplotlib_returns_figure():
+    n = NOAAPlotter(FIXTURE, location="Kotzebue")
+    fig = n.plot_warming_stripes(
+        "1980-01-01", "2018-12-31", information="Temperature",
+        resolution="year", show_plot=False, return_plot=True,
+    )
+    assert hasattr(fig, "savefig")
+    # the figure is a base axes (stripes) plus a colorbar axes
+    assert len(fig.axes) >= 2
+    # count the individual stripe cells (drawn as Rectangle patches)
+    import matplotlib.patches as mpt
+    base = fig.axes[0]
+    cells = sum(1 for p in base.patches if isinstance(p, mpt.Rectangle))
+    assert 20 <= cells <= 45, f"expected ~39 yearly stripes, got {cells}"
+
+
+def test_stripes_year_vs_month_cell_count():
+    n = NOAAPlotter(FIXTURE, location="Kotzebue")
+    # 'year' resolution produces one cell per year; 'month' one per month.
+    # Count drawn rectangles on the axes (matplotlib bars as Rectangles).
+    fy = n.plot_warming_stripes("1980-01-01", "2018-12-31", resolution="year",
+                                return_plot=True, show_plot=False)
+    fm = n.plot_warming_stripes("1980-01-01", "2018-12-31", resolution="month",
+                                return_plot=True, show_plot=False)
+
+    def _cells(f):
+        import matplotlib.patches as mpt
+        return sum(1 for ax in f.axes for p in ax.patches if isinstance(p, mpt.Rectangle))
+
+    years = _cells(fy)
+    months = _cells(fm)
+    assert 20 <= years <= 45, f"expected ~39 years, got {years}"
+    assert months > years * 3, f"expected ~12x more month cells, got {months}"
+
+
+def test_stripes_plotly_figure_and_writes_html(tmp_path):
+    n = NOAAPlotter(FIXTURE, location="Kotzebue")
+    fig = n.plot_warming_stripes(
+        "1980-01-01", "2018-12-31", information="Temperature",
+        resolution="year", engine="plotly", show_plot=False,
+    )
+    assert fig is not None
+    # a heatmap trace is the core of the stripes
+    assert any(t.type == "heatmap" for t in fig.data)
+    out = tmp_path / "stripes.html"
+    fig.write_html(str(out))
+    assert out.exists() and out.stat().st_size > 0
+
+
+def test_stripes_validation_errors():
+    n = NOAAPlotter(FIXTURE, location="Kotzebue")
+    import pytest
+    with pytest.raises(ValueError):
+        n.plot_warming_stripes("1980-01-01", "2018-12-31", information="Wind")
+    with pytest.raises(ValueError):
+        n.plot_warming_stripes("1980-01-01", "2018-12-31", resolution="week")
+
+
+# ----------------------------------------------------------------------
+# Activity heatmap (months x years)
+# ----------------------------------------------------------------------
+def test_heatmap_matplotlib_returns_figure():
+    n = NOAAPlotter(FIXTURE, location="Kotzebue")
+    fig = n.plot_activity_heatmap(
+        "1980-01-01", "2018-12-31", information="Temperature",
+        show_plot=False, return_plot=True,
+    )
+    assert hasattr(fig, "savefig")
+
+
+def test_heatmap_plotly_figure_and_writes_html(tmp_path):
+    n = NOAAPlotter(FIXTURE, location="Kotzebue")
+    fig = n.plot_activity_heatmap(
+        "1980-01-01", "2018-12-31", information="Temperature",
+        engine="plotly", show_plot=False,
+    )
+    assert any(t.type == "heatmap" for t in fig.data)
+    out = tmp_path / "heat.html"
+    fig.write_html(str(out))
+    assert out.exists() and out.stat().st_size > 0
+
+
+def test_heatmap_precipitation_runs():
+    n = NOAAPlotter(FIXTURE, location="Kotzebue")
+    fig = n.plot_activity_heatmap(
+        "1980-01-01", "2018-12-31", information="Precipitation",
+        engine="plotly", show_plot=False,
+    )
+    assert fig is not None
+
+
+def test_new_cli_commands_registered_dpi_300():
+    from typer.main import get_command
+    from noaaplotter.cli import app
+
+    cmd = get_command(app)
+    for sub in ("plot-stripes", "plot-heatmap"):
+        assert sub in cmd.commands, f"CLI command {sub} not registered"
+        params = cmd.commands[sub].params
+        # both new plot commands must default to print-quality DPI
+        dpi = next(p for p in params if p.name == "dpi")
+        assert dpi.default == 300, f"{sub} --dpi default should be 300"

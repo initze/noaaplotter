@@ -184,3 +184,83 @@ def plot_monthly(
         engine=engine,
     )
     _report(save_path, show_plot, engine)
+
+
+@app.command("plot-stripes")
+def plot_stripes(
+    infile: str = typer.Option(..., "-infile", "--input-file", help="Input file (parquet/csv) with climate data"),
+    start_date: str = typer.Option(..., "-start", "--start-date", help="Start date of plot (YYYY-MM-DD)"),
+    end_date: str = typer.Option(..., "-end", "--end-date", help="End date of plot (YYYY-MM-DD)"),
+    location: Optional[str] = typer.Option(None, "-loc", "--location", help="Location name, must be in data file"),
+    save_path: Optional[str] = typer.Option(None, "-save_plot", "--save-plot", help="File path for the plot (png, or html with --engine plotly)"),
+    information: str = typer.Option("Temperature", "-type", "--information", help="Attribute type: Temperature or Precipitation"),
+    resolution: str = typer.Option("year", "-res", "--resolution", help="One stripe per: year or month"),
+    title: Optional[str] = typer.Option(None, "-title", help="Plot title"),
+    dpi: float = typer.Option(300.0, "--dpi", help="DPI for plot output (print quality; matches the Python API default)"),
+    show_plot: bool = typer.Option(False, "--plot", "--show-plot", help="Open the plot in a browser/GUI"),
+    engine: str = typer.Option("matplotlib", "--engine", help="Rendering engine: matplotlib (static) or plotly (interactive HTML)"),
+):
+    """Create warming stripes (anomaly from climate: cool-blue to warm-red).
+
+    Example: noaaplotter plot-stripes -infile data/kotzebue.parquet -start 1980-01-01 -end 2021-12-31 -type Temperature -res year -save_plot figures/kotzebue_stripes.png
+    """
+    if engine not in ("matplotlib", "plotly"):
+        raise typer.BadParameter("engine must be 'matplotlib' or 'plotly'")
+    if information not in ("Temperature", "Precipitation"):
+        raise typer.BadParameter("-type must be 'Temperature' or 'Precipitation'")
+    if resolution not in ("year", "month"):
+        raise typer.BadParameter("-res must be 'year' or 'month'")
+    if not infile:
+        raise typer.BadParameter("-infile is required")
+
+    n = NOAAPlotter(infile, location=location)
+    n.plot_warming_stripes(
+        start_date=start_date,
+        end_date=end_date,
+        information=information,
+        resolution=resolution,
+        title=title,
+        show_plot=show_plot,
+        dpi=dpi,
+        save_path=save_path or False,
+        engine=engine,
+    )
+    _report(save_path, show_plot, engine)
+
+
+@app.command("plot-heatmap")
+def plot_heatmap(
+    infile: str = typer.Option(..., "-infile", "--input-file", help="Input file (parquet/csv) with climate data"),
+    start_date: str = typer.Option(..., "-start", "--start-date", help="Start date of plot (YYYY-MM-DD)"),
+    end_date: str = typer.Option(..., "-end", "--end-date", help="End date of plot (YYYY-MM-DD)"),
+    location: Optional[str] = typer.Option(None, "-loc", "--location", help="Location name, must be in data file"),
+    save_path: Optional[str] = typer.Option(None, "-save_plot", "--save-plot", help="File path for the plot (png, or html with --engine plotly)"),
+    information: str = typer.Option("Temperature", "-type", "--information", help="Attribute type: Temperature or Precipitation"),
+    title: Optional[str] = typer.Option(None, "-title", help="Plot title"),
+    dpi: float = typer.Option(300.0, "--dpi", help="DPI for plot output (print quality; matches the Python API default)"),
+    show_plot: bool = typer.Option(False, "--plot", "--show-plot", help="Open the plot in a browser/GUI"),
+    engine: str = typer.Option("matplotlib", "--engine", help="Rendering engine: matplotlib (static) or plotly (interactive HTML)"),
+):
+    """Create a months x years activity heatmap of anomalies from climate.
+
+    Example: noaaplotter plot-heatmap -infile data/kotzebue.parquet -start 1980-01-01 -end 2021-12-31 -type Temperature -save_plot figures/kotzebue_heatmap.png
+    """
+    if engine not in ("matplotlib", "plotly"):
+        raise typer.BadParameter("engine must be 'matplotlib' or 'plotly'")
+    if information not in ("Temperature", "Precipitation"):
+        raise typer.BadParameter("-type must be 'Temperature' or 'Precipitation'")
+    if not infile:
+        raise typer.BadParameter("-infile is required")
+
+    n = NOAAPlotter(infile, location=location)
+    n.plot_activity_heatmap(
+        start_date=start_date,
+        end_date=end_date,
+        information=information,
+        title=title,
+        show_plot=show_plot,
+        dpi=dpi,
+        save_path=save_path or False,
+        engine=engine,
+    )
+    _report(save_path, show_plot, engine)
