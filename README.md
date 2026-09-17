@@ -1,6 +1,21 @@
 # noaaplotter
 A python package to create fancy plots with NOAA weather data (stations) and ERA5 reanalysis (by coordinates).
 
+<p align="center">
+  <a href="https://pypi.org/project/noaaplotter/">
+    <img src="https://img.shields.io/pypi/v/noaaplotter?label=version" alt="PyPI version">
+  </a>
+  <a href="https://pypi.org/project/noaaplotter/">
+    <img src="https://img.shields.io/pypi/pyversions/noaaplotter" alt="Python versions">
+  </a>
+  <a href="https://github.com/initze/noaaplotter/actions/workflows/python-package.yml">
+    <img src="https://img.shields.io/github/actions/workflow/status/initze/noaaplotter/python-package.yml?label=tests" alt="CI status">
+  </a>
+  <a href="https://initze.github.io/noaaplotter/">
+    <img src="https://img.shields.io/badge/docs-site-2f80ed?logo=readthedocs&logoColor=white" alt="Documentation">
+  </a>
+</p>
+
 > 📚 **Docs & API reference:** [initze.github.io/noaaplotter](https://initze.github.io/noaaplotter)
 >
 > **Install:** `pip install noaaplotter`
