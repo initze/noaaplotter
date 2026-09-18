@@ -6,16 +6,30 @@ Newer entries are added here automatically by the release workflow.
 ## Unreleased
 
 - **New plot types — warming stripes & activity heatmap.** Two new anomaly
-  figures, both centred on the climate mean with the package palette
-  (cool-blue → white → warm-red, white = exactly average), temperature or
-  precipitation:
-  - `plot_warming_stripes` / `plot-stripes` — one band, a stripe per year
-    (`-res year`, default) or per month (`-res month`), coloured by its
-    anomaly from the climate (Ed Hawkins' "warming stripes").
+  figures, both available as temperature or precipitation:
+  - `plot_warming_stripes` / `plot-stripes` — one horizontal band, a stripe
+    per year (`-res year`, default) or per month (`-res month`), coloured by
+    its anomaly from the climate (Ed Hawkins' "warming stripes"). The band is
+    drawn with no gaps between cells. `-start`/`-end` are optional and default
+    to the whole record in the input file. By default the figure is the bare
+    band only (no title, axes or colourbar); pass `--annotations` to add
+    title, year/month tick labels and a colourbar.
   - `plot_activity_heatmap` / `plot-heatmap` — a GitHub-style matrix, months
-    on x, years on y (most recent on top), each cell a monthly anomaly.
+    on x, years on y (most recent on top), drawn with **square cells**.
+    `-start`/`-end` are optional (default: whole record). `-scale` chooses
+    what each cell encodes (`-scale {anomaly,percentile,absolute}`, default
+    `anomaly`): the anomaly from the climate mean, the month's percentile
+    rank (0–100) across the full record, or the raw monthly value (°C / mm).
+    Temperature uses warm-red = hot / cool-blue = cold; precipitation inverts
+    this (wet-blue = high, dry-red = low), as requested.
   Both support `--engine plotly` for an interactive HTML version (hover for
   values, zoom, pan) as well as the default static matplotlib PNG.
+- **New CLI command `inspect-data`.** `noaaplotter inspect-data -infile
+  <file> [-loc <name>]` prints a summary of an input data file: the file
+  path, location (if provided, else the NAME column), the observation period
+  (earliest and latest dates, span in days), the types of information
+  available (which of TAVG/TMAX/TMIN, PRCP, SNOW are present), the row count,
+  and the full column list. Useful for a quick sanity check before plotting.
 - **NOAA source is now keyless.** The NOAA downloader already used NOAA's
   public **NCEI Access Data Service**
   ([`…/access/services/data/v1`](https://www.ncei.noaa.gov/access/search/documentation/data-service)),

@@ -189,20 +189,25 @@ def plot_monthly(
 @app.command("plot-stripes")
 def plot_stripes(
     infile: str = typer.Option(..., "-infile", "--input-file", help="Input file (parquet/csv) with climate data"),
-    start_date: str = typer.Option(..., "-start", "--start-date", help="Start date of plot (YYYY-MM-DD)"),
-    end_date: str = typer.Option(..., "-end", "--end-date", help="End date of plot (YYYY-MM-DD)"),
-    location: Optional[str] = typer.Option(None, "-loc", "--location", help="Location name, must be in data file"),
+    start_date: Optional[str] = typer.Option(None, "-start", "--start-date", help="Start date (YYYY-MM-DD); default = min date in file"),
+    end_date: Optional[str] = typer.Option(None, "-end", "--end-date", help="End date (YYYY-MM-DD); default = max date in file"),
+    location: Optional[str] = typer.Option(None, "-loc", "--location", help="Location name"),
     save_path: Optional[str] = typer.Option(None, "-save_plot", "--save-plot", help="File path for the plot (png, or html with --engine plotly)"),
-    information: str = typer.Option("Temperature", "-type", "--information", help="Attribute type: Temperature or Precipitation"),
+    information: str = typer.Option("Temperature", "-type", "--information", help="Attribute: Temperature or Precipitation"),
     resolution: str = typer.Option("year", "-res", "--resolution", help="One stripe per: year or month"),
-    title: Optional[str] = typer.Option(None, "-title", help="Plot title"),
-    dpi: float = typer.Option(300.0, "--dpi", help="DPI for plot output (print quality; matches the Python API default)"),
+    title: Optional[str] = typer.Option(None, "-title", help="Plot title (with --annotations)"),
+    annotations: bool = typer.Option(False, "--annotations", help="Show title, axes and colorbar. Default: bare band only"),
+    dpi: float = typer.Option(300.0, "--dpi", help="DPI for plot output"),
     show_plot: bool = typer.Option(False, "--plot", "--show-plot", help="Open the plot in a browser/GUI"),
-    engine: str = typer.Option("matplotlib", "--engine", help="Rendering engine: matplotlib (static) or plotly (interactive HTML)"),
+    engine: str = typer.Option("matplotlib", "--engine", help="Rendering engine: matplotlib or plotly"),
 ):
     """Create warming stripes (anomaly from climate: cool-blue to warm-red).
 
-    Example: noaaplotter plot-stripes -infile data/kotzebue.parquet -start 1980-01-01 -end 2021-12-31 -type Temperature -res year -save_plot figures/kotzebue_stripes.png
+    The default output is the bare band only — no title, axes or colorbar.
+    Pass --annotations to add them. Optional dates: when omitted, the whole
+    record in the file is used.
+
+    Example: noaaplotter plot-stripes -infile data/kotzebue.parquet -type Temperature -res year -save_plot kotzebue_stripes.png
     """
     if engine not in ("matplotlib", "plotly"):
         raise typer.BadParameter("engine must be 'matplotlib' or 'plotly'")
@@ -220,6 +225,7 @@ def plot_stripes(
         information=information,
         resolution=resolution,
         title=title,
+        annotations=annotations,
         show_plot=show_plot,
         dpi=dpi,
         save_path=save_path or False,
@@ -231,24 +237,35 @@ def plot_stripes(
 @app.command("plot-heatmap")
 def plot_heatmap(
     infile: str = typer.Option(..., "-infile", "--input-file", help="Input file (parquet/csv) with climate data"),
-    start_date: str = typer.Option(..., "-start", "--start-date", help="Start date of plot (YYYY-MM-DD)"),
-    end_date: str = typer.Option(..., "-end", "--end-date", help="End date of plot (YYYY-MM-DD)"),
-    location: Optional[str] = typer.Option(None, "-loc", "--location", help="Location name, must be in data file"),
+    start_date: Optional[str] = typer.Option(None, "-start", "--start-date", help="Start date (YYYY-MM-DD); default = min date in file"),
+    end_date: Optional[str] = typer.Option(None, "-end", "--end-date", help="End date (YYYY-MM-DD); default = max date in file"),
+    location: Optional[str] = typer.Option(None, "-loc", "--location", help="Location name"),
     save_path: Optional[str] = typer.Option(None, "-save_plot", "--save-plot", help="File path for the plot (png, or html with --engine plotly)"),
-    information: str = typer.Option("Temperature", "-type", "--information", help="Attribute type: Temperature or Precipitation"),
+    information: str = typer.Option("Temperature", "-type", "--information", help="Attribute: Temperature or Precipitation"),
+    scale: str = typer.Option("anomaly", "-scale", "--scale", help="Cell value: anomaly, percentile, or absolute (default anomaly)"),
     title: Optional[str] = typer.Option(None, "-title", help="Plot title"),
-    dpi: float = typer.Option(300.0, "--dpi", help="DPI for plot output (print quality; matches the Python API default)"),
+    dpi: float = typer.Option(300.0, "--dpi", help="DPI for plot output"),
     show_plot: bool = typer.Option(False, "--plot", "--show-plot", help="Open the plot in a browser/GUI"),
-    engine: str = typer.Option("matplotlib", "--engine", help="Rendering engine: matplotlib (static) or plotly (interactive HTML)"),
+    engine: str = typer.Option("matplotlib", "--engine", help="Rendering engine: matplotlib or plotly"),
 ):
-    """Create a months x years activity heatmap of anomalies from climate.
+    """Create a months x years activity heatmap (square cells, latest year on top).
 
-    Example: noaaplotter plot-heatmap -infile data/kotzebue.parquet -start 1980-01-01 -end 2021-12-31 -type Temperature -save_plot figures/kotzebue_heatmap.png
+    --scale chooses what each cell encodes:
+      anomaly    — deviation from the climate mean (cool-blue / white / warm-red)
+      percentile — the month's rank 0-100 across the full record
+      absolute   — the raw monthly mean (degrees C / mm)
+
+    Temperature: high = warm (red), low = cool (blue).
+    Precipitation: high = wet (blue), low = dry (red) — inverted.
+
+    Example: noaaplotter plot-heatmap -infile data/kotzebue.parquet -type Temperature -save_plot kotzebue_heatmap.png
     """
     if engine not in ("matplotlib", "plotly"):
         raise typer.BadParameter("engine must be 'matplotlib' or 'plotly'")
     if information not in ("Temperature", "Precipitation"):
         raise typer.BadParameter("-type must be 'Temperature' or 'Precipitation'")
+    if scale not in ("anomaly", "percentile", "absolute"):
+        raise typer.BadParameter("-scale must be 'anomaly', 'percentile', or 'absolute'")
     if not infile:
         raise typer.BadParameter("-infile is required")
 
@@ -257,6 +274,7 @@ def plot_heatmap(
         start_date=start_date,
         end_date=end_date,
         information=information,
+        scale=scale,
         title=title,
         show_plot=show_plot,
         dpi=dpi,
@@ -264,3 +282,91 @@ def plot_heatmap(
         engine=engine,
     )
     _report(save_path, show_plot, engine)
+
+
+@app.command("inspect-data")
+def inspect_data(
+    infile: str = typer.Option(..., "-infile", "--input-file", help="Input file (parquet/csv) to inspect"),
+    location: Optional[str] = typer.Option(None, "-loc", "--location", help="Location name to display (default: NAME column if present)"),
+):
+    """Inspect an input data file and print its details to the console.
+
+    Reports the file path, location (if provided, else the NAME column),
+    the observation period (earliest and latest dates), the types of
+    information available, and the row count.
+
+    Example: noaaplotter inspect-data -infile data/kotzebue.parquet -loc Kotzebue
+    """
+    if not infile:
+        raise typer.BadParameter("-infile is required")
+
+    import os
+    import pandas as pd
+
+    if not os.path.isfile(infile):
+        raise typer.BadParameter(f"input file not found: {infile}")
+
+    df = _read_input(infile)
+    df.columns = [str(c) for c in df.columns]
+
+    # Location: prefer the user's -loc, else the file's NAME column
+    name = location
+    if name is None and "NAME" in df.columns:
+        vals = sorted({str(v) for v in df["NAME"].dropna().unique()})
+        name = ", ".join(vals) if vals else None
+
+    # Observation period
+    start = end = None
+    for col in ("DATE", "DT_start", "TIME"):
+        if col in df.columns:
+            s = pd.to_datetime(df[col], errors="coerce").dropna()
+            if len(s):
+                start, end = s.min(), s.max()
+            break
+    if start is None:
+        # no explicit date column: try to parse from DATE_YM / DATE_MD
+        for col in ("DATE_YM", "DATE_MD"):
+            if col in df.columns:
+                s = pd.to_datetime(df[col], errors="coerce").dropna()
+                if len(s):
+                    start, end = s.min(), s.max()
+                break
+
+    # Types of information available
+    cols = set(df.columns)
+    info_types = []
+    if cols & {"TAVG", "TMAX", "TMIN"}:
+        info_types.append("Temperature ({})".format(
+            ", ".join(sorted(c for c in cols if c in ("TAVG", "TMAX", "TMIN")))))
+    if "PRCP" in cols:
+        info_types.append("Precipitation (PRCP)")
+    if "SNOW" in cols:
+        info_types.append("Snow (SNOW)")
+
+    typer.secho("Data file inspection", bold=True)
+    typer.echo("-" * 40)
+    typer.echo(f"  File              : {os.path.abspath(infile)}")
+    typer.echo(f"  Location          : {name or '(not specified)'}")
+    if start is not None:
+        span = (end - start).days
+        typer.echo(
+            f"  Observation period: {start:%Y-%m-%d} .. {end:%Y-%m-%d}"
+            f"  ({span} days)"
+        )
+    else:
+        typer.echo("  Observation period: could not determine (no date column)")
+    if info_types:
+        typer.echo("  Information types : " + "; ".join(info_types))
+    else:
+        typer.echo("  Information types : (none of TAVG/TMAX/TMIN/PRCP/SNOW found)")
+    typer.echo(f"  Rows              : {len(df)}")
+    typer.echo(f"  Columns ({len(df.columns)})   : " + ", ".join(str(c) for c in df.columns))
+    typer.echo("-" * 40)
+
+
+def _read_input(path):
+    """Read a parquet or csv file into a DataFrame (helper for inspect-data)."""
+    import pandas as _pd
+    if path.lower().endswith(".parquet"):
+        return _pd.read_parquet(path)
+    return _pd.read_csv(path)
