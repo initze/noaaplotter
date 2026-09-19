@@ -80,6 +80,58 @@ noaaplotter plot-monthly \
     -save_plot figures/kotzebue_monthly.png
 ```
 
+### Warming stripes & activity heatmap (anomaly vs climate)
+
+Two at-a-glance views of change over time. Both are temperature by default;
+`-type Precipitation` works too (and inverts the palette — see below).
+
+**Warming stripes** — one band, a stripe per year (default) or per month,
+coloured by its anomaly from the climate. `-start`/`-end` are optional
+(whole record by default). Output is the bare band by default; add
+`--annotations` for title, tick labels and a colourbar:
+
+```bash
+noaaplotter plot-stripes \
+    -infile data/kotzebue.parquet \
+    -type Temperature -res year \
+    -save_plot figures/kotzebue_stripes.png
+
+noaaplotter plot-stripes \
+    -infile data/kotzebue.parquet \
+    -start 1980-01-01 -end 2021-12-31 \
+    --annotations -save_plot figures/kotzebue_stripes_ann.png
+```
+
+**Activity heatmap** — months on x, years on y (most recent on top), square
+cells. `-scale` picks what each cell encodes (default `anomaly`): the
+anomaly from the climate, the month's percentile rank 0–100 across the full
+record, or the raw monthly value:
+
+```bash
+noaaplotter plot-heatmap \
+    -infile data/kotzebue.parquet \
+    -type Temperature -save_plot figures/kotzebue_heatmap.png
+
+noaaplotter plot-heatmap \
+    -infile data/kotzebue.parquet \
+    -type Precipitation -scale percentile \
+    -save_plot figures/kotzebue_pcp_pctl.png
+```
+
+**Colour convention.** Temperature: warm-red = hot, cool-blue = cold.
+Precipitation inverts this (the "vice versa" you asked for): wet-blue = high,
+dry-red = low. This applies to all `-scale` modes.
+
+**Inspect a data file** — a quick sanity check of an input file before
+plotting (location, observation period, information types, row count):
+
+```bash
+noaaplotter inspect-data -infile data/kotzebue.parquet -loc Kotzebue
+```
+
+Both plots also support `--engine plotly` for an interactive HTML version
+(hover for values, zoom, pan).
+
 ## Using the Python API
 
 The CLI is a thin wrapper over `NOAAPlotter`. The same figure in code:
