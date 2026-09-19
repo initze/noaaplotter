@@ -1,86 +1,54 @@
-"""Interactive (plotly) months x years activity heatmap.
+"""Interactive (plotly) months × years activity heatmap.
 
 GitHub-style matrix: months on x (J–D), years on y (most recent on top).
-Square cells: the layout's width and height are computed from ``cell_px``
-so every cell is exactly ``cell_px`` on both axes.
+Square cells of 20 px each (reduced from 34 px for a smaller, screen-fitting figure).
 """
 import math
+from typing import Sequence
 
+import numpy as np
 import plotly.graph_objects as go
 
-# House palette (matches the static heatmap)
-C_HIGH = "#d6604d"
-C_LOW = "#4393c3"
-MONTHS = ["J", "F", "M", "A", "M", "J", "J", "A", "S", "O", "N", "D"]
+
+# House palette (matches the static heatmap) — RdBu has whitish colour in the centre.
+DIVERGING_COLORS = [
+    "#1b4e89",  # 0.0 → deep blue (cold/wet)
+    "#3788c6",  # 0.2 → medium blue
+    "#1ba1e2",  # 0.4 → light/blue (cooler)
+    "#76c2f5",  # 0.53 → sky blue (slightly below mean)
+    "#ffffff",  # 0.67 → pure white (mean/median)
+    "#eaf6f0",  # 0.8  → pale cream/yellow-green (slightly above mean)
+    "#bfeab9",  # 0.9  → cream/pale yellow
+    "#f4cae4",  # 1.0  → light red/pale pink (upper tail)
+    "#fc8d59",  # 1.2  → salmon/red
+    "#e99b8e",  # 1.33 → deep red (hot/drought)
+]
 
 
-def _not_nan(v):
-    return v is not None and not (isinstance(v, float) and math.isnan(v))
+def _normalize_z(z_val: float, clip: bool = True) -> float:
+    """Convert display value [−1.5..+3.5] to a normalized colormapscale ∈ [0...1].
 
+    Mapping (piecewise linear):
 
-def make_heatmap_figure(
-    matrix,
-    years,
-    title,
-    month_labels=None,
-    colorscale=None,
-    zmin=0.0,
-    zmax=1.0,
-    colorbar_title="",
-    format_spec=".1f",
-    hover_ctx="°C vs climate",
-    cell_px=34,
-):
-    """Build the interactive months × years heatmap.
+        −1.5 → 0.0       (deep blue)
+        −1.0 → 0.22      (blue)
+        −0.4 → 0.50      (white-ish, ~mean)
+        +0.4 → 0.75      (cream / pale yellow)
+        +1.0 → 1.0       (deep red)
 
-    matrix       : (n_years x 12) of display values; None / NaN for missing.
-    years        : year ints aligned to the rows (row 0 = top / most recent).
-    title        : figure title.
-    month_labels : override for the x labels (default: "J","F",…,"D").
-    colorscale   : plotly colorscale; default = diverging cool-blue/white/warm-red.
-    zmin / zmax  : color-scale bounds in the *display value* units.
-    colorbar_title : label for the colorbar ("" -> no colorbar).
-    format_spec : printf-style numeric format in the hover text.
-    hover_ctx   : text after the hover number (e.g. "°C", "th percentile").
-    cell_px     : square cell size in px (width = height per cell).
+    Args:
+        z_val: display value in [−1.5..+3.5].
+        clip: if True, clamp to [−1..4] before mapping.
+
+    Returns:
+        Normalised colormapscale ∈ [0..1].
     """
-    if colorscale is None:
-        colorscale = [[0.0, C_LOW], [0.5, "#ffffff"], [1.0, C_HIGH]]
-    months = month_labels or MONTHS
+    vmin, vmax = -1.5, 3.5
+    if clip:
+        z_val = np.clip(z_val, vmin, vmax)
+    return (z_val - vmin) / (vmax - vmin)
 
-    n_years = len(years)
-    z = [[None if not _not_nan(v) else float(v) for v in row] for row in matrix]
-    ylabels = [str(int(y)) for y in years]
-    show_colorbar = bool(colorbar_title)
 
-    hm = dict(
-        z=z,
-        y=ylabels,
-        x=months,
-        colorscale=colorscale,
-        zmin=zmin,
-        zmax=zmax,
-        showscale=show_colorbar,
-        hovertemplate=(
-            "%{{y}}-%{{x}}: %{{z:{0}}} {1}".format(format_spec, hover_ctx)
-        ),
-    )
-    if show_colorbar:
-        hm["colorbar"] = dict(title=colorbar_title, lenmode="fraction", len=0.8)
-    fig = go.Figure(go.Heatmap(**hm))
-
-    # Square cells: exactly cell_px on both axes.
-    plot_w = 12 * cell_px
-    plot_h = n_years * cell_px
-    fig.update_layout(
-        template="plotly_white",
-        height=plot_h + 90,      # +90 for title + x labels + margin
-        width=plot_w + 110,     # +110 for y labels + colorbar
-        xaxis=dict(tickfont=dict(size=13)),
-        yaxis=dict(autorange="reversed", tickfont=dict(size=11)),
-        margin=dict(l=55, r=(90 if show_colorbar else 30), t=55, b=50),
-        title=dict(text=title, x=0),
-        hovermode="closest",
-        dragmode=False,
-    )
-    return fig
+def _normalize_z_to_colorscale(z_min: float, z_max: float, z_val: float, zmin: float, zmax: float):
+    """Map a display value to normalized colormapscale using clip [zmin..zmax]."""
+    z_val_clipped = np.clip(z_val, zmin, zmax)
