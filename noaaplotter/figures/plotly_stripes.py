@@ -82,8 +82,8 @@ def make_stripes_figure(
 
     # With N cells and height H, we want the *cell width* to be about 1/N of
     # the figure width — so the band fills the figure edge-to-edge with no
-    # gaps.
-    fig_width = max(n * 24, 360) + (90 if annotations else 0)
+    # gaps.  The overall band is kept wide-and-short: width : height = 8 : 1.
+    fig_width = int(height * 8) + (90 if annotations else 25)
     fig.update_layout(
         template="plotly_white",
         height=height,

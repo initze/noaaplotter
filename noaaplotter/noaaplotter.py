@@ -901,7 +901,9 @@ class NOAAPlotter(object):
             band_height = figsize[1]
         else:
             band_height = 2.2
-        band_width = max(ncell * 0.12, 3.0)
+        # wide, short band: enforce a width:height ratio of 8:1 (the band should
+        # be far wider than it is tall).
+        band_width = band_height * 8.0
 
         fig, ax = plt.subplots(figsize=(band_width, band_height), dpi=dpi)
 
@@ -1139,18 +1141,34 @@ class NOAAPlotter(object):
 
         months_short = ["J", "F", "M", "A", "M", "J", "J", "A", "S", "O", "N", "D"]
 
-        # square cells: figsize from cell_px; we let `aspect="equal"` handle
-        # the shape, so width = 12 * cell_px and height = n_years * cell_px
-        cell_px = 36  # px per cell at dpi=100 → ~0.36 in per cell
-        width = 12 * cell_px / 100.0
-        height = n_years * cell_px / 100.0
-        # add a little room for the colorbar and year labels
-        width += 0.6
-        height += 0.8
+        # Deterministic sizing so there is NO top/bottom whitespace:
+        # * aspect="auto" makes imshow always fill the axes box exactly
+        #   (square boxes -> square cells), while aspect="equal" would
+        #   shrink the grid to fit the figure's free space and leave blank
+        #   bands above/below the matrix.
+        # * the axes box is placed by hand (small, explicit paddings) and the
+        #   colorbar is an independent axes — none of them steal space from
+        #   the grid, and no tight_layout run is left to reflow anything.
+        cell_in = 0.36            # inches per side -> square cells render cleanly
+        grid_w = 12 * cell_in     # 12 months
+        grid_h = n_years * cell_in
+        pad_left = 0.7            # year labels
+        pad_right = 1.0           # colorbar + its label
+        pad_top = 0.6             # title
+        pad_bottom = 0.7          # month labels ("Month" + ticks)
 
-        fig, ax = plt.subplots(figsize=(width, height), dpi=dpi)
+        fig_w = grid_w + pad_left + pad_right
+        fig_h = grid_h + pad_top + pad_bottom
+
+        fig, ax = plt.subplots(figsize=(fig_w, fig_h), dpi=dpi)
+        ax.set_position([
+            pad_left / fig_w,
+            pad_bottom / fig_h,
+            grid_w / fig_w,
+            grid_h / fig_h,
+        ])
         ax.imshow(
-            masked, aspect="equal", origin="upper",
+            masked, aspect="auto", origin="upper",
             cmap=cmap, norm=norm, interpolation="nearest",
         )
         ax.set_xlim(-0.5, 11.5)
@@ -1175,12 +1193,21 @@ class NOAAPlotter(object):
         for side in ("top", "right"):
             ax.spines[side].set_visible(False)
 
+        # colorbar in a separate (manually positioned) axes so it can never
+        # resize the grid axes
         sm = cm.ScalarMappable(cmap=cmap, norm=norm)
         sm.set_array([])
-        cbar = fig.colorbar(sm, ax=ax, fraction=0.046, pad=0.04)
+        cbar_gap = 0.22                       # inches between grid and bar
+        cbar_w = (pad_right - cbar_gap - 0.35)  # leave room for the label
+        cbar_h = 0.7 * grid_h
+        cax = fig.add_axes([
+            (pad_left + grid_w + cbar_gap) / fig_w,
+            (pad_bottom + (grid_h - cbar_h) / 2) / fig_h,
+            cbar_w / fig_w,
+            cbar_h / fig_h,
+        ])
+        cbar = fig.colorbar(sm, cax=cax)
         cbar.set_label(colorbar_title, fontsize=8)
-
-        fig.tight_layout()
         if save_path:
             fig.savefig(save_path)
         if show_plot:
