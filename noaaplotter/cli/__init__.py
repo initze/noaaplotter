@@ -162,7 +162,7 @@ def plot_monthly(
     """
     if engine not in ("matplotlib", "plotly"):
         raise typer.BadParameter("engine must be 'matplotlib' or 'plotly'")
-    if information not in ("Temperature", "Precipitation"):
+    if information.lower() not in ("temperature", "precipitation"):
         raise typer.BadParameter("-type must be 'Temperature' or 'Precipitation'")
     if not infile:
         raise typer.BadParameter("-infile is required")
@@ -211,7 +211,7 @@ def plot_stripes(
     """
     if engine not in ("matplotlib", "plotly"):
         raise typer.BadParameter("engine must be 'matplotlib' or 'plotly'")
-    if information not in ("Temperature", "Precipitation"):
+    if information.lower() not in ("temperature", "precipitation"):
         raise typer.BadParameter("-type must be 'Temperature' or 'Precipitation'")
     if resolution not in ("year", "month"):
         raise typer.BadParameter("-res must be 'year' or 'month'")
@@ -262,7 +262,7 @@ def plot_heatmap(
     """
     if engine not in ("matplotlib", "plotly"):
         raise typer.BadParameter("engine must be 'matplotlib' or 'plotly'")
-    if information not in ("Temperature", "Precipitation"):
+    if information.lower() not in ("temperature", "precipitation"):
         raise typer.BadParameter("-type must be 'Temperature' or 'Precipitation'")
     if scale not in ("anomaly", "percentile", "absolute"):
         raise typer.BadParameter("-scale must be 'anomaly', 'percentile', or 'absolute'")

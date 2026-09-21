@@ -1002,12 +1002,18 @@ class NOAAPlotter(object):
 
         if information == "temperature":
             base_col, unit, kind = "tmean_abs", "°C", "Temperature"
-            hi_color = "#d6604d"   # warm = red
-            lo_color = "#4393c3"   # cool = blue
+            lo_color, hi_color = "#4393c3", "#d6604d"   # cool-blue -> warm-red
+            white_mid = True   # whitish middle (RdBu-like) for every scale
         else:
             base_col, unit, kind = "prcp_abs", "mm", "Precipitation"
-            hi_color = "#4393c3"   # wet = blue
-            lo_color = "#d6604d"   # dry = red
+            if scale == "anomaly":
+                # wet=blue on the high end, dry=red, white in the middle
+                lo_color, hi_color = "#d6604d", "#08519c"
+                white_mid = True
+            else:
+                # absolute & percentile: sequential white -> dark blue (Blues)
+                lo_color, hi_color = "#ffffff", "#08519c"
+                white_mid = False
         anom_col = "anom_t" if information == "temperature" else "anom_p"
 
         # ---- data ----
@@ -1018,12 +1024,12 @@ class NOAAPlotter(object):
         n_years = len(years_top)
 
         if scale == "percentile":
-            # percentile (0-100) of each month's value within the full record:
-            # rank(method="first")/n * 100 — e.g. the 50th percentile is the
-            # median, the top value is ~100.
+            # percentile (0-100) of each month's value *within that same
+            # month across the full record* — i.e. how wet/warm January is
+            # compared to all other Januaries, not vs. every month.
             base_full = full.set_index("MDATE")[base_col].dropna()
-            denom = max(len(base_full), 1)
-            base_pct = base_full.rank(method="first") / denom * 100.0
+            base_pct = base_full.groupby(base_full.index.month).rank(
+                pct=True) * 100.0
             matrix = []
             for y in years_top:
                 row = []
@@ -1063,11 +1069,9 @@ class NOAAPlotter(object):
                   else "Absolute ({0})".format(unit))
 
         # colorscale for plotly (matplotlib uses the same stops via _make_cmap).
-        # For every scale we ramp from the "low" end (dry=cold-red /
-        # cool-warm-blue depending on info) to the "high" end (wet=warm-blue /
-        # hot-dry-red).  For the anomaly scale we insert white at the middle
-        # so the zero-anomaly cell is visually neutral.
-        if scale == "anomaly":
+        # Diverging (anomaly): lo -> white -> hi. Sequential (precip absolute /
+        # percentile): lo -> hi (white -> dark blue, i.e. the "Blues" palette).
+        if white_mid:
             colorscale = [[0.0, lo_color], [0.5, "#ffffff"], [1.0, hi_color]]
         else:
             colorscale = [[0.0, lo_color], [1.0, hi_color]]
@@ -1088,9 +1092,11 @@ class NOAAPlotter(object):
                     else " mm vs climate"
                 ) if scale == "anomaly" else (
                     "th percentile" if scale == "percentile" else " " + unit
-                ),
-                cell_px=int(figsize[0] * 100 / 12) if figsize and figsize[0] else 34,
-            )
+                    ),
+                    # auto-fit cell size so the figure fits a standard screen
+                    # (make_heatmap_figure scales cell_px to ~700px tall by default)
+                    cell_px=None,
+                    )
             if save_path:
                 fig_pl.write_html(
                     save_path if str(save_path).endswith(".html")
@@ -1112,16 +1118,20 @@ class NOAAPlotter(object):
         if scale == "anomaly":
             half = max([1e-6] + [abs(v) for v in finite.tolist()])
             norm = mcolors.TwoSlopeNorm(vmin=-half, vcenter=0.0, vmax=half)
+        elif scale == "absolute":
+            lo = float(finite.min()) if len(finite) else 0.0
+            hi = float(finite.max()) if len(finite) else 1.0
+            if hi <= lo:
+                hi = lo + 1e-6
+        else:  # percentile: values are 0-100
+            lo, hi = 0.0, 100.0
+        if scale != "anomaly":
+            norm = mcolors.Normalize(vmin=lo, vmax=hi)
+
+        if white_mid:
             cmap = self._make_cmap([self._hex2rgb(lo_color), (1, 1, 1),
                                      self._hex2rgb(hi_color)])
         else:
-            if scale == "absolute":
-                lo = float(finite.min()) if len(finite) else 0.0
-                hi = float(finite.max()) if len(finite) else 1.0
-                if hi <= lo: hi = lo + 1e-6
-            else:
-                lo, hi = 0.0, 1.0
-            norm = mcolors.Normalize(vmin=lo, vmax=hi)
             cmap = self._make_cmap([self._hex2rgb(lo_color),
                                      self._hex2rgb(hi_color)])
 

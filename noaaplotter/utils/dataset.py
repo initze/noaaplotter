@@ -95,7 +95,11 @@ class NOAAPlotterDailySummariesDataset(object):
         raise error and message if location name cannot be found
         :return:
         """
-        names = self._pl["NAME"].unique().to_list()
+        name_series = self._pl["NAME"]
+        if name_series.dtype == pl.Null or name_series.n_unique() == 0:
+            # no usable NAME column (all-null) — nothing to validate against
+            return
+        names = name_series.unique().to_list()
         if not self.location and len(names) > 1:
             raise ValueError(
                 "There is more than one location in the dataset. Please choose a location using the -loc option! "
