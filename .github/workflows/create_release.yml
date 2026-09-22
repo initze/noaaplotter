@@ -59,6 +59,21 @@ jobs:
           echo "version=${NEW_VERSION}" >> "$GITHUB_OUTPUT"
           echo "New version: ${NEW_VERSION}"
 
+      - name: Update the version badge in README.md to match
+        env:
+          VERSION: ${{ steps.bump.outputs.version }}
+        run: |
+          # The README uses a static shields.io badge (version-vX.Y.Z-COLOR) so
+          # GitHub renders the exact released version without relying on the
+          # (cache-prone) dynamic PyPI lookup.  Bump it together with
+          # pyproject.toml; a no-op if the README has no badge line.
+          if grep -q 'img.shields.io/badge/version-' README.md; then
+            sed -i "s|img.shields.io/badge/version-v[^"]*|img.shields.io/badge/version-v${VERSION}-31ad52|" README.md
+            grep -n 'img.shields.io/badge/version-' README.md
+          else
+            echo "No static version badge found in README.md — nothing to update."
+          fi
+
       - name: Commit, tag and push
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -66,7 +81,7 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add pyproject.toml
+          git add pyproject.toml README.md
           git commit -m "chore(release): $VERSION"
           git push origin HEAD
           git tag "v$VERSION"

@@ -3,7 +3,7 @@ A python package to create fancy plots with NOAA weather data (stations) and ERA
 
 <p align="center">
   <a href="https://pypi.org/project/noaaplotter/">
-    <img src="https://img.shields.io/pypi/v/noaaplotter?label=version" alt="PyPI version">
+    <img src="https://img.shields.io/badge/version-v1.0.1-31ad52" alt="version">
   </a>
   <a href="https://pypi.org/project/noaaplotter/">
     <img src="https://img.shields.io/pypi/pyversions/noaaplotter" alt="Python versions">
