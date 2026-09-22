@@ -73,6 +73,14 @@ jobs:
           else
             echo "No static version badge found in README.md — nothing to update."
           fi
+          
+          # Also update the CITATION.cff file to match the new version
+          if [ -f "CITATION.cff" ]; then
+            sed -i "s/version: .*/version: ${VERSION}/" CITATION.cff
+            echo "Updated CITATION.cff version to ${VERSION}"
+          else
+            echo "CITATION.cff not found, skipping update"
+          fi
 
       - name: Commit, tag and push
         env:

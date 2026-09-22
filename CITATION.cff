@@ -5,7 +5,7 @@ authors:
   given-names: "Ingmar"
   orcid: "https://orcid.org/0000-0002-1165-6852"
 title: "noaaplotter"
-version: 0.5.1
+version: 1.0.1
 doi: 10.5281/zenodo.7753462
-date-released: 2023-03-20
+date-released: 2024-07-18
 url: "https://github.com/initze/noaaplotter"
