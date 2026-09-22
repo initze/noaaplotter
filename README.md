@@ -128,6 +128,39 @@ noaaplotter plot-monthly -infile data/kotzebue.parquet -start 1980-01-01 -end 20
 | `-save_plot` | write the plot (`.png` / `.html`) |
 | `--engine` | `matplotlib` (default) or `plotly` |
 
+### `noaaplotter plot-stripes`
+Warming stripes (Ed Hawkins style): one vertical bar per period, coloured by
+temperature anomaly (cool-blue → white → warm-red).
+
+```bash
+noaaplotter plot-stripes -infile data/kotzebue.parquet -type Temperature -start 1980-01-01 -end 2018-12-31 -save_plot figures/kotzebue_stripes.png
+```
+
+| Option | Meaning |
+|---|---|
+| `-infile` | input parquet/csv (required) |
+| `-start`, `-end` | optional window, `YYYY-MM-DD` (default: full record in the file) |
+| `-type` | `Temperature` (default) or `Precipitation` (case-insensitive) |
+| `-resolution` | `year` (default, one bar per year) or `month` |
+| `-save_plot` | write the plot (`.png` / `.html`) |
+| `--engine` | `matplotlib` (default) or `plotly` |
+
+### `noaaplotter plot-heatmap`
+Activity heatmap (GitHub-style matrix): months on x, one row per year (latest on top).
+
+```bash
+noaaplotter plot-heatmap -infile data/kotzebue.parquet -type Temperature -scale anomaly -save_plot figures/kotzebue_heatmap_anomaly.png
+```
+
+| Option | Meaning |
+|---|---|
+| `-infile` | input parquet/csv (required) |
+| `-type` | `Temperature` (default) or `Precipitation` (case-insensitive) |
+| `-scale` | `anomaly` (default: deviation from climate mean, red↔white↔blue), `percentile` (month's rank 0–100 across the record), `absolute` (raw monthly value; precipitation uses the Blues palette) |
+| `-start`, `-end` | optional window, `YYYY-MM-DD` |
+| `-save_plot` | write the plot (`.png` / `.html`) |
+| `--engine` | `matplotlib` (default) or `plotly` |
+
 ## Examples
 
 ### Download data
@@ -168,6 +201,26 @@ Precipitation, absolute (12-month trailing mean):
 `noaaplotter plot-monthly -infile data/kotzebue.parquet -start 1980-01-01 -end 2021-08-31 -type Precipitation -trail 12 -save_plot figures/kotzebue_monthly_p.png`
 
 ![Kotzebue monthly precipitation](figures/kotzebue_monthly_p.png)
+
+### Warming stripes
+One bar per year, coloured by the monthly-mean temperature anomaly (ed Hawkins style):
+
+`noaaplotter plot-stripes -infile data/kotzebue.parquet -type Temperature -start 1980-01-01 -end 2018-12-31 -save_plot figures/kotzebue_stripes.png`
+
+![Kotzebue warming stripes 1980-2018](figures/kotzebue_stripes.png)
+
+### Activity heatmap (months × years)
+Anomaly from the climate mean, red↔white↔blue (white in the centre):
+
+`noaaplotter plot-heatmap -infile data/kotzebue.parquet -type Temperature -scale anomaly -save_plot figures/kotzebue_heatmap_anomaly.png`
+
+![Kotzebue activity heatmap — temperature anomaly](figures/kotzebue_heatmap_anomaly.png)
+
+Precipitation (absolute, `Blues` palette — blue for wet months):
+
+`noaaplotter plot-heatmap -infile data/kotzebue.parquet -type Precipitation -scale absolute -save_plot figures/kotzebue_heatmap_precip.png`
+
+![Kotzebue activity heatmap — precipitation (Blues)](figures/kotzebue_heatmap_precip.png)
 
 ## Advanced Usage
 

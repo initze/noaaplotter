@@ -208,3 +208,198 @@ def test_dl_noaa_api_keyless_sends_no_token_header(monkeypatch):
     assert cap["headers"] in (None, {}), \
         f"no token header expected when keyless, got {cap['headers']!r}"
     assert not any(issubclass(x.category, DeprecationWarning) for x in w)
+
+
+# ----------------------------------------------------------------------
+# Warming stripes (Ed Hawkins style)
+# ----------------------------------------------------------------------
+def test_stripes_matplotlib_returns_figure():
+    n = NOAAPlotter(FIXTURE, location="Kotzebue")
+    fig = n.plot_warming_stripes(
+        "1980-01-01", "2018-12-31", information="Temperature",
+        resolution="year", show_plot=False, return_plot=True,
+    )
+    assert hasattr(fig, "savefig")
+    # default: the bare band only -> exactly one axes, no colorbar axes
+    assert len(fig.axes) == 1
+    base = fig.axes[0]
+    # the band is drawn with a single imshow (1-row x N-col)
+    assert len(base.images) == 1
+    # one cell per year: shape is (1, N) with N years
+    shape = base.images[0].get_array().shape
+    assert shape[0] == 1 and shape[1] >= 20, f"expected (1, >=20), got {shape}"
+
+
+def test_stripes_annotations_adds_colorbar():
+    n = NOAAPlotter(FIXTURE, location="Kotzebue")
+    bare = n.plot_warming_stripes(
+        "1980-01-01", "2018-12-31", resolution="year",
+        return_plot=True, show_plot=False,
+    )
+    ann = n.plot_warming_stripes(
+        "1980-01-01", "2018-12-31", resolution="year", annotations=True,
+        return_plot=True, show_plot=False,
+    )
+    # bare band -> a single axes; annotated -> base axes + a colorbar axes
+    assert len(bare.axes) == 1
+    assert len(ann.axes) >= 2
+
+
+def test_stripes_year_vs_month_cell_count():
+    n = NOAAPlotter(FIXTURE, location="Kotzebue")
+    # 'year' resolution -> one cell per year; 'month' -> one per month.
+    # The cells are the columns of the single imshow band.
+    fy = n.plot_warming_stripes("1980-01-01", "2018-12-31", resolution="year",
+                                return_plot=True, show_plot=False)
+    fm = n.plot_warming_stripes("1980-01-01", "2018-12-31", resolution="month",
+                                return_plot=True, show_plot=False)
+
+    def _cells(f):
+        return f.axes[0].images[0].get_array().size
+
+    years = _cells(fy)
+    months = _cells(fm)
+    assert 20 <= years <= 45, f"expected ~39 years, got {years}"
+    assert months > years * 3, f"expected ~12x more month cells, got {months}"
+
+
+def test_stripes_plotly_figure_and_writes_html(tmp_path):
+    n = NOAAPlotter(FIXTURE, location="Kotzebue")
+    fig = n.plot_warming_stripes(
+        "1980-01-01", "2018-12-31", information="Temperature",
+        resolution="year", engine="plotly", show_plot=False,
+    )
+    assert fig is not None
+    # a heatmap trace is the core of the stripes
+    assert any(t.type == "heatmap" for t in fig.data)
+    out = tmp_path / "stripes.html"
+    fig.write_html(str(out))
+    assert out.exists() and out.stat().st_size > 0
+
+
+def test_stripes_validation_errors():
+    n = NOAAPlotter(FIXTURE, location="Kotzebue")
+    import pytest
+    with pytest.raises(ValueError):
+        n.plot_warming_stripes("1980-01-01", "2018-12-31", information="Wind")
+    with pytest.raises(ValueError):
+        n.plot_warming_stripes("1980-01-01", "2018-12-31", resolution="week")
+
+
+# ----------------------------------------------------------------------
+# Activity heatmap (months x years)
+# ----------------------------------------------------------------------
+def test_heatmap_matplotlib_returns_figure():
+    n = NOAAPlotter(FIXTURE, location="Kotzebue")
+    fig = n.plot_activity_heatmap(
+        "1980-01-01", "2018-12-31", information="Temperature",
+        show_plot=False, return_plot=True,
+    )
+    assert hasattr(fig, "savefig")
+
+
+def test_heatmap_plotly_figure_and_writes_html(tmp_path):
+    n = NOAAPlotter(FIXTURE, location="Kotzebue")
+    fig = n.plot_activity_heatmap(
+        "1980-01-01", "2018-12-31", information="Temperature",
+        engine="plotly", show_plot=False,
+    )
+    assert any(t.type == "heatmap" for t in fig.data)
+    out = tmp_path / "heat.html"
+    fig.write_html(str(out))
+    assert out.exists() and out.stat().st_size > 0
+
+
+def test_heatmap_precipitation_runs():
+    n = NOAAPlotter(FIXTURE, location="Kotzebue")
+    fig = n.plot_activity_heatmap(
+        "1980-01-01", "2018-12-31", information="Precipitation",
+        engine="plotly", show_plot=False,
+    )
+    assert fig is not None
+
+
+def test_new_cli_commands_registered_dpi_300():
+    from typer.main import get_command
+    from noaaplotter.cli import app
+
+    cmd = get_command(app)
+    for sub in ("plot-stripes", "plot-heatmap"):
+        assert sub in cmd.commands, f"CLI command {sub} not registered"
+        params = cmd.commands[sub].params
+        # both new plot commands must default to print-quality DPI
+        dpi = next(p for p in params if p.name == "dpi")
+        assert dpi.default == 300, f"{sub} --dpi default should be 300"
+
+
+# ----------------------------------------------------------------------
+# New behaviors (optional dates, --scale switch, inspect-data)
+# ----------------------------------------------------------------------
+def test_stripes_optional_dates_full_record():
+    # no start/end -> the whole record; with a narrow window -> fewer years
+    n = NOAAPlotter(FIXTURE, location="Kotzebue")
+    full = n.plot_warming_stripes(resolution="year", return_plot=True, show_plot=False)
+    windowed = n.plot_warming_stripes(
+        start_date="2000-01-01", end_date="2010-12-31", resolution="year",
+        return_plot=True, show_plot=False,
+    )
+    full_cells = full.axes[0].images[0].get_array().size
+    win_cells = windowed.axes[0].images[0].get_array().size
+    assert full_cells >= 100, f"full record should be many years, got {full_cells}"
+    assert 10 <= win_cells <= 12, f"2000-2010 window should be ~11 years, got {win_cells}"
+
+
+def test_heatmap_scale_switch_changes_value_range():
+    # anomaly is centred on 0 (zmin<0<zmax); percentile is bounded 0..100;
+    # absolute is the raw values (negative minimum for temperature).
+    n = NOAAPlotter(FIXTURE, location="Kotzebue")
+    anom = n.plot_activity_heatmap(information="Temperature", scale="anomaly",
+                                   engine="plotly")
+    pct = n.plot_activity_heatmap(information="Temperature", scale="percentile",
+                                  engine="plotly")
+    absf = n.plot_activity_heatmap(information="Temperature", scale="absolute",
+                                   engine="plotly")
+    h = lambda f: [t for t in f.data if t.type == "heatmap"][0]
+    assert h(anom).zmin < 0 < h(anom).zmax
+    assert abs(h(pct).zmin - 0) < 1e-9 and abs(h(pct).zmax - 100) < 1e-9
+    # absolute: real °C range, with a negative minimum
+    assert h(absf).zmin < 0
+
+
+def test_heatmap_precipitation_palette_reversed():
+    # precipitation: high=wet=blue, low=dry=red (vice versa vs temperature)
+    import noaaplotter.noaaplotter as mod
+    # temperature: (low=cold blue, high=warm red)
+    low_t, high_t = mod.NOAAPlotter._low_high("temperature")
+    low_p, high_p = mod.NOAAPlotter._low_high("precipitation")
+    assert (low_t, high_t) != (low_p, high_p), "palettes must differ by information type"
+    # the builder must be callable for both with a valid color
+    n = NOAAPlotter(FIXTURE, location="Kotzebue")
+    for info in ("Temperature", "Precipitation"):
+        fig = n.plot_activity_heatmap(information=info, scale="percentile",
+                                      engine="plotly")
+        assert any(t.type == "heatmap" for t in fig.data)
+
+
+def test_heatmap_scale_validation_error():
+    import pytest
+    n = NOAAPlotter(FIXTURE, location="Kotzebue")
+    with pytest.raises(ValueError):
+        n.plot_activity_heatmap(information="Temperature", scale="bogus")
+
+
+def test_inspect_data_cli_prints_summary():
+    from typer.testing import CliRunner
+    from noaaplotter.cli import app
+
+    r = CliRunner().invoke(
+        app, ["inspect-data", "-infile", FIXTURE, "-loc", "Kotzebue"]
+    )
+    assert r.exit_code == 0, r.output
+    o = r.output.lower()
+    assert "kotzebue" in o          # location
+    assert "observation period" in o
+    assert "information types" in o
+    assert "rows" in o              # row count
+    assert "1897" in r.output       # earliest date
+    assert "2020" in r.output       # latest date

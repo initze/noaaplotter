@@ -724,3 +724,495 @@ class NOAAPlotter(object):
             return fig
         else:
             plt.close(fig)
+
+    # ------------------------------------------------------------------
+    # New plot types (warming stripes + activity heatmap)
+    # ------------------------------------------------------------------
+    @staticmethod
+    def _hex2rgb(h):
+        h = h.lstrip("#")
+        return tuple(int(h[i:i + 2], 16) / 255.0 for i in (0, 2, 4))
+
+    @staticmethod
+    def _make_cmap(stops):
+        """A LinearSegmentedColormap built from a list of RGB stops."""
+        import matplotlib.colors as mcolors
+
+        return mcolors.LinearSegmentedColormap.from_list("noaaplotter", stops)
+
+    @staticmethod
+    def _low_high(information):
+        """Palette ends for a diverging scale.
+
+        temperature  : low = cold = blue,  high = warm = red
+        precipitation: vice versa -> low = dry = red,  high = wet = blue
+        """
+        blue, red = "#4393c3", "#d6604d"
+        if information == "temperature":
+            return blue, red
+        return red, blue
+
+    def _monthly_full(self):
+        """Full-record monthly statistics (every month in the input file).
+
+        Columns: Year, Month, MDATE, tmean_abs, prcp_abs (absolute monthly
+        means) and anom_t, anom_p (anomaly vs the configured climate).
+        """
+        dmin = self.dataset.data["DATE"].min()
+        dmax = self.dataset.data["DATE"].max()
+
+        data_clim = DS_monthly(
+            self.dataset, start=self.climate_start, end=self.climate_end
+        )
+        data_clim.calculate_monthly_climate()
+        clim_by_month = {
+            int(m): v for m, v in data_clim.monthly_climate["tmean_doy_mean"].items()
+        }
+        clim_pr = {
+            int(m): v for m, v in data_clim.monthly_climate["prcp_sum"].items()
+        }
+
+        data_monthly = DS_monthly(self.dataset, start=dmin, end=dmax)
+        data_monthly.calculate_monthly_statistics()
+        monthly = data_monthly.monthly_aggregate.reset_index(drop=False)
+        monthly["Year"] = monthly["DATE_YM"].str[:4].astype(int)
+        monthly["Month"] = monthly["DATE_YM"].str[5:7].astype(int)
+        monthly["MDATE"] = pd.to_datetime(list(monthly["DATE_YM"]))
+
+        tmean = monthly["tmean_doy_mean"].to_numpy(dtype=float)
+        prcp = monthly["prcp_sum"].to_numpy(dtype=float)
+        tclim = monthly["Month"].map(clim_by_month).to_numpy(dtype=float)
+        pclim = monthly["Month"].map(clim_pr).to_numpy(dtype=float)
+        monthly["tmean_abs"] = tmean
+        monthly["prcp_abs"] = prcp
+        monthly["anom_t"] = tmean - tclim
+        monthly["anom_p"] = prcp - pclim
+        return monthly
+
+    @staticmethod
+    def _slice_window(frame, start_date, end_date):
+        """Slice a monthly frame to [start_date, end_date] (clamped to the data)."""
+        dmin = frame["MDATE"].min()
+        dmax = frame["MDATE"].max()
+        start = parse_dates(start_date) if start_date is not None else dmin
+        end = parse_dates(end_date) if end_date is not None else dmax
+        start = max(start, dmin)
+        end = min(end, dmax)
+        return frame[(frame["MDATE"] >= start) & (frame["MDATE"] <= end)]
+
+    def plot_warming_stripes(
+        self,
+        start_date=None,
+        end_date=None,
+        information="Temperature",
+        resolution="year",
+        title=None,
+        figsize=None,
+        dpi=300,
+        annotations=False,
+        show_plot=False,
+        save_path=False,
+        return_plot=False,
+        engine="matplotlib",
+    ):
+        """Warming stripes (Ed Hawkins style).
+
+        A single horizontal band, one cell per year (resolution='year') or
+        per month (resolution='month'), coloured by the anomaly from the
+        climate mean: cool-blue below, white at zero, warm-red above.
+
+        ``start_date`` / ``end_date`` are optional — when omitted, the whole
+        record in the input file is used. ``annotations`` defaults to False,
+        so by default the figure is the bare band only (no title, axes or
+        colourbar); pass ``annotations=True`` — or on the CLI, ``--annotations``
+        — to add them.
+        """
+        information = information.lower()
+        if information not in ("temperature", "precipitation"):
+            raise ValueError("information must be 'Temperature' or 'Precipitation'")
+        if resolution not in ("year", "month"):
+            raise ValueError("resolution must be 'year' or 'month'")
+
+        if information == "temperature":
+            value_col, unit, kind = "anom_t", "°C", "Temperature"
+        else:
+            value_col, unit, kind = "anom_p", "mm", "Precipitation"
+
+        full = self._monthly_full()
+        window = self._slice_window(full, start_date, end_date)
+
+        if resolution == "year":
+            values = list(window.groupby("Year", sort=True)[value_col].mean().values)
+            labels = [str(int(y)) for y in window.groupby("Year", sort=True).size().index]
+        else:
+            window = window.sort_values(["Year", "Month"])
+            monshort = ["Jan", "Feb", "Mar", "Apr", "May", "Jun",
+                        "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
+            labels = ["{0}-{1}".format(monshort[int(m) - 1], int(y))
+                      for y, m in zip(window["Year"].astype(int),
+                                     window["Month"].astype(int))]
+            values = list(window[value_col].values)
+
+        finite = [v for v in values if v is not None and not pd.isna(v)
+                  and np.isfinite(v)]
+        half = max([1e-6] + [abs(float(v)) for v in finite])
+
+        title = title or "{0} warming stripes ({1}) vs climate".format(
+            kind, "per year" if resolution == "year" else "per month"
+        )
+
+        # ----- plotly engine -----
+        if engine == "plotly":
+            from noaaplotter.figures import make_stripes_figure
+
+            # diverging: cool-blue -> white -> warm-red (anomaly scale)
+            low_c, high_c = self._low_high(information)
+            colorscale = [[0.0, low_c], [0.5, "#ffffff"], [1.0, high_c]]
+            unit_label = "°C" if information == "temperature" else "mm"
+
+            fig_pl = make_stripes_figure(
+                values, labels, title,
+                height=(int(figsize[1] * 100) if figsize and figsize[1] else 220),
+                colorscale=colorscale, zmin=-half, zmax=half,
+                colorbar_title="Anomaly ({0})".format(unit_label),
+                format_spec=".1f",
+                hover_ctx=" {} vs climate".format(unit_label),
+                annotations=annotations,
+            )
+            if save_path:
+                fig_pl.write_html(
+                    save_path if str(save_path).endswith(".html")
+                    else str(save_path) + ".html"
+                )
+            return fig_pl
+
+        # ----- matplotlib engine -----
+        import matplotlib.cm as cm
+        import matplotlib.colors as mcolors
+
+        arr = np.array([np.nan if (v is None or pd.isna(v)) else float(v)
+                        for v in values], dtype=float)
+        cmap = self._make_cmap([self._hex2rgb("#4393c3"), (1, 1, 1),
+                                self._hex2rgb("#d6604d")])
+        norm = mcolors.TwoSlopeNorm(vmin=-half, vcenter=0.0, vmax=half)
+
+        ncell = len(arr)
+        if figsize and figsize[1]:
+            band_height = figsize[1]
+        else:
+            band_height = 2.2
+        # wide, short band: enforce a width:height ratio of 8:1 (the band should
+        # be far wider than it is tall).
+        band_width = band_height * 8.0
+
+        fig, ax = plt.subplots(figsize=(band_width, band_height), dpi=dpi)
+
+        # imshow with aspect="auto" draws the band as one contiguous 1×N strip
+        # with NO gaps between cells — rectangles with white edgecolor (used
+        # previously) always showed a hairline between them.
+        # missing -> 0 so the missing colorbar tick is hidden by `masked`
+        masked = np.ma.masked_invalid(arr).reshape(1, -1)
+        # paint missing cells light grey
+        cmap_copy = cmap.with_extremes(bad="#d3d3d3")
+        ax.imshow(
+            masked, cmap=cmap_copy, norm=norm,
+            aspect="auto", origin="upper", interpolation="nearest",
+        )
+        ax.set_xlim(-0.5, ncell - 0.5)
+        ax.set_ylim(0.5, -0.5)
+
+        if annotations:
+            step = max(1, ncell // 24)
+            ticks = list(range(0, ncell, step))
+            ax.set_xticks([t + 0.5 for t in ticks])
+            ax.set_xticklabels(
+                [labels[t] for t in ticks], rotation=90, fontsize=6, ha="left",
+                rotation_mode="anchor",
+            )
+            ax.set_title(title, fontsize=11, loc="left", pad=10)
+            for side in ("top", "right"):
+                ax.spines[side].set_visible(False)
+            for side in ("left", "bottom"):
+                ax.spines[side].set_visible(True)
+            sm = cm.ScalarMappable(cmap=cmap, norm=norm)
+            sm.set_array([])
+            cbar = fig.colorbar(
+                sm, ax=ax, anchor=(1.01, 0.5), shrink=0.55, aspect=28, pad=0.05,
+            )
+            cbar.set_label("Anomaly ({0})".format(unit), fontsize=8)
+        else:
+            # bare band: no title, no axes, no ticks, no spines, no gaps
+            ax.set_xticks([])
+            ax.set_yticks([])
+            ax.set_xticklabels([])
+            ax.set_yticklabels([])
+            for side in ("top", "right", "left", "bottom"):
+                ax.spines[side].set_visible(False)
+            ax.tick_params(left=False, bottom=False)
+            ax.margins(0)
+            # tight so the band fills the figure with zero padding
+            fig.subplots_adjust(left=0, right=1, top=1, bottom=0)
+
+        if save_path:
+            if annotations:
+                fig.savefig(save_path)
+            else:
+                # band-precise save with zero padding (tight_layout would
+                # leave a border we do not want)
+                fig.savefig(save_path, bbox_inches="tight", pad_inches=0)
+        if show_plot:
+            plt.show()
+        if return_plot:
+            return fig
+        else:
+            plt.close(fig)
+
+    def plot_activity_heatmap(
+        self,
+        start_date=None,
+        end_date=None,
+        information="Temperature",
+        scale="anomaly",
+        title=None,
+        figsize=(9, None),
+        dpi=300,
+        show_plot=False,
+        save_path=False,
+        return_plot=False,
+        engine="matplotlib",
+    ):
+        """GitHub-style months × years heatmap, square cells, latest year on top.
+
+        ``scale`` picks what each cell encodes:
+
+        - ``anomaly``   (default): deviation from the climate mean, diverging
+          cool-blue / white / warm-red, white = 0 anomaly.
+        - ``percentile``: the month's rank across the full record, 0-100,
+          white → the "high" colour (warm-red for temperature; wet-blue for
+          precipitation — i.e. the "vice versa" requested in the review).
+        - ``absolute``  : the raw monthly mean (°C / mm), white → the "high"
+          colour.
+
+        The "high" colour is temperature-dependent: temperature uses
+        warm-red (hot = red) and precipitation uses wet-blue (wet = blue).
+        """
+        information = information.lower()
+        if information not in ("temperature", "precipitation"):
+            raise ValueError("information must be 'Temperature' or 'Precipitation'")
+        if scale not in ("anomaly", "percentile", "absolute"):
+            raise ValueError("scale must be 'anomaly', 'percentile' or 'absolute'")
+
+        if information == "temperature":
+            base_col, unit, kind = "tmean_abs", "°C", "Temperature"
+            lo_color, hi_color = "#4393c3", "#d6604d"   # cool-blue -> warm-red
+            white_mid = True   # whitish middle (RdBu-like) for every scale
+        else:
+            base_col, unit, kind = "prcp_abs", "mm", "Precipitation"
+            if scale == "anomaly":
+                # wet=blue on the high end, dry=red, white in the middle
+                lo_color, hi_color = "#d6604d", "#08519c"
+                white_mid = True
+            else:
+                # absolute & percentile: sequential white -> dark blue (Blues)
+                lo_color, hi_color = "#ffffff", "#08519c"
+                white_mid = False
+        anom_col = "anom_t" if information == "temperature" else "anom_p"
+
+        # ---- data ----
+        full = self._monthly_full()
+        window = self._slice_window(full, start_date, end_date)
+        years = sorted(int(y) for y in window["Year"].unique())
+        years_top = list(reversed(years))
+        n_years = len(years_top)
+
+        if scale == "percentile":
+            # percentile (0-100) of each month's value *within that same
+            # month across the full record* — i.e. how wet/warm January is
+            # compared to all other Januaries, not vs. every month.
+            base_full = full.set_index("MDATE")[base_col].dropna()
+            base_pct = base_full.groupby(base_full.index.month).rank(
+                pct=True) * 100.0
+            matrix = []
+            for y in years_top:
+                row = []
+                for m in range(1, 13):
+                    ts = pd.Timestamp(year=y, month=m, day=1)
+                    v = base_pct.get(ts, None)
+                    row.append(None if v is None or pd.isna(v) else float(v))
+                matrix.append(row)
+            zmin, zmax = 0.0, 100.0
+        else:
+            # absolute or anomaly
+            src_col = base_col if scale == "absolute" else anom_col
+            matrix = []
+            for y in years_top:
+                sub = window[(window["Year"] == y)]
+                m2v = dict(zip(
+                    sub["Month"].astype(int),
+                    [None if pd.isna(v) else float(v) for v in sub[src_col]],
+                ))
+                matrix.append([m2v.get(m) for m in range(1, 13)])
+            if scale == "anomaly":
+                finite = [v for row in matrix for v in row
+                          if v is not None and np.isfinite(v)]
+                half = max([1e-6] + [abs(v) for v in finite])
+                zmin, zmax = -half, half
+            else:
+                finite = [v for row in matrix for v in row
+                          if v is not None and np.isfinite(v)]
+                lo = min(finite) if finite else 0.0
+                hi = max(finite) if finite else 1.0
+                if hi <= lo: hi = lo + 1e-6
+                zmin, zmax = lo, hi
+
+        title = title or "{0} {1} by month and year".format(kind, scale)
+        colorbar_title = "Anomaly ({0})".format(unit) if scale == "anomaly" \
+            else ("Percentile" if scale == "percentile"
+                  else "Absolute ({0})".format(unit))
+
+        # colorscale for plotly (matplotlib uses the same stops via _make_cmap).
+        # Diverging (anomaly): lo -> white -> hi. Sequential (precip absolute /
+        # percentile): lo -> hi (white -> dark blue, i.e. the "Blues" palette).
+        if white_mid:
+            colorscale = [[0.0, lo_color], [0.5, "#ffffff"], [1.0, hi_color]]
+        else:
+            colorscale = [[0.0, lo_color], [1.0, hi_color]]
+
+        # ----- plotly engine -----
+        if engine == "plotly":
+            from noaaplotter.figures import make_heatmap_figure
+
+            fig_pl = make_heatmap_figure(
+                matrix, years_top, title,
+                colorscale=colorscale, zmin=zmin, zmax=zmax,
+                colorbar_title=colorbar_title,
+                format_spec=".1f" if scale == "anomaly" else (
+                    ".0f" if scale == "percentile" else ".1f"
+                ),
+                hover_ctx=(
+                    " °C vs climate" if information == "temperature"
+                    else " mm vs climate"
+                ) if scale == "anomaly" else (
+                    "th percentile" if scale == "percentile" else " " + unit
+                    ),
+                    # auto-fit cell size so the figure fits a standard screen
+                    # (make_heatmap_figure scales cell_px to ~700px tall by default)
+                    cell_px=None,
+                    )
+            if save_path:
+                fig_pl.write_html(
+                    save_path if str(save_path).endswith(".html")
+                    else str(save_path) + ".html"
+                )
+            return fig_pl
+
+        # ----- matplotlib engine -----
+        import matplotlib.cm as cm
+        import matplotlib.colors as mcolors
+
+        arr = np.full((n_years, 12), np.nan, dtype=float)
+        for r in range(n_years):
+            for c in range(12):
+                v = matrix[r][c]
+                if v is not None and np.isfinite(v):
+                    arr[r, c] = v
+        finite = arr[np.isfinite(arr)]
+        if scale == "anomaly":
+            half = max([1e-6] + [abs(v) for v in finite.tolist()])
+            norm = mcolors.TwoSlopeNorm(vmin=-half, vcenter=0.0, vmax=half)
+        elif scale == "absolute":
+            lo = float(finite.min()) if len(finite) else 0.0
+            hi = float(finite.max()) if len(finite) else 1.0
+            if hi <= lo:
+                hi = lo + 1e-6
+        else:  # percentile: values are 0-100
+            lo, hi = 0.0, 100.0
+        if scale != "anomaly":
+            norm = mcolors.Normalize(vmin=lo, vmax=hi)
+
+        if white_mid:
+            cmap = self._make_cmap([self._hex2rgb(lo_color), (1, 1, 1),
+                                     self._hex2rgb(hi_color)])
+        else:
+            cmap = self._make_cmap([self._hex2rgb(lo_color),
+                                     self._hex2rgb(hi_color)])
+
+        masked = np.ma.masked_invalid(arr)
+
+        months_short = ["J", "F", "M", "A", "M", "J", "J", "A", "S", "O", "N", "D"]
+
+        # Deterministic sizing so there is NO top/bottom whitespace:
+        # * aspect="auto" makes imshow always fill the axes box exactly
+        #   (square boxes -> square cells), while aspect="equal" would
+        #   shrink the grid to fit the figure's free space and leave blank
+        #   bands above/below the matrix.
+        # * the axes box is placed by hand (small, explicit paddings) and the
+        #   colorbar is an independent axes — none of them steal space from
+        #   the grid, and no tight_layout run is left to reflow anything.
+        cell_in = 0.36            # inches per side -> square cells render cleanly
+        grid_w = 12 * cell_in     # 12 months
+        grid_h = n_years * cell_in
+        pad_left = 0.7            # year labels
+        pad_right = 1.0           # colorbar + its label
+        pad_top = 0.6             # title
+        pad_bottom = 0.7          # month labels ("Month" + ticks)
+
+        fig_w = grid_w + pad_left + pad_right
+        fig_h = grid_h + pad_top + pad_bottom
+
+        fig, ax = plt.subplots(figsize=(fig_w, fig_h), dpi=dpi)
+        ax.set_position([
+            pad_left / fig_w,
+            pad_bottom / fig_h,
+            grid_w / fig_w,
+            grid_h / fig_h,
+        ])
+        ax.imshow(
+            masked, aspect="auto", origin="upper",
+            cmap=cmap, norm=norm, interpolation="nearest",
+        )
+        ax.set_xlim(-0.5, 11.5)
+        ax.set_ylim(n_years - 0.5, -0.5)
+        ax.set_xticks(range(12))
+        ax.set_xticklabels(months_short)
+        ax.set_yticks(range(n_years))
+        ax.set_yticklabels([str(years_top[i]) if i < n_years else "" for i in range(n_years)])
+
+        for tick in ax.get_xticklabels():
+            tick.set_fontsize(9)
+        for tick in ax.get_yticklabels():
+            tick.set_fontsize(8)
+        ax.set_title(title, loc="left", fontsize=11, pad=10)
+        ax.set_xlabel("Month", fontsize=9)
+
+        # cell grid (the white 1px lines between cells)
+        ax.set_xticks(np.arange(-0.5, 12, 1), minor=True)
+        ax.set_yticks(np.arange(-0.5, n_years, 1), minor=True)
+        ax.grid(which="minor", color="white", linewidth=0.9)
+        ax.tick_params(which="minor", bottom=False, left=False)
+        for side in ("top", "right"):
+            ax.spines[side].set_visible(False)
+
+        # colorbar in a separate (manually positioned) axes so it can never
+        # resize the grid axes
+        sm = cm.ScalarMappable(cmap=cmap, norm=norm)
+        sm.set_array([])
+        cbar_gap = 0.22                       # inches between grid and bar
+        cbar_w = (pad_right - cbar_gap - 0.35)  # leave room for the label
+        cbar_h = 0.7 * grid_h
+        cax = fig.add_axes([
+            (pad_left + grid_w + cbar_gap) / fig_w,
+            (pad_bottom + (grid_h - cbar_h) / 2) / fig_h,
+            cbar_w / fig_w,
+            cbar_h / fig_h,
+        ])
+        cbar = fig.colorbar(sm, cax=cax)
+        cbar.set_label(colorbar_title, fontsize=8)
+        if save_path:
+            fig.savefig(save_path)
+        if show_plot:
+            plt.show()
+        if return_plot:
+            return fig
+        else:
+            plt.close(fig)
