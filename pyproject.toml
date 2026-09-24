@@ -35,6 +35,11 @@ dependencies = [
     "plotly>=5.18",
     "narwhals>=1.20.1",
     "cdsapi>=0.7",
+    # CDS source reads the netCDF the CDS API returns; xarray + a netCDF4
+    # driver are required to open it (2026 CDS API migration). netCDF4
+    # bundles its own HDF5, so no extra h5py wheel is needed (Windows/CI).
+    "xarray>=2024.02",
+    "netCDF4>=1.6",
     "typer>=0.9.0",
 ]
 
