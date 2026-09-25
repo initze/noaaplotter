@@ -5,6 +5,21 @@ Newer entries are added here automatically by the release workflow.
 
 ## Unreleased
 
+- **Bugfix — CDS/ERA5 source after the 2026 CDS API migration.**
+  `noaaplotter download-data --source cds` failed with `404 endpoint not
+  found` on the new CDS retrieve API. The CDS source was rewritten to use
+  the new request schema (`year`/`month`/`day`/`time` lists, `data_format`),
+  to request a small ±0.25° box (a zero-area point is now rejected by the
+  backend), and to unpack the new API's ZIP of two netCDF members
+  (`data_stream-oper_stepType-{instant,accum}.nc`). Units are normalised
+  to the canonical schema (K→°C, m→mm water-equivalent) and the nearest
+  grid cell to the requested point is selected. `xarray` and `netCDF4`
+  are now declared as dependencies. A new offline regression test
+  (`tests/test_cds_source.py`) covers the parse path.
+  Cross-validated against the keyless Open-Meteo ERA5 feed for the same
+  point and window (Potsdam, 15 Jan – 28 Feb 2022): TAVG within ~0.4 °C
+  RMS, PRCP within ~1.6 mm RMS — consistent with inter-grid differences
+  for two ERA5 re-griddings.
 - **New plot types — warming stripes & activity heatmap.** Two new anomaly
   figures, both available as temperature or precipitation:
   - `plot_warming_stripes` / `plot-stripes` — one horizontal band, a stripe
