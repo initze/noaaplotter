@@ -27,7 +27,13 @@ from datetime import date, datetime as dt
 import polars as pl
 
 #: CDS variable names (reanalysis-era5-single-levels, 2025/2026 schema).
-VARIABLES = ["2m_temperature", "total_precipitation", "snowfall"]
+VARIABLES = [
+    "2m_temperature",
+    "total_precipitation",
+    "snowfall",
+    "10m_u_component_of_wind",
+    "10m_v_component_of_wind",
+]
 
 
 def _credential_env():
@@ -120,6 +126,9 @@ def _era5_to_daily(nc_inst, nc_accum, latitude, longitude):
         t2m [K] -> TAVG/TMAX/TMIN [C] = value - 273.15
         tp  [m] -> PRCP [mm]          = value * 1000
         sf  [m water equiv.] -> SNOW [mm w.e.] = value * 1000
+        u10/v10 [m/s] -> WSPD [m/s]   = daily mean of |wind|
+                         WDIR [deg]   = daily BLOWING-FROM direction
+                                         from the mean wind vector
 
     Returns (frame, (ne_lat, ne_lon)). Raises if no usable variables were
     found.
@@ -129,6 +138,7 @@ def _era5_to_daily(nc_inst, nc_accum, latitude, longitude):
     import xarray as xr
 
     t_arr = tp_arr = sf_arr = None
+    u_arr = v_arr = None
     near = None
     time_axis = None
     for fname in (nc_inst, nc_accum):
@@ -145,12 +155,16 @@ def _era5_to_daily(nc_inst, nc_accum, latitude, longitude):
                     near = tpcell
             if "sf" in ds and sf_arr is None:
                 sf_arr, _ = _nearest_series(ds, "sf", latitude, longitude)
+            if "u10" in ds and u_arr is None:
+                u_arr, _ = _nearest_series(ds, "u10", latitude, longitude)
+            if "v10" in ds and v_arr is None:
+                v_arr, _ = _nearest_series(ds, "v10", latitude, longitude)
 
     if time_axis is None:
         raise RuntimeError("CDS netCDF has no time axis (valid_time).")
-    if t_arr is None and tp_arr is None and sf_arr is None:
+    if t_arr is None and tp_arr is None and sf_arr is None and u_arr is v_arr is None:
         raise RuntimeError(
-            "CDS netCDF has no recognised variables (t2m, tp, sf). "
+            "CDS netCDF has no recognised variables (t2m, tp, sf, u10, v10). "
             f"inst={nc_inst}, accum={nc_accum}"
         )
     if near is None:
@@ -165,7 +179,10 @@ def _era5_to_daily(nc_inst, nc_accum, latitude, longitude):
         day_blocks.setdefault(day, []).append(pos)
 
     days = []
-    tavg, tmax, tmin, prcp, snow = [], [], [], [], []
+    tavg, tmax, tmin, prcp, snow, wspd, wdir = (
+        [], [], [], [], [], [], []
+    )
+    have_wind = u_arr is not None and v_arr is not None
     for day in sorted(day_blocks):
         idx = day_blocks[day]
         days.append(day)
@@ -178,8 +195,16 @@ def _era5_to_daily(nc_inst, nc_accum, latitude, longitude):
             prcp.append(float(np.sum(tp_arr[idx])) * 1000.0)
         if sf_arr is not None:
             snow.append(float(np.sum(sf_arr[idx])) * 1000.0)
+        if have_wind:
+            uu = u_arr[idx]
+            vv = v_arr[idx]
+            # Speed: daily mean of the wind-vector magnitude.
+            wspd.append(float(np.mean(np.hypot(uu, vv))))
+            # Direction: meteorological convention (the direction the wind
+            # blows FROM), from the daily mean wind vector.
+            wdir.append(float(np.degrees(np.arctan2(-np.mean(uu), -np.mean(vv))) % 360.0))
 
-    return pl.DataFrame(
+    frame = pl.DataFrame(
         {
             "DATE": days,
             "TAVG": tavg if t_arr is not None else [None] * len(days),
@@ -187,8 +212,11 @@ def _era5_to_daily(nc_inst, nc_accum, latitude, longitude):
             "TMIN": tmin if t_arr is not None else [None] * len(days),
             "PRCP": prcp if tp_arr is not None else [None] * len(days),
             "SNOW": snow if sf_arr is not None else [None] * len(days),
+            "WSPD": wspd if have_wind else [None] * len(days),
+            "WDIR": wdir if have_wind else [None] * len(days),
         }
-    ), near
+    )
+    return frame, near
 
 
 def fetch_cds_era5(latitude, longitude, start, end, name="CDS ERA5"):
@@ -198,6 +226,8 @@ def fetch_cds_era5(latitude, longitude, start, end, name="CDS ERA5"):
         TAVG  = mean(t2m - 273.15)          PRCP = sum(tp)       [mm]
         TMAX  = max (t2m - 273.15)          SNOW = sum(sf)       [mm we]
         TMIN  = min (t2m - 273.15)
+        WSPD  = mean|hypot(u10, v10)|      [m/s]
+        WDIR  = blowing-FROM bearing of the mean (u10, v10) vector [deg]
 
     :param latitude: degrees north
     :param longitude: degrees east (negative for W)
@@ -205,7 +235,7 @@ def fetch_cds_era5(latitude, longitude, start, end, name="CDS ERA5"):
     :param end:   "yyyy-mm-dd"
     :param name:  label for the NAME column
     :return: polars DataFrame with canonical columns
-             (STATION, NAME, DATE, TAVG, TMAX, TMIN, PRCP, SNOW)
+             (STATION, NAME, DATE, TAVG, TMAX, TMIN, PRCP, SNOW, WSPD, WDIR)
     """
     client = _client()
     dt_start = dt.strptime(start, "%Y-%m-%d").date()
@@ -290,6 +320,8 @@ def fetch_cds_era5(latitude, longitude, start, end, name="CDS ERA5"):
                 "TMIN": [None],
                 "PRCP": [None],
                 "SNOW": [None],
+                "WSPD": [None],
+                "WDIR": [None],
             }
         )
     df = pl.concat(frames).filter(
@@ -303,7 +335,7 @@ def fetch_cds_era5(latitude, longitude, start, end, name="CDS ERA5"):
 
 def save_to_parquet(df, output_file):
     """Write a canonical-schema frame to parquet (kept numeric)."""
-    for c in ("TAVG", "TMAX", "TMIN", "PRCP", "SNOW"):
+    for c in ("TAVG", "TMAX", "TMIN", "PRCP", "SNOW", "WSPD", "WDIR"):
         if c in df.columns:
             df = df.with_columns(pl.col(c).cast(pl.Float64, strict=False))
     df.write_parquet(output_file)
