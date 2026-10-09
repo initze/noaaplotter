@@ -62,9 +62,20 @@ def _make_cds_fixture(tmp_path):
     tp = np.full((hours,) + lats.shape + lons.shape, 0.001)
     # Snowfall (m w.e.): 0.5 mm/hr everywhere.
     sf = np.full((hours,) + lats.shape + lons.shape, 0.0005)
+    # Wind components (m/s). Day 1: u=+3, v=0 -> 3 m/s blowing FROM the
+    # west = 270 deg. Day 2: u=0, v=-2 -> 2 m/s blowing FROM the north =
+    # 0 deg. (Meteorological convention: direction the wind comes FROM.)
+    u10 = np.zeros((hours,) + lats.shape + lons.shape)
+    v10 = np.zeros((hours,) + lats.shape + lons.shape)
+    u10[:24] = 3.0     # easterly wind (blowing toward +lon/east)
+    v10[24:] = -2.0    # northerly wind (blowing toward -lat/south)
 
     ds_inst = xr.Dataset(
-        {"t2m": (("valid_time", "latitude", "longitude"), t2m)},
+        {
+            "t2m": (("valid_time", "latitude", "longitude"), t2m),
+            "u10": (("valid_time", "latitude", "longitude"), u10),
+            "v10": (("valid_time", "latitude", "longitude"), v10),
+        },
         coords={
             "valid_time": t,
             "latitude": lats,
@@ -73,6 +84,8 @@ def _make_cds_fixture(tmp_path):
     )
     ds_inst["t2m"].attrs["units"] = "K"
     ds_inst["t2m"].attrs["long_name"] = "2 metre temperature"
+    ds_inst["u10"].attrs["units"] = "m s**-1"
+    ds_inst["v10"].attrs["units"] = "m s**-1"
 
     ds_accum = xr.Dataset(
         {
@@ -161,13 +174,20 @@ def test_era5_to_daily_units_and_nearest_cell(cds_zip):
     assert r["TMIN"] == pytest.approx(float(day1_t2m.min()), abs=1e-6)
     assert r["PRCP"] == pytest.approx(float(day1_tp.sum()), abs=1e-6)
     assert r["SNOW"] == pytest.approx(float(day1_sf.sum()), abs=1e-6)
+    # Day 1 wind: u=+3, v=0 -> speed 3 m/s blowing FROM 270 deg (west).
+    assert r["WSPD"] == pytest.approx(3.0, abs=1e-9)
+    assert r["WDIR"] == pytest.approx(270.0, abs=1e-9)
+    r2 = frame.to_dicts()[1]
+    # Day 2 wind: u=0, v=-2 -> speed 2 m/s blowing FROM 0 deg (north).
+    assert r2["WSPD"] == pytest.approx(2.0, abs=1e-9)
+    assert r2["WDIR"] == pytest.approx(0.0, abs=1e-9)
 
     # If the wrong grid cell (offset by +50 K in this fixture) were picked,
     # these same assertions would fail immediately -- a wrong-cell selection
     # is therefore caught. No separate threshold needed.
 
     # Canonical schema (the columns the rest of noaaplotter expects).
-    for col in ("TAVG", "TMAX", "TMIN", "PRCP", "SNOW", "DATE"):
+    for col in ("TAVG", "TMAX", "TMIN", "PRCP", "SNOW", "DATE", "WSPD", "WDIR"):
         assert col in frame.columns
 
     frame.to_pandas()  # smoke: round-trips to pandas without error

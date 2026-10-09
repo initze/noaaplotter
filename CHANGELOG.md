@@ -5,6 +5,15 @@ Newer entries are added here automatically by the release workflow.
 
 ## Unreleased
 
+- **New feature — daily wind (ERA5 sources only).** The `open_meteo` and
+  `cds` sources now also return two canonical columns:
+  `WSPD` (daily mean 10 m wind speed, m/s) and `WDIR` (daily dominant
+  wind direction in degrees, meteorological convention = the direction
+  the wind blows FROM, wind rose = direction source; 0 = north). For
+  the CDS source these are derived from `10m_u/v_component_of_wind`:
+  speed = mean of |u+iv|, direction = bearing of the mean wind vector.
+  NOAA station data has no equivalent, so those columns stay null for
+  `--source noaa`.
 - **Bugfix — CDS/ERA5 source after the 2026 CDS API migration.**
   `noaaplotter download-data --source cds` failed with `404 endpoint not
   found` on the new CDS retrieve API. The CDS source was rewritten to use

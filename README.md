@@ -83,6 +83,12 @@ noaaplotter download-data -o data/potsdam.parquet --source open_meteo -lat 52.4 
 
 Data files are cached: re-running only fetches the missing dates.
 
+The ERA5-backed sources (`--source open_meteo` / `cds`) additionally return
+daily **wind** columns: `WSPD` (daily mean 10 m wind speed, m/s) and
+`WDIR` (daily dominant direction in degrees, meteorological convention —
+the direction the wind blows FROM; 0 = north). NOAA station data has no
+equivalent, so both stay null for `--source noaa`.
+
 ### `noaaplotter plot-daily`
 Daily temperature (observed vs. climate mean ± 1σ, with anomaly fills) + precipitation (bars + 7-day rolling sum).
 

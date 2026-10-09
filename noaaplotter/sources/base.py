@@ -3,6 +3,12 @@
 Every source fetches daily weather data and maps it into the canonical
 schema (the parquet NOAA downloader already writes), so downstream
 (plotting, climate stats) is schema-agnostic.
+
+Optional extension: ERA5-backed sources (open_meteo, cds) additionally
+provide WSPD (daily mean 10 m wind speed, m/s) and WDIR (daily dominant
+wind direction, degrees, meteorological FROM-convention, 0 = north).
+NOAA station data has no equivalent, so they are not required by
+CANONICAL_COLUMNS.
 """
 import polars as pl
 
