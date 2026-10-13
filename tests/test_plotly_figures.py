@@ -259,6 +259,49 @@ def test_wind_row_present_when_wspd_wdir_exist(tmp_path):
     assert str(wind.marker.color[0]).startswith("rgb(")
 
 
+def test_wind_gap_days_use_transparent_color(tmp_path):
+    # Regression: WSPD has null days (ERA5 windows). marker.color is a LIST,
+    # and plotly rejects None elements there ("Invalid element(s) received
+    # for the 'color' property of scatter.marker"). Missing-speed dots must
+    # use a fully transparent rgb colour instead, fill AND outline alike.
+    import numpy as np
+    import pandas as pd
+
+    dates = pd.date_range("1981-01-01", "2010-12-31", freq="D")
+    rng = np.random.default_rng(11)
+    wspd = rng.exponential(4, dates.size) + 0.5
+    wdir = rng.uniform(0, 360, dates.size).round()
+    mask = (dates >= pd.Timestamp("2009-03-01")) & (dates < pd.Timestamp("2009-03-10"))
+    wspd = np.where(mask, np.nan, wspd)  # wind-less stretch INSIDE the window
+    wdir = np.where(mask, np.nan, wdir)
+    df = pd.DataFrame({
+        "STATION": "GHCND:TEST04",
+        "NAME": "Synthetic",
+        "DATE": dates.strftime("%Y-%m-%d"),
+        "TMAX": rng.normal(10, 5, dates.size),
+        "TMIN": rng.normal(0, 5, dates.size),
+        "TAVG": None,
+        "PRCP": rng.poisson(1, dates.size).astype(float),
+        "SNOW": None,
+        "WSPD": wspd,
+        "WDIR": wdir,
+    })
+    path = tmp_path / "wind_gaps.parquet"
+    df.to_parquet(path)
+
+    n = NOAAPlotter(str(path), location="Synthetic")
+    # before the fix this raised a plotly ValidationError on None colours
+    fig = n.plot_weather_series(
+        start_date="2009-01-01", end_date="2010-12-31",
+        engine="plotly", show_plot=False, plot_extrema=True,
+    )
+    wind = next(t for t in fig.data if t.name == "WIND")
+    colors = list(wind.marker.color)
+    assert "rgba(0,0,0,0)" in colors, "null-wind days must render transparent"
+    assert all(c is not None for c in colors)
+    assert None not in list(wind.marker.line.color)
+
+
 def test_no_wind_row_when_source_lacks_wind(tmp_path):
     # NOAA-style data with no WSPD/WDIR columns -> figure stays at 2 rows
     # (regression guard: the wind row must not be invented).

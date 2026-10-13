@@ -334,12 +334,18 @@ def make_daily_figure(df_obs, x_dates, x_dates_short, y_clim, y_clim_hi, y_clim_
             "  -  %{customdata[1]:.1f} m/s<extra>WIND</extra>"
         )
         custom = list(zip(np.round(wdir, 0), np.round(wspd, 1)))
-        # per-dot rgb fill (no colorscale on the trace -> NO colorbar)
+        # per-dot rgb fill (no colorscale on the trace -> NO colorbar).
+        # plotly rejects None elements in a marker.color LIST ("Invalid
+        # element(s) received for the 'color' property of scatter.marker"),
+        # so missing-speed dots use a fully transparent colour instead.
         fill = [
-            None if not np.isfinite(v) else _scale_color(scale, v / vmax)
+            "rgba(0,0,0,0)" if not np.isfinite(v) else _scale_color(scale, v / vmax)
             for v in wspd
         ]
-        outline = [None if c is None else _dark_rgb(c) for c in fill]
+        outline = [
+            "rgba(0,0,0,0)" if c == "rgba(0,0,0,0)" else _dark_rgb(c)
+            for c in fill
+        ]
         fig.add_trace(go.Scatter(
             x=dates, y=list(pd.Series(wdir).where(pd.notna(wdir))),
             mode="lines+markers", name="WIND",
