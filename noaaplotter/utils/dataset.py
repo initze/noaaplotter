@@ -77,7 +77,7 @@ class NOAAPlotterDailySummariesDataset(object):
         # Observed values can be stored as strings (e.g. CSV or legacy parquet
         # exports); coerce to float so numeric ops (TMEAN, stats) work.
         # Casting an already-numeric column to Float64 is a no-op.
-        for c in ("PRCP", "SNOW", "TAVG", "TMAX", "TMIN", "SNWD"):
+        for c in ("PRCP", "SNOW", "TAVG", "TMAX", "TMIN", "SNWD", "WSPD", "WDIR"):
             if c in data.columns:
                 data = data.with_columns(
                     pl.col(c).cast(pl.Float64, strict=False)
@@ -107,7 +107,7 @@ class NOAAPlotterDailySummariesDataset(object):
             )
         if self.location:
             mask = self._pl["NAME"].str.to_lowercase().str.contains(
-                self.location.lower(), literal=False
+                self.location.lower(), literal=True
             )
             if mask.sum() == 0:
                 raise ValueError(
@@ -158,7 +158,7 @@ class NOAAPlotterDailySummariesDataset(object):
         """
         if self.location:
             filt = self._pl["NAME"].str.to_lowercase().str.contains(
-                self.location.lower(), literal=False
+                self.location.lower(), literal=True
             )
             if filt.sum() > 0:
                 self._pl = self._pl.filter(filt)

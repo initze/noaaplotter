@@ -355,9 +355,42 @@ class NOAAPlotter(object):
             return fig_pl
 
         # ----- matplotlib rendering below -----
+        # Detect wind (WSPD + WDIR, non-null) → add a third row (wind ribbon).
+        has_wind_mpl = (
+            "WSPD" in df_obs.columns
+            and "WDIR" in df_obs.columns
+            and pd.Series(df_obs["WSPD"]).notna().any()
+            and pd.Series(df_obs["WDIR"]).notna().any()
+        )
+        n_rows_mpl = 3 if has_wind_mpl else 2
+        # shared font sizes: axis labels and tick labels read one size smaller
+        # than matplotlib's default
+        label_fontsize = "small"
+        tick_fontsize = "x-small"
         fig = plt.figure(figsize=figsize, dpi=dpi)
-        ax_t = fig.add_subplot(211)
-        ax_p = fig.add_subplot(212, sharex=ax_t)
+        # fixed, IDENTICAL horizontal margins for every row: all panels share
+        # the exact same width and every y-label sits at the same global x.
+        # (tight_layout would re-derive margins per-label; legend/titles sit
+        # outside the axes, so the margins are pinned explicitly instead.)
+        fig.subplots_adjust(left=0.09, right=0.985, top=0.90, bottom=0.18)
+        if has_wind_mpl:
+            # explicit vertical bands: temp, gap, precip, gap, wind (hspace 0 —
+            # every gap comes from a spacer row, so the temp/precip gap stays
+            # tight while the wind row keeps room for its speed-scale legend)
+            gs = fig.add_gridspec(
+                5, 1,
+                height_ratios=[0.42, 0.05, 0.28, 0.16, 0.15],
+                hspace=0.0,
+            )
+            ax_t = fig.add_subplot(gs[0, 0])
+            ax_p = fig.add_subplot(gs[2, 0], sharex=ax_t)
+            ax_w = fig.add_subplot(gs[4, 0], sharex=ax_t)
+        else:
+            gs = fig.add_gridspec(
+                2, 1, height_ratios=[0.6, 0.4], hspace=0.3,
+            )
+            ax_t = fig.add_subplot(gs[0, 0])
+            ax_p = fig.add_subplot(gs[1, 0], sharex=ax_t)
 
         # climate series (red line)
         (cm,) = ax_t.plot(x_dates["DATE"].values, y_clim.values, c="k", alpha=0.5, lw=2)
@@ -451,8 +484,9 @@ class NOAAPlotter(object):
         ax_t.set_xlim(start_date, end_date)
         if not (plot_tmin == "auto" and plot_tmin == "auto"):
             ax_t.set_ylim(plot_tmin, plot_tmax)
-        ax_t.set_ylabel("Temperature in °C")
-        ax_t.set_xlabel("Date")
+        ax_t.set_ylabel("Temperature in °C", fontsize=label_fontsize)
+        ax_t.set_xlabel("Date", fontsize=label_fontsize)
+        plt.setp(ax_t.get_yticklabels(), fontsize=tick_fontsize)
         if title:
             ax_t.set_title(title)
 
@@ -487,8 +521,9 @@ class NOAAPlotter(object):
         # grid
         ax_p.grid()
         # labels
-        ax_p.set_ylabel("Precipitation in mm")
-        ax_p.set_xlabel("Date")
+        ax_p.set_ylabel("Precipitation in mm", fontsize=label_fontsize)
+        ax_p.set_xlabel("Date", fontsize=label_fontsize)
+        plt.setp(ax_p.get_yticklabels(), fontsize=tick_fontsize)
         # y-axis scaling
         ax_p.set_ylim(bottom=0)
         if isinstance(plot_pmax, (int, float)):
@@ -514,7 +549,9 @@ class NOAAPlotter(object):
                 ls="--",
             )
             # y-axis label
-            ax2_snow.set_ylabel("Cumulative Snowfall in cm")
+            ax2_snow.set_ylabel("Cumulative Snowfall in cm",
+                               fontsize=label_fontsize)
+            plt.setp(ax2_snow.get_yticklabels(), fontsize=tick_fontsize)
             # legend
             legend_handle_p.append(sn_acc)
             legend_text_p.append("Cumulative Snowfall")
@@ -571,13 +608,91 @@ class NOAAPlotter(object):
         locator = dates.MonthLocator()
         ax_t.xaxis.set_major_locator(locator)
         ax_p.xaxis.set_major_locator(locator)
-        plt.setp(
-            ax_t.get_xticklabels(), rotation=45, ha="right", rotation_mode="anchor"
-        )
-        plt.setp(
-            ax_p.get_xticklabels(), rotation=45, ha="right", rotation_mode="anchor"
-        )
-        fig.tight_layout()
+        # All rows share one x-axis: only the bottommost panel carries date
+        # tick labels + the "Date" xlabel — otherwise each row's labels are
+        # occluded by the panel below them.
+        plt.setp(ax_t.get_xticklabels(), visible=False)
+        plt.setp(ax_p.get_xticklabels(), visible=False)
+        ax_t.set_xlabel("")
+        ax_p.set_xlabel("")
+        if has_wind_mpl:
+            plt.setp(
+                ax_w.get_xticklabels(), rotation=45, ha="right",
+                rotation_mode="anchor", fontsize=tick_fontsize,
+            )
+            ax_w.set_xlabel("Date", fontsize=label_fontsize)
+        else:
+            plt.setp(
+                ax_p.get_xticklabels(), rotation=45, ha="right",
+                rotation_mode="anchor", fontsize=tick_fontsize,
+            )
+            ax_p.set_xlabel("Date", fontsize=label_fontsize)
+
+        # --- wind ribbon (third row, when source carries WSPD + WDIR) ---
+        # Vertical position = DIRECTION (0-360 deg, N at top); colour = SPEED
+        # (green calm -> red gusty). Matches the plotly wind-row mapping.
+        # No colorbar (it would shrink the wind axis and break the width match
+        # with the rows above): the speed scale lives in a small landscape
+        # legend INSIDE the wind panel instead.
+        if has_wind_mpl:
+            import matplotlib
+            from matplotlib.colors import Normalize
+            from matplotlib.lines import Line2D
+            wspd_w = np.asarray(df_obs["WSPD"], dtype=float)
+            wdir_w = np.asarray(df_obs["WDIR"], dtype=float)
+            cmap_w = matplotlib.colormaps["RdYlGn_r"]  # green low -> red high
+            vmax_w = (
+                max(float(np.nanmax(wspd_w)) * 1.25, 1.0)
+                if np.isfinite(np.nanmax(wspd_w)) else 1.0
+            )
+            norm_w = Normalize(vmin=0.0, vmax=vmax_w)
+            sc = ax_w.scatter(
+                x_dates_short["DATE"].values,
+                wdir_w,
+                s=12, c=wspd_w, cmap=cmap_w, norm=norm_w,
+                edgecolors="none",
+            )
+            # faint connector line (thin, grey) under the dots
+            ax_w.plot(
+                x_dates_short["DATE"].values, wdir_w,
+                color=(30/255, 45/255, 70/255, 0.30), linewidth=0.8,
+            )
+            # headroom above N and below S so extreme dots are not glued to
+            # the axis edge
+            ax_w.set_ylim(375, -15)
+            # 4 cardinal ticks only: the wind row is short, 8 compass ticks
+            # would collide vertically
+            ax_w.set_yticks([0, 90, 180, 270])
+            ax_w.set_yticklabels(["N", "E", "S", "W"])
+            plt.setp(ax_w.get_yticklabels(), fontsize=tick_fontsize)
+            ax_w.set_ylabel("Direction", fontsize=label_fontsize)
+            ax_w.yaxis.grid(True, linestyle=":", alpha=0.5)
+            ax_w.xaxis.set_major_locator(locator)
+            plt.setp(
+                ax_w.get_xticklabels(),
+                rotation=45, ha="right", rotation_mode="anchor",
+            )
+            ax_w.set_xlabel("Date")
+            # speed scale as 4 discrete bins; landscape legend placed ABOVE the
+            # wind panel (in the gap below the precipitation panel), mirroring
+            # the temperature legend style
+            n_bins = 4
+            speed_handles, speed_labels = [], []
+            for i in range(n_bins):
+                lo_b, hi_b = vmax_w * i / n_bins, vmax_w * (i + 1) / n_bins
+                speed_handles.append(Line2D(
+                    [], [], marker="o", ls="none", markersize=5,
+                    color=cmap_w((i + 0.5) / n_bins),
+                ))
+                speed_labels.append(f"{lo_b:.0f}-{hi_b:.0f}")
+            leg_w = ax_w.legend(
+                speed_handles, speed_labels,
+                loc="lower center", ncol=n_bins, fontsize=legend_fontsize,
+                title="Wind speed (m/s)",
+                bbox_to_anchor=(0.5, 1.02),
+            )
+            # match the legend text font of the temperature/precipitation panels
+            leg_w.get_title().set_fontsize(legend_fontsize)
 
         # Save Figure
         if save_path:
