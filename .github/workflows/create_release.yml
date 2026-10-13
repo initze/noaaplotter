@@ -94,7 +94,9 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add pyproject.toml README.md
+          # CITATION.cff must be staged too — the previous form left the
+          # sed-updated CITATION.cff uncommitted on every release
+          git add pyproject.toml README.md CITATION.cff
           git commit -m "chore(release): $VERSION"
           git push origin HEAD
           git tag "v$VERSION"
