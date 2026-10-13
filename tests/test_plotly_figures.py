@@ -127,6 +127,166 @@ def test_daily_no_snow_in_window_does_not_crash(tmp_path):
         assert fig is not None
 
 
+def test_location_name_with_regex_metachars(tmp_path):
+    # Regression: -loc used str.contains(literal=False), treating the name as a
+    # regex. Real data files carry names with (ERA5), (obs), [sic] etc. — a
+    # a name with parentheses/brackets used to fail to match (or match wrongly).
+    # location matching must be literal.
+    import pandas as pd
+
+    dates = pd.date_range("1981-01-01", "2010-12-31", freq="D")
+    df = pd.DataFrame({
+        "STATION": "O2A:BRR",
+        "NAME": "Barrow AK (ERA5)",   # parentheses = regex parens
+        "DATE": dates.strftime("%Y-%m-%d"),
+        "TMAX": [10.0] * dates.size,
+        "TMIN": [0.0] * dates.size,
+        "TAVG": None,
+        "PRCP": [1.0] * dates.size,
+        "SNOW": None,
+    })
+    path = tmp_path / "paren_name.parquet"
+    df.to_parquet(path)
+
+    # exact name with metacharacters must load & locate cleanly
+    n = NOAAPlotter(str(path), location="Barrow AK (ERA5)")
+    assert n.dataset is not None
+    assert str(n.dataset.data["NAME"].iloc[0]) == "Barrow AK (ERA5)"
+
+
+def test_wind_row_present_when_wspd_wdir_exist_matplotlib(tmp_path):
+    # matplotlib engine (CLI default) must also draw the third wind row when
+    # WSPD/WDIR are present — otherwise `plot-daily` by default would show a
+    # different number of rows than `plot-daily --engine plotly` on the same
+    # data file.
+    import numpy as np
+    import pandas as pd
+
+    dates = pd.date_range("1981-01-01", "2018-12-31", freq="D")
+    rng = np.random.default_rng(7)
+    df = pd.DataFrame({
+        "STATION": "GHCND:TEST04",
+        "NAME": "Synthetic",
+        "DATE": dates.strftime("%Y-%m-%d"),
+        "TMAX": rng.normal(10, 5, dates.size),
+        "TMIN": rng.normal(0, 5, dates.size),
+        "TAVG": None,
+        "PRCP": rng.poisson(1, dates.size).astype(float),
+        "SNOW": None,
+        "WSPD": rng.exponential(4, dates.size) + 0.5,
+        "WDIR": rng.uniform(0, 360, dates.size).round().astype(int),
+    })
+    path = tmp_path / "wind_mpl.parquet"
+    df.to_parquet(path)
+
+    n = NOAAPlotter(str(path), location="Synthetic")
+    fig = n.plot_weather_series(
+        start_date="2016-07-01", end_date="2016-08-31",
+        engine="matplotlib", show_plot=False, plot_extrema=False,
+        return_plot=True, show_snow_accumulation=False,
+    )
+    # exactly 3 axes: temperature, precipitation, wind — NO colorbar axis
+    # (the speed scale lives in a small legend inside the wind panel, so no
+    # extra axis steals width from the wind panel)
+    assert len(fig.axes) == 3, f"expected exactly 3 axes, got {len(fig.axes)}"
+    # find the wind axis by its "Direction" ylabel (not just "last")
+    wind_ax = next(
+        ax for ax in fig.axes if ax.get_ylabel() == "Direction"
+    )
+    ticks = {t.get_text() for t in wind_ax.get_yticklabels()}
+    assert {"N", "S", "E", "W"} <= ticks
+    # speed-scale legend inside the wind panel (landscape, bin labels in m/s)
+    leg = wind_ax.get_legend()
+    assert leg is not None, "wind speed legend missing inside the wind panel"
+    assert leg.get_title().get_text() == "Wind speed (m/s)"
+    lbls = [t.get_text() for t in leg.get_texts()]
+    assert lbls and all("-" in l for l in lbls)
+    assert leg._ncols > 1, "wind legend should be landscape (multi-column)"
+    # headroom: (inverted) ylim spans beyond the compass range so extreme dots
+    # clear the axis edge
+    lo, hi = wind_ax.get_ylim()
+    assert max(lo, hi) > 360 and min(lo, hi) < 0, f"no ylim headroom: {lo}..{hi}"
+    # only the bottom (wind) panel carries date tick labels
+    ax_t, ax_p = fig.axes[0], fig.axes[1]
+    assert all(not t.get_visible() for t in ax_t.get_xticklabels())
+    assert all(not t.get_visible() for t in ax_p.get_xticklabels())
+    assert any(t.get_visible() and t.get_text() for t in wind_ax.get_xticklabels())
+
+
+def test_wind_row_present_when_wspd_wdir_exist(tmp_path):
+    # WSPD + WDIR in the source -> a third "wind ribbon" row (WIND trace,
+    # direction axis with compass ticks, speed colour scale).
+    import numpy as np
+    import pandas as pd
+
+    dates = pd.date_range("1981-01-01", "2018-12-31", freq="D")
+    rng = np.random.default_rng(7)
+    df = pd.DataFrame({
+        "STATION": "GHCND:TEST02",
+        "NAME": "Synthetic",
+        "DATE": dates.strftime("%Y-%m-%d"),
+        "TMAX": rng.normal(10, 5, dates.size),
+        "TMIN": rng.normal(0, 5, dates.size),
+        "TAVG": None,
+        "PRCP": rng.poisson(1, dates.size).astype(float),
+        "SNOW": None,
+        "WSPD": rng.exponential(4, dates.size) + 0.5,        # m/s
+        "WDIR": rng.uniform(0, 360, dates.size).round().astype(int),  # deg FROM
+    })
+    path = tmp_path / "with_wind.parquet"
+    df.to_parquet(path)
+
+    n = NOAAPlotter(str(path), location="Synthetic")
+    fig = n.plot_weather_series(
+        start_date="2016-07-01", end_date="2016-08-31",
+        engine="plotly", show_plot=False, plot_extrema=True,
+    )
+    names = [t.name for t in fig.data]
+    assert "WIND" in names, f"missing wind trace, got {names}"
+    # legend removed entirely; the wind trace carries no colorscale/colorbar
+    assert fig.layout.showlegend is False
+    wind = next(t for t in fig.data if t.name == "WIND")
+    assert getattr(wind.marker, "colorscale", None) in (None, False, "")
+    # direction axis (the WIND row's y-axis) carries compass tick text and
+    # ylim headroom beyond the compass range
+    assert getattr(wind, "yaxis", "") == "y3"
+    compass_axis = fig.layout.yaxis3
+    ticks = list(getattr(compass_axis, "ticktext", []) or [])
+    assert "N" in ticks and "S" in ticks and "E" in ticks
+    rng = [float(v) for v in (getattr(compass_axis, "range", []) or [])]
+    assert rng and max(rng) > 360 and min(rng) < 0, f"no wind ylim headroom: {rng}"
+    # per-dot rgb fill colours (speed encoded as colour, not colour scale)
+    assert str(wind.marker.color[0]).startswith("rgb(")
+
+
+def test_no_wind_row_when_source_lacks_wind(tmp_path):
+    # NOAA-style data with no WSPD/WDIR columns -> figure stays at 2 rows
+    # (regression guard: the wind row must not be invented).
+    import pandas as pd
+
+    dates = pd.date_range("1981-01-01", "2010-12-31", freq="D")
+    df = pd.DataFrame({
+        "STATION": "GHCND:TEST03",
+        "NAME": "Synthetic",
+        "DATE": dates.strftime("%Y-%m-%d"),
+        "TMAX": [10.0] * dates.size,
+        "TMIN": [0.0] * dates.size,
+        "TAVG": None,
+        "PRCP": [1.0] * dates.size,
+        "SNOW": None,
+    })
+    path = tmp_path / "no_wind.parquet"
+    df.to_parquet(path)
+
+    n = NOAAPlotter(str(path), location="Synthetic")
+    fig = n.plot_weather_series(
+        start_date="2009-01-01", end_date="2010-12-31",
+        engine="plotly", show_plot=False, plot_extrema=True,
+    )
+    names = [t.name for t in fig.data]
+    assert "WIND" not in names
+
+
 def test_download_cli_runs_without_token(tmp_path, monkeypatch):
     # Regression: download-data used to hard-fail with "No NOAA API token
     # found" unless a token was set. The NCEI endpoint is public, so it must

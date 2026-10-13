@@ -5,6 +5,13 @@ climatological mean +/- std with red/blue fill, no-data shading, record
 markers) plus precipitation panel (bars, 7-day rolling sum, no-data shading,
 optional cumulative snowfall on a secondary axis).
 
+When the data carries non-empty WSPD/WDIR columns a third "wind ribbon" row
+is added: vertical position = wind direction (0-360 deg, N at top), marker
+colour = wind speed (RdYlGn_r: green calm -> red gusty). No legend and no
+colorbar anywhere — the hover shows "FROM x° · y m/s".
+The wind row is NOT drawn when snow accumulation is active (the secondary
+snow axis and the wind row would both own yaxis3).
+
 When `window=(start, end)` is given (the user's selected plotting period) the
 figure carries the ENTIRE observed series and only the initial view is limited
 to that window — users can zoom out manually to browse the full record.
@@ -19,6 +26,54 @@ from plotly.subplots import make_subplots
 C_HIGH = "#d6604d"
 C_LOW = "#4393c3"
 YEAR_BAND = "rgba(0,0,0,0.025)"  # light grey per calendar year (even years white)
+
+WIND_COLORSCALE = "RdYlGn_r"  # low (calm) -> green, high (gusty) -> red
+WIND_MAX_PAD = 1.25  # colour-bar cap = data max * this (rounded up to 1 m/s)
+WIND_ROWS_HEIGHTS = {"2 rows": (0.6, 0.4), "3 rows": (0.5, 0.3, 0.2)}
+DARKEN = 0.68  # per-dot outline: marker colour * DARKEN (same hue, ~32% darker)
+
+
+def _wind_colorscale():
+    """Return a plotly-compatible list of (t, color) stops for the wind scale.
+
+    Low speed -> green (calm), high speed -> red (gusty).  Sampled from
+    matplotlib's RdYlGn colormap reversed (at 1-t) so t=0 is green and
+    t=1 is red.  The stops drive the per-dot fill color AND its darkened
+    outline (same fill * DARKEN) — the speed value reaches the marker as
+    rgb strings so the trace carries NO colorscale and therefore no colorbar.
+    """
+    import matplotlib
+    cmap = matplotlib.colormaps["RdYlGn"]
+    scale = []
+    for i in range(10):
+        t = i / 9.0
+        r, g, b = (int(c * 255) for c in cmap(1.0 - t)[:3])
+        scale.append([t, f"rgb({r},{g},{b})"])
+    return scale
+
+
+def _scale_color(scale, t):
+    """Interpolated 'rgb(r,g,b)' for scale position t (0..1)."""
+    t = min(max(float(t), 0.0), 1.0)
+    pos = t * (len(scale) - 1)
+    i0 = int(pos)
+    i1 = min(i0 + 1, len(scale) - 1)
+    w = pos - i0
+    def _rgb(s):
+        import re
+        return tuple(int(x) for x in re.match(
+            r"rgb\((\d+),(\d+),(\d+)\)", s).groups())
+    c0, c1 = _rgb(scale[i0][1]), _rgb(scale[i1][1])
+    r, g, b = (round(c0[k] * (1 - w) + c1[k] * w) for k in range(3))
+    return f"rgb({r},{g},{b})"
+
+
+def _dark_rgb(rgb_str):
+    """Same colour, DARKEN factor darker (per-dot outline)."""
+    import re
+    r, g, b = (int(x) for x in re.match(
+        r"rgb\((\d+),(\d+),(\d+)\)", rgb_str).groups())
+    return f"rgb({int(r * DARKEN)},{int(g * DARKEN)},{int(b * DARKEN)})"
 
 
 def _clean(v):
@@ -85,6 +140,12 @@ def make_daily_figure(df_obs, x_dates, x_dates_short, y_clim, y_clim_hi, y_clim_
     window : (start, end) timestamps, optional
         Initial visible x-range.  When set, the full observed series is shown
         and only the initial view is clipped to this period.
+
+    wind   : When ``df_obs`` contains non-null ``WSPD`` and ``WDIR`` columns,
+             a third row is drawn: ``wind ribbon`` (vertical = direction 0-360,
+             colour = speed).  The ``show_snow_accumulation`` secondary axis
+             and the wind row both need ``yaxis3`` so only one of them will be
+             drawn at a time; the wind row wins (snowfall overlay is skipped).
     """
     if x_dates_short is not None:
         dates = list(x_dates_short["DATE"])
@@ -113,11 +174,26 @@ def make_daily_figure(df_obs, x_dates, x_dates_short, y_clim, y_clim_hi, y_clim_
     # y-range must include it so the full line is visible initially)
     prcp_rolling = pd.Series(prcp).rolling(window=7, min_periods=1, center=True).sum()
 
-    fig = make_subplots(rows=2, cols=1, shared_xaxes=True,
-                        row_heights=[0.6, 0.4], vertical_spacing=0.07)
+    # ---- Wind row (row 3 of 3, when available and snow accumulation is off) ----
+    # WSPD/WDIR are the canonical ERA5 columns; NOAA station files do NOT
+    # carry them, so the row is drawn only when the data actually has wind.
+    has_wind = (
+        "WSPD" in df_obs.columns
+        and "WDIR" in df_obs.columns
+        and pd.Series(df_obs["WSPD"]).notna().any()
+        and pd.Series(df_obs["WDIR"]).notna().any()
+    )
+    # Snow accumulation pins yaxis3; it must be off for the wind row to render.
+    snow_active = bool(show_snow_accumulation and snow_dates is not None)
+    add_wind_row = bool(has_wind and not snow_active)
+    n_rows = 3 if add_wind_row else 2
+    row_heights = WIND_ROWS_HEIGHTS[f"{n_rows} rows"]
 
-    # --- calendar-year background bands (light grey / white), both panels
-    for row in (1, 2):
+    fig = make_subplots(rows=n_rows, cols=1, shared_xaxes=True,
+                        row_heights=list(row_heights), vertical_spacing=0.07)
+
+    # --- calendar-year background bands (light grey / white) on drawn rows
+    for row in range(1, n_rows + 1):
         _add_year_bands(fig, dates, row)
 
     # --- temperature: soft light-grey climatological +/- sigma envelope (no hover)
@@ -132,25 +208,26 @@ def make_daily_figure(df_obs, x_dates, x_dates_short, y_clim, y_clim_hi, y_clim_
     upper_out = np.fmax(obs, clim_hi)
     lower_out = np.fmin(obs, clim_lo)
     fig.add_trace(_fill_band(dates, clim, upper_in, C_HIGH, 0.3,
-                             name="Above average Temperature",
-                             showlegend=True), 1, 1)
+                             name="Above average Temperature"), 1, 1)
+    # secondary (>1 sigma) anomaly bands share the same hue as the main bands
+    # (no legend anywhere — still toggleable, still in hover)
     fig.add_trace(_fill_band(dates, clim_hi, upper_out, C_HIGH, 0.7,
-                             name="Above average Temperature (> 1 std)",
-                             showlegend=True), 1, 1)
+                             name="Above average Temperature (> 1 std)"), 1, 1)
     fig.add_trace(_fill_band(dates, lower_in, clim, C_LOW, 0.3,
-                             name="Below average Temperature",
-                             showlegend=True), 1, 1)
+                             name="Below average Temperature"), 1, 1)
     fig.add_trace(_fill_band(dates, lower_out, clim_lo, C_LOW, 0.7,
                              name="Below average Temperature (> 1 std)",
-                             showlegend=True), 1, 1)
+                             showlegend=False), 1, 1)
     # --- reference lines + observed (visual weight matched to the static render:
     #     normals lw=2 @ 50% alpha, observed lw=1.2 @ 40% alpha,
     #     sigma edges lw=1 @ 40% alpha). Hover values truncated to 2 decimals.
     fig.add_trace(go.Scatter(x=xfull, y=clim_full, name="Climatological Mean",
                              line=dict(color="rgba(0,0,0,0.5)", width=2),
+                             showlegend=False,
                              hovertemplate="Climatology: %{y:.2f} °C<extra></extra>"), 1, 1)
     fig.add_trace(go.Scatter(x=xfull, y=clim_hi_full, name="Std of Climatological Mean",
                              line=dict(color="rgba(0,0,0,0.4)", width=1, dash="dot"),
+                             showlegend=False,
                              hovertemplate="Upper 1σ: %{y:.2f} °C<extra></extra>"), 1, 1)
     fig.add_trace(go.Scatter(x=xfull, y=clim_lo_full, showlegend=False,
                              line=dict(color="rgba(0,0,0,0.4)", width=1, dash="dot"),
@@ -172,7 +249,7 @@ def make_daily_figure(df_obs, x_dates, x_dates_short, y_clim, y_clim_hi, y_clim_
         fig.add_trace(go.Bar(x=nan_t, y=[span_hi - span_lo] * len(nan_t),
                              base=span_lo, width=1,
                              marker_color="rgba(0,0,0,0.2)",
-                             name="No Data", showlegend=True), 1, 1)
+                             name="No Data", showlegend=False), 1, 1)
     fig.add_hline(y=0, line=dict(color="rgba(0,0,0,0.5)", dash="dash"), row=1, col=1)
 
     # --- temperature: record extremes
@@ -205,20 +282,23 @@ def make_daily_figure(df_obs, x_dates, x_dates_short, y_clim, y_clim_hi, y_clim_
     if nan_p:
         fig.add_trace(go.Bar(x=nan_p, y=[prcp_top] * len(nan_p), base=0, width=1,
                              marker_color="rgba(0,0,0,0.2)",
-                             name="No Data", showlegend=True), 2, 1)
+                             name="No Data", showlegend=False), 2, 1)
 
     # --- rolling 7-day precipitation sum
     # Convert to list for Plotly
     prcp_rolling_list = list(prcp_rolling.where(pd.notna(prcp_rolling)))
     fig.add_trace(go.Scatter(x=dates, y=prcp_rolling_list,
                              name="7-Day Rolling Sum of Precipitation",
+                             showlegend=False,
                              line=dict(color="rgba(30,144,255,0.7)", width=2),
                              hovertemplate="7-day Rolling Sum: %{y:.2f} mm<extra></extra>"), 2, 1)
 
     # --- snowfall accumulation: its OWN secondary axis on the precipitation row.
     # NOTE: add_trace() WITHOUT row/col on purpose — subplot row/col pinning would
     # force the trace onto the precipitation axis (y2) and hide the rain bars.
-    if show_snow_accumulation and snow_dates is not None:
+    # Snow and the wind row both need yaxis3, so when the wind row is drawn the
+    # snowfall overlay is skipped (wind wins; it is the more recent feature).
+    if show_snow_accumulation and snow_dates is not None and not add_wind_row:
         snow_max = float(np.nanmax(snow_acc) / 10) if np.nanmax(snow_acc) > 0 else 1.0
         snow_top = plot_snowmax if plot_snowmax is not None else snow_max * 1.1
         fig.add_trace(go.Scatter(x=list(snow_dates),
@@ -237,11 +317,51 @@ def make_daily_figure(df_obs, x_dates, x_dates_short, y_clim, y_clim_hi, y_clim_
                                      line=dict(color="black", width=1, dash="dash"),
                                      showlegend=False, yaxis="y3"))
 
+    # --- wind ribbon (row 3): vertical position = wind DIRECTION (0-360 deg,
+    #     N at top), colour = wind SPEED (green calm -> red gusty, colorbar in
+    #     m/s). The figure legend is removed entirely; hover carries the exact
+    #     "FROM x° · y m/s" values.
+    #     Connector line is a faint hair-line so the dots read; per-dot outline is
+    #     a slightly darkened copy of each dot's own fill color for crisp edges.
+    if add_wind_row:
+        wspd = np.asarray(df_obs["WSPD"], dtype=float)
+        wdir = np.asarray(df_obs["WDIR"], dtype=float)
+        scale = _wind_colorscale()
+        vmax = float(np.nanmax(wspd)) if np.isfinite(np.nanmax(wspd)) else 0.0
+        vmax = max(np.ceil(vmax * WIND_MAX_PAD), 1.0)
+        hover = (
+            "%{x|%Y-%m-%d}<br>FROM %{customdata[0]:.0f} deg"
+            "  -  %{customdata[1]:.1f} m/s<extra>WIND</extra>"
+        )
+        custom = list(zip(np.round(wdir, 0), np.round(wspd, 1)))
+        # per-dot rgb fill (no colorscale on the trace -> NO colorbar)
+        fill = [
+            None if not np.isfinite(v) else _scale_color(scale, v / vmax)
+            for v in wspd
+        ]
+        outline = [None if c is None else _dark_rgb(c) for c in fill]
+        fig.add_trace(go.Scatter(
+            x=dates, y=list(pd.Series(wdir).where(pd.notna(wdir))),
+            mode="lines+markers", name="WIND",
+            line=dict(width=1, color="rgba(30,45,70,0.30)"),
+            marker=dict(size=6, color=fill,
+                        line=dict(width=0.8, color=outline)),
+            customdata=custom, hovertemplate=hover, showlegend=False),
+            3, 1)
+        # headroom above N / below S (mirror of the static render) so extreme
+        # direction dots are not glued to the axis edge
+        fig.update_yaxes(range=[375, -15], title="Direction", row=3, col=1,
+                         tickmode="array",
+                         tickvals=[0, 45, 90, 135, 180, 225, 270, 315],
+                         ticktext=["N", "NE", "E", "SE", "S", "SW", "W", "NW"])
+        for a in (0, 45, 90, 135, 180, 225, 270, 315):
+            fig.add_hline(y=a, line=dict(color="rgba(0,0,0,0.10)", dash="dot"),
+                          row=3, col=1)
+
     layout = dict(height=figsize[1], width=figsize[0],
                   template="plotly_white", hovermode="x unified",
-                  showlegend=True,
-                  legend=dict(orientation="h", yanchor="bottom", y=1.02,
-                              xanchor="left", x=0),
+                  # legend removed entirely (hover + axis labels carry the info)
+                  showlegend=False,
                   margin=dict(l=40, r=40, t=50 if title else 40, b=30),
                   title=dict(text=title, y=0.98) if title else None,
                   xaxis_rangeslider_visible=False,
