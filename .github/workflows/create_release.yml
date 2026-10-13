@@ -68,7 +68,12 @@ jobs:
           # (cache-prone) dynamic PyPI lookup.  Bump it together with
           # pyproject.toml; a no-op if the README has no badge line.
           if grep -q 'img.shields.io/badge/version-' README.md; then
-            sed -i "s|img.shields.io/badge/version-v[^"]*|img.shields.io/badge/version-v${VERSION}-31ad52|" README.md
+            # NOTE: the sed script is SINGLE-quoted: its pattern contains a
+            # literal double quote ([^"]*), which would break out of a
+            # double-quoted script (the old form caused bash "unexpected EOF
+            # while looking for matching `"'"). The version is spliced in via
+            # '"${VERSION}"'.
+            sed -i 's|img.shields.io/badge/version-v[^"]*|img.shields.io/badge/version-v'"${VERSION}"'-31ad52|' README.md
             grep -n 'img.shields.io/badge/version-' README.md
           else
             echo "No static version badge found in README.md — nothing to update."
