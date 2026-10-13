@@ -5,6 +5,12 @@ Newer entries are added here automatically by the release workflow.
 
 ## Unreleased
 
+- **Bugfix — daily wind ribbon on ERA5 data with missing wind days.**
+  `plot_weather_series(engine="plotly")` crashed with a plotly ValidationError
+  (`Invalid element(s) received for the 'color' property of scatter.marker`)
+  whenever WSPD had null days: the per-dot marker-colour LIST contained
+  `None` entries. Null-speed dots now use a fully transparent colour
+  (`rgba(0,0,0,0)`) for fill and outline alike.
 - **New feature — daily wind (ERA5 sources only).** The `open_meteo` and
   `cds` sources now also return two canonical columns:
   `WSPD` (daily mean 10 m wind speed, m/s) and `WDIR` (daily dominant
