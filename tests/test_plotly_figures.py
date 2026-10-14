@@ -204,6 +204,10 @@ def test_wind_row_present_when_wspd_wdir_exist_matplotlib(tmp_path):
     assert not wind_ax.get_lines(), "direction must be dots WITHOUT a line"
     # speed line exists on the twin axis
     assert spd_ax.get_lines(), "wind speed line missing"
+    # the twin axis must NOT draw its own date labels (shared x: only the
+    # bottommost panel shows dates)
+    assert all(not t.get_visible() for t in spd_ax.get_xticklabels()), \
+        "speed twin must not draw duplicate date labels"
     # headroom: (inverted) ylim spans beyond the compass range so extreme dots
     # clear the axis edge
     lo, hi = wind_ax.get_ylim()

@@ -382,12 +382,13 @@ class NOAAPlotter(object):
             fig.subplots_adjust(
                 left=0.09, right=0.985, top=0.90, bottom=0.18)
         if has_wind_mpl:
-            # explicit vertical bands: temp, gap, precip, gap, wind (hspace 0 —
-            # every gap comes from a spacer row, so the temp/precip gap stays
-            # tight while the wind row keeps room for its speed-scale legend)
+            # explicit vertical bands: temp, gap, precip, small gap, wind
+            # (hspace 0 — every gap comes from a spacer row; the wind panel
+            # no longer carries a legend row, so the lower gap is a plain
+            # hairline separator)
             gs = fig.add_gridspec(
                 5, 1,
-                height_ratios=[0.42, 0.05, 0.28, 0.16, 0.15],
+                height_ratios=[0.46, 0.05, 0.31, 0.05, 0.13],
                 hspace=0.0,
             )
             ax_t = fig.add_subplot(gs[0, 0])
@@ -656,9 +657,6 @@ class NOAAPlotter(object):
                 x_dates_short["DATE"].values, wspd_w,
                 color="#d6604d", linewidth=0.9, alpha=0.85,
             )
-            # the speed twin shares the x-position; its own x-tick labels are
-            # hidden (only the bottommost panel shows dates)
-            ax_ws.set_xticks([])
             # headroom above N and below S so extreme dots are not glued to
             # the axis edge
             ax_w.set_ylim(375, -15)
@@ -677,6 +675,10 @@ class NOAAPlotter(object):
                      color="#d6604d")
             ax_w.yaxis.grid(True, linestyle=":", alpha=0.5)
             ax_w.xaxis.set_major_locator(locator)
+            # the twin shares the x-axis; keep its date tick labels hidden so
+            # only the bottommost (direction) panel shows dates
+            plt.setp(ax_ws.get_xticklabels(), visible=False)
+            plt.setp(ax_ws.get_yticklabels(), fontsize=tick_fontsize)
 
         # Save Figure
         if save_path:

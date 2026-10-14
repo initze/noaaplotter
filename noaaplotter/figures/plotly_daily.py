@@ -330,8 +330,11 @@ def make_daily_figure(df_obs, x_dates, x_dates_short, y_clim, y_clim_hi, y_clim_
                   showlegend=False,
                   margin=dict(l=40, r=40, t=50 if title else 40, b=30),
                   title=dict(text=title, y=0.98) if title else None,
-                  xaxis_rangeslider_visible=False,
-                  xaxis_title="Date")
+                  xaxis_rangeslider_visible=False)
+    # the "Date" title belongs on the BOTTOMMOST (visible) x-axis only —
+    # matching where the date tick labels are drawn (shared x-axes: the
+    # upper rows' x-axes are hidden masters)
+    layout[f"xaxis{n_rows}_title"] = "Date"
     # --- initial x-view (window = user-selected period).
     # NOTE: with shared_xaxes the visible master axis is x2 (xaxis "matches"
     # it and is hidden), so the initial range must be applied to BOTH.
@@ -341,4 +344,8 @@ def make_daily_figure(df_obs, x_dates, x_dates_short, y_clim, y_clim_hi, y_clim_
         layout["xaxis_range"] = [d0, d1]
         layout["xaxis2_range"] = [d0, d1]
     fig.update_layout(**layout)
+    # consistent, compact font sizes across every axis (titles + ticks),
+    # mirroring the static render's "small"/"x-small" pair
+    fig.update_xaxes(tickfont=dict(size=9), title_font=dict(size=11))
+    fig.update_yaxes(tickfont=dict(size=9), title_font=dict(size=11))
     return fig
