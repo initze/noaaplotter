@@ -372,14 +372,21 @@ class NOAAPlotter(object):
         # the exact same width and every y-label sits at the same global x.
         # (tight_layout would re-derive margins per-label; legend/titles sit
         # outside the axes, so the margins are pinned explicitly instead.)
-        fig.subplots_adjust(left=0.09, right=0.985, top=0.90, bottom=0.18)
+        # the wind layout adds a RIGHT-side speed axis whose label + tick
+        # labels must fit: pin a wider right margin for it (the plain layout
+        # keeps the old tight one)
         if has_wind_mpl:
-            # explicit vertical bands: temp, gap, precip, gap, wind (hspace 0 —
-            # every gap comes from a spacer row, so the temp/precip gap stays
-            # tight while the wind row keeps room for its speed-scale legend)
+            fig.subplots_adjust(
+                left=0.09, right=0.90, top=0.90, bottom=0.18)
+        else:
+            fig.subplots_adjust(
+                left=0.09, right=0.985, top=0.90, bottom=0.18)
+        if has_wind_mpl:
+            # explicit vertical bands: temp, gap, precip, gap, wind
+            # (hspace 0 — every gap comes a spacer row)
             gs = fig.add_gridspec(
                 5, 1,
-                height_ratios=[0.42, 0.05, 0.28, 0.16, 0.15],
+                height_ratios=[0.41, 0.05, 0.27, 0.05, 0.21],
                 hspace=0.0,
             )
             ax_t = fig.add_subplot(gs[0, 0])
@@ -628,71 +635,48 @@ class NOAAPlotter(object):
             )
             ax_p.set_xlabel("Date", fontsize=label_fontsize)
 
-        # --- wind ribbon (third row, when source carries WSPD + WDIR) ---
-        # Vertical position = DIRECTION (0-360 deg, N at top); colour = SPEED
-        # (green calm -> red gusty). Matches the plotly wind-row mapping.
-        # No colorbar (it would shrink the wind axis and break the width match
-        # with the rows above): the speed scale lives in a small landscape
-        # legend INSIDE the wind panel instead.
+        # --- wind row (third row, when source carries WSPD + WDIR) --------
+        # Two visual channels on two axes, one panel:
+        #   DIRECTION = plain dots (no connector line, no colour encoding);
+        #             vertical position = 0-360 deg, N at top (inverted axis).
+        #   SPEED     = a red line on its own (secondary) axis below it.
+        # Static figure: no hover, so no compass-name labels here (the plotly
+        # engine adds those to its hover).
         if has_wind_mpl:
-            import matplotlib
-            from matplotlib.colors import Normalize
-            from matplotlib.lines import Line2D
             wspd_w = np.asarray(df_obs["WSPD"], dtype=float)
             wdir_w = np.asarray(df_obs["WDIR"], dtype=float)
-            cmap_w = matplotlib.colormaps["RdYlGn_r"]  # green low -> red high
-            vmax_w = (
-                max(float(np.nanmax(wspd_w)) * 1.25, 1.0)
-                if np.isfinite(np.nanmax(wspd_w)) else 1.0
-            )
-            norm_w = Normalize(vmin=0.0, vmax=vmax_w)
-            sc = ax_w.scatter(
-                x_dates_short["DATE"].values,
-                wdir_w,
-                s=12, c=wspd_w, cmap=cmap_w, norm=norm_w,
-                edgecolors="none",
-            )
-            # faint connector line (thin, grey) under the dots
-            ax_w.plot(
+            ax_w.scatter(
                 x_dates_short["DATE"].values, wdir_w,
-                color=(30/255, 45/255, 70/255, 0.30), linewidth=0.8,
+                s=8, color=(30 / 255, 45 / 255, 70 / 255, 0.55),
+                linewidths=0,
+            )
+            ax_ws = ax_w.twinx()
+            ax_ws.plot(
+                x_dates_short["DATE"].values, wspd_w,
+                color="#d6604d", linewidth=0.9, alpha=0.85,
             )
             # headroom above N and below S so extreme dots are not glued to
             # the axis edge
             ax_w.set_ylim(375, -15)
-            # 4 cardinal ticks only: the wind row is short, 8 compass ticks
-            # would collide vertically
             ax_w.set_yticks([0, 90, 180, 270])
             ax_w.set_yticklabels(["N", "E", "S", "W"])
             plt.setp(ax_w.get_yticklabels(), fontsize=tick_fontsize)
             ax_w.set_ylabel("Direction", fontsize=label_fontsize)
+            spd_top = (
+                max(float(np.nanmax(wspd_w)) * 1.15, 1.0)
+                if np.isfinite(np.nanmax(wspd_w)) else 1.0
+            )
+            ax_ws.set_ylim(0, spd_top)
+            ax_ws.set_ylabel("Wind speed in m/s", fontsize=label_fontsize,
+                             color="#d6604d")
+            plt.setp(ax_ws.get_yticklabels(), fontsize=tick_fontsize,
+                     color="#d6604d")
             ax_w.yaxis.grid(True, linestyle=":", alpha=0.5)
             ax_w.xaxis.set_major_locator(locator)
-            plt.setp(
-                ax_w.get_xticklabels(),
-                rotation=45, ha="right", rotation_mode="anchor",
-            )
-            ax_w.set_xlabel("Date")
-            # speed scale as 4 discrete bins; landscape legend placed ABOVE the
-            # wind panel (in the gap below the precipitation panel), mirroring
-            # the temperature legend style
-            n_bins = 4
-            speed_handles, speed_labels = [], []
-            for i in range(n_bins):
-                lo_b, hi_b = vmax_w * i / n_bins, vmax_w * (i + 1) / n_bins
-                speed_handles.append(Line2D(
-                    [], [], marker="o", ls="none", markersize=5,
-                    color=cmap_w((i + 0.5) / n_bins),
-                ))
-                speed_labels.append(f"{lo_b:.0f}-{hi_b:.0f}")
-            leg_w = ax_w.legend(
-                speed_handles, speed_labels,
-                loc="lower center", ncol=n_bins, fontsize=legend_fontsize,
-                title="Wind speed (m/s)",
-                bbox_to_anchor=(0.5, 1.02),
-            )
-            # match the legend text font of the temperature/precipitation panels
-            leg_w.get_title().set_fontsize(legend_fontsize)
+            # the twin shares the x-axis; keep its date tick labels hidden so
+            # only the bottommost (direction) panel shows dates
+            plt.setp(ax_ws.get_xticklabels(), visible=False)
+            plt.setp(ax_ws.get_yticklabels(), fontsize=tick_fontsize)
 
         # Save Figure
         if save_path:

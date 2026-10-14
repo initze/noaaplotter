@@ -5,10 +5,11 @@ climatological mean +/- std with red/blue fill, no-data shading, record
 markers) plus precipitation panel (bars, 7-day rolling sum, no-data shading,
 optional cumulative snowfall on a secondary axis).
 
-When the data carries non-empty WSPD/WDIR columns a third "wind ribbon" row
-is added: vertical position = wind direction (0-360 deg, N at top), marker
-colour = wind speed (RdYlGn_r: green calm -> red gusty). No legend and no
-colorbar anywhere — the hover shows "FROM x° · y m/s".
+When the data carries non-empty WSPD/WDIR columns a third "wind" row is
+added with two channels on two axes: wind DIRECTION as plain dots (vertical
+position = 0-360 deg, N at top) and wind SPEED as a red line on an overlaid
+right axis. No legend and no colorbar anywhere — the hover shows
+"Direction: x° (NAME)" (16-point compass names) and "Speed: y m/s".
 The wind row is NOT drawn when snow accumulation is active (the secondary
 snow axis and the wind row would both own yaxis3).
 
@@ -27,53 +28,12 @@ C_HIGH = "#d6604d"
 C_LOW = "#4393c3"
 YEAR_BAND = "rgba(0,0,0,0.025)"  # light grey per calendar year (even years white)
 
-WIND_COLORSCALE = "RdYlGn_r"  # low (calm) -> green, high (gusty) -> red
-WIND_MAX_PAD = 1.25  # colour-bar cap = data max * this (rounded up to 1 m/s)
-WIND_ROWS_HEIGHTS = {"2 rows": (0.6, 0.4), "3 rows": (0.5, 0.3, 0.2)}
-DARKEN = 0.68  # per-dot outline: marker colour * DARKEN (same hue, ~32% darker)
+WIND_ROWS_HEIGHTS = {"2 rows": (0.6, 0.4), "3 rows": (0.41, 0.27, 0.21)}
 
-
-def _wind_colorscale():
-    """Return a plotly-compatible list of (t, color) stops for the wind scale.
-
-    Low speed -> green (calm), high speed -> red (gusty).  Sampled from
-    matplotlib's RdYlGn colormap reversed (at 1-t) so t=0 is green and
-    t=1 is red.  The stops drive the per-dot fill color AND its darkened
-    outline (same fill * DARKEN) — the speed value reaches the marker as
-    rgb strings so the trace carries NO colorscale and therefore no colorbar.
-    """
-    import matplotlib
-    cmap = matplotlib.colormaps["RdYlGn"]
-    scale = []
-    for i in range(10):
-        t = i / 9.0
-        r, g, b = (int(c * 255) for c in cmap(1.0 - t)[:3])
-        scale.append([t, f"rgb({r},{g},{b})"])
-    return scale
-
-
-def _scale_color(scale, t):
-    """Interpolated 'rgb(r,g,b)' for scale position t (0..1)."""
-    t = min(max(float(t), 0.0), 1.0)
-    pos = t * (len(scale) - 1)
-    i0 = int(pos)
-    i1 = min(i0 + 1, len(scale) - 1)
-    w = pos - i0
-    def _rgb(s):
-        import re
-        return tuple(int(x) for x in re.match(
-            r"rgb\((\d+),(\d+),(\d+)\)", s).groups())
-    c0, c1 = _rgb(scale[i0][1]), _rgb(scale[i1][1])
-    r, g, b = (round(c0[k] * (1 - w) + c1[k] * w) for k in range(3))
-    return f"rgb({r},{g},{b})"
-
-
-def _dark_rgb(rgb_str):
-    """Same colour, DARKEN factor darker (per-dot outline)."""
-    import re
-    r, g, b = (int(x) for x in re.match(
-        r"rgb\((\d+),(\d+),(\d+)\)", rgb_str).groups())
-    return f"rgb({int(r * DARKEN)},{int(g * DARKEN)},{int(b * DARKEN)})"
+# 16-point compass rose (deg -> name via 22.5-degree bins centred on each card
+# in the list); index i covers the sector centred on i*22.5 from north CW.
+COMPASS16 = ["N", "NNE", "NE", "ENE", "E", "ESE", "SE", "SSE",
+             "S", "SSW", "SW", "WSW", "W", "WNW", "NW", "NNW"]
 
 
 def _clean(v):
@@ -317,50 +277,50 @@ def make_daily_figure(df_obs, x_dates, x_dates_short, y_clim, y_clim_hi, y_clim_
                                      line=dict(color="black", width=1, dash="dash"),
                                      showlegend=False, yaxis="y3"))
 
-    # --- wind ribbon (row 3): vertical position = wind DIRECTION (0-360 deg,
-    #     N at top), colour = wind SPEED (green calm -> red gusty, colorbar in
-    #     m/s). The figure legend is removed entirely; hover carries the exact
-    #     "FROM x° · y m/s" values.
-    #     Connector line is a faint hair-line so the dots read; per-dot outline is
-    #     a slightly darkened copy of each dot's own fill color for crisp edges.
+    # --- wind row (row 3): TWO channels on two axes, one panel -------------
+    #   DIRECTION = plain dots (no connector line); vertical position =
+    #               0-360 deg, N at top (inverted left axis).
+    #   SPEED     = a red line on its own overlaid right axis.
+    # No legend, no colorbar; hover carries "x° (NAME)" and "y m/s" (16-point
+    # compass names: N, NNE, NE, ...).
     if add_wind_row:
         wspd = np.asarray(df_obs["WSPD"], dtype=float)
         wdir = np.asarray(df_obs["WDIR"], dtype=float)
-        scale = _wind_colorscale()
-        vmax = float(np.nanmax(wspd)) if np.isfinite(np.nanmax(wspd)) else 0.0
-        vmax = max(np.ceil(vmax * WIND_MAX_PAD), 1.0)
-        hover = (
-            "%{x|%Y-%m-%d}<br>FROM %{customdata[0]:.0f} deg"
-            "  -  %{customdata[1]:.1f} m/s<extra>WIND</extra>"
+        names = [COMPASS16[int(round(float(d) / 22.5) % 16)]
+                 if np.isfinite(d) else "" for d in wdir]
+        deg_str = [f"{v:.0f}\u00b0" if np.isfinite(v) else "" for v in wdir]
+        custom = list(zip(deg_str, names))
+        spd_top = (
+            max(float(np.nanmax(wspd)) * 1.15, 1.0)
+            if np.isfinite(np.nanmax(wspd)) else 1.0
         )
-        custom = list(zip(np.round(wdir, 0), np.round(wspd, 1)))
-        # per-dot rgb fill (no colorscale on the trace -> NO colorbar).
-        # plotly rejects None elements in a marker.color LIST ("Invalid
-        # element(s) received for the 'color' property of scatter.marker"),
-        # so missing-speed dots use a fully transparent colour instead.
-        fill = [
-            "rgba(0,0,0,0)" if not np.isfinite(v) else _scale_color(scale, v / vmax)
-            for v in wspd
-        ]
-        outline = [
-            "rgba(0,0,0,0)" if c == "rgba(0,0,0,0)" else _dark_rgb(c)
-            for c in fill
-        ]
         fig.add_trace(go.Scatter(
             x=dates, y=list(pd.Series(wdir).where(pd.notna(wdir))),
-            mode="lines+markers", name="WIND",
-            line=dict(width=1, color="rgba(30,45,70,0.30)"),
-            marker=dict(size=6, color=fill,
-                        line=dict(width=0.8, color=outline)),
-            customdata=custom, hovertemplate=hover, showlegend=False),
+            mode="markers", name="Wind direction",
+            marker=dict(size=4, color="rgba(30,45,70,0.55)"),
+            customdata=custom,
+            hovertemplate="Direction: %{customdata[0]} (%{customdata[1]})"
+                          "<extra></extra>",
+            showlegend=False),
             3, 1)
+        fig.add_trace(go.Scatter(
+            x=dates, y=list(pd.Series(wspd).where(pd.notna(wspd))),
+            mode="lines", name="Wind speed",
+            line=dict(width=1, color="rgba(214,96,77,0.85)"),
+            yaxis="y4", xaxis="x3",
+            hovertemplate="Speed: %{y:.1f} m/s<extra></extra>",
+            showlegend=False))
         # headroom above N / below S (mirror of the static render) so extreme
         # direction dots are not glued to the axis edge
         fig.update_yaxes(range=[375, -15], title="Direction", row=3, col=1,
                          tickmode="array",
-                         tickvals=[0, 45, 90, 135, 180, 225, 270, 315],
-                         ticktext=["N", "NE", "E", "SE", "S", "SW", "W", "NW"])
-        for a in (0, 45, 90, 135, 180, 225, 270, 315):
+                         tickvals=[0, 90, 180, 270],
+                         ticktext=["N", "E", "S", "W"])
+        fig.update_layout(yaxis4=dict(range=[0, spd_top],
+                                      title="Wind speed in m/s", side="right",
+                                      overlaying="y3", anchor="free",
+                                      position=1.0))
+        for a in (0, 90, 180, 270):
             fig.add_hline(y=a, line=dict(color="rgba(0,0,0,0.10)", dash="dot"),
                           row=3, col=1)
 
@@ -370,8 +330,11 @@ def make_daily_figure(df_obs, x_dates, x_dates_short, y_clim, y_clim_hi, y_clim_
                   showlegend=False,
                   margin=dict(l=40, r=40, t=50 if title else 40, b=30),
                   title=dict(text=title, y=0.98) if title else None,
-                  xaxis_rangeslider_visible=False,
-                  xaxis_title="Date")
+                  xaxis_rangeslider_visible=False)
+    # the "Date" title belongs on the BOTTOMMOST (visible) x-axis only —
+    # matching where the date tick labels are drawn (shared x-axes: the
+    # upper rows' x-axes are hidden masters)
+    layout[f"xaxis{n_rows}_title"] = "Date"
     # --- initial x-view (window = user-selected period).
     # NOTE: with shared_xaxes the visible master axis is x2 (xaxis "matches"
     # it and is hidden), so the initial range must be applied to BOTH.
@@ -381,4 +344,8 @@ def make_daily_figure(df_obs, x_dates, x_dates_short, y_clim, y_clim_hi, y_clim_
         layout["xaxis_range"] = [d0, d1]
         layout["xaxis2_range"] = [d0, d1]
     fig.update_layout(**layout)
+    # consistent, compact font sizes across every axis (titles + ticks),
+    # mirroring the static render's "small"/"x-small" pair
+    fig.update_xaxes(tickfont=dict(size=9), title_font=dict(size=11))
+    fig.update_yaxes(tickfont=dict(size=9), title_font=dict(size=11))
     return fig
