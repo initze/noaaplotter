@@ -96,7 +96,7 @@ Usage: noaaplotter plot-daily [OPTIONS]
 
  Example: noaaplotter plot-daily -infile data/kotzebue.parquet -start
  1992-01-01 -end 1992-12-31 -t_range -45 25 -p_range 50 -save_plot
- figures/kotzebue_1992.png
+ figures/kotzebue_daily_1992.png
 
 ┌─ Options ───────────────────────────────────────────────────────────────────┐
 │ *  --input-file       -infile          <str>             Input file         │

@@ -55,7 +55,7 @@ noaaplotter plot-daily \
     -infile data/kotzebue.parquet \
     -start 1992-01-01 -end 1992-12-31 \
     -t_range -45 25 -p_range 50 \
-    -save_plot figures/kotzebue_1992.png
+    -save_plot figures/kotzebue_daily_1992.png
 ```
 
 ### Interactive (Plotly)
@@ -65,7 +65,7 @@ noaaplotter plot-daily \
     -infile data/kotzebue.parquet \
     -start 1992-01-01 -end 1992-12-31 \
     --engine plotly \
-    -save_plot figures/kotzebue_1992.html
+    -save_plot figures/kotzebue_daily_1992.html
 ```
 
 Open the HTML in any browser to zoom, hover, and pan.
@@ -146,7 +146,7 @@ n.plot_weather_series(
     plot_tmax="auto",
     plot_pmax="auto",
     engine="plotly",            # or "matplotlib"
-    save_path="figures/kotzebue_1992",
+    save_path="figures/kotzebue_daily_1992.png",
 )
 ```
 
