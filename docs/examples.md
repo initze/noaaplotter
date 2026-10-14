@@ -59,6 +59,36 @@ noaaplotter plot-daily \
         style="width:100%; min-height:640px; border:1px solid var(--md-default-fg-color--lightest); border-radius:8px;"
         loading="lazy" title="Kotzebue winter 2017/18 — interactive"></iframe>
 
+## Daily plot — with wind (ERA5 sources only)
+
+NOAA station data has no wind columns, so the wind row only appears when the
+input file carries `WSPD`/`WDIR` (i.e. `--source open_meteo` / `cds`). The
+third row then draws **one dot per day** placed by wind direction (the plotly
+hover shows the 16-point compass name, e.g. `247° (WSW)`) plus a **wind-speed
+line** on a right-hand axis:
+
+```bash
+noaaplotter plot-daily \
+    --input-file data/NTaymyr_ERA5_75.6_98.7.parquet \
+    --start-date 2020-01-01 --end-date 2020-12-31 \
+    --save-plot figures/NTaymyr_ERA5_75.6_98.7_daily.png
+```
+
+![Daily plot with wind row — North Taymyr, ERA5, 2020](figures/NTaymyr_ERA5_75.6_98.7_daily.png)
+
+**Live example — North Taymyr 2020 (interactive, wind dots + speed line):**
+
+```bash
+noaaplotter plot-daily \
+    --input-file data/NTaymyr_ERA5_75.6_98.7.parquet --engine plotly \
+    --start-date 2020-01-01 --end-date 2020-12-31 \
+    --save-plot interactive/NTaymyr_ERA5_75.6_98.7_daily.html
+```
+
+<iframe src="interactive/NTaymyr_ERA5_75.6_98.7_daily.html"
+        style="width:100%; min-height:640px; border:1px solid var(--md-default-fg-color--lightest); border-radius:8px;"
+        loading="lazy" title="North Taymyr 2020 — interactive"></iframe>
+
 ## Monthly bar charts
 
 Monthly averages with a 12-month trailing mean, as absolute values or anomaly

@@ -47,10 +47,10 @@ python-dotenv, typer (all listed in `pyproject.toml` and installed automatically
 noaaplotter download-data -o data/kotzebue.parquet -sid USW00026616 -start 1970-01-01 -end 2021-12-31
 
 # 2. Create a daily plot (temperature vs. climate + precipitation, incl. 7-day rolling sum)
-noaaplotter plot-daily -infile data/kotzebue.parquet -start 1992-01-01 -end 1992-12-31 -t_range -45 25 -p_range 50 -save_plot figures/kotzebue_1992.png
+noaaplotter plot-daily -infile data/kotzebue.parquet -start 1992-01-01 -end 1992-12-31 -t_range -45 25 -p_range 50 -save_plot figures/kotzebue_daily_1992.png
 
 # 3. ...or an interactive HTML plot
-noaaplotter plot-daily -infile data/kotzebue.parquet -start 1992-01-01 -end 1992-12-31 --engine plotly -save_plot figures/kotzebue_1992.html
+noaaplotter plot-daily -infile data/kotzebue.parquet -start 1992-01-01 -end 1992-12-31 --engine plotly -save_plot figures/kotzebue_daily_1992.html
 ```
 
 ## Command Line Interface (CLI)
@@ -91,10 +91,15 @@ equivalent, so both stay null for `--source noaa`.
 
 ### `noaaplotter plot-daily`
 Daily temperature (observed vs. climate mean ± 1σ, with anomaly fills) + precipitation (bars + 7-day rolling sum).
+When the input file has `WSPD`/`WDIR` (ERA5 sources only — NOAA station data has no wind), a third row is added automatically: one dot per day coloured/positioned by wind direction plus a wind-speed line on a right-hand axis; the plotly hover also shows the 16-point compass name (N, NNE, NE, ...).
 
 ```bash
-noaaplotter plot-daily -infile data/kotzebue.parquet -start 1992-01-01 -end 1992-12-31 -t_range -45 25 -p_range 50 -save_plot figures/kotzebue_1992.png
-noaaplotter plot-daily -infile data/kotzebue.parquet -start 2017-07-01 -end 2018-06-30 --snow_acc --engine plotly -save_plot figures/kotzebue_winter.html
+noaaplotter plot-daily -infile data/kotzebue.parquet -start 1992-01-01 -end 1992-12-31 -t_range -45 25 -p_range 50 -save_plot figures/kotzebue_daily_1992.png
+noaaplotter plot-daily -infile data/kotzebue.parquet -start 2017-07-01 -end 2018-06-30 --snow_acc --engine plotly -save_plot figures/kotzebue_daily_winter.html
+
+# ERA5 input with wind columns -> daily plot gains the wind row (dots + speed line)
+noaaplotter plot-daily -infile data/NTaymyr_ERA5_75.6_98.7.parquet -start 2020-01-01 -end 2020-12-31 -save_plot figures/NTaymyr_ERA5_75.6_98.7_daily.png
+noaaplotter plot-daily -infile data/NTaymyr_ERA5_75.6_98.7.parquet --engine plotly -start 2020-01-01 -end 2020-12-31 -save_plot figures/NTaymyr_ERA5_75.6_98.7_daily.html
 ```
 
 | Option | Meaning |
@@ -118,10 +123,10 @@ Monthly bar chart of temperature or precipitation, with anomaly and trailing mea
 
 ```bash
 # Absolute values
-noaaplotter plot-monthly -infile data/kotzebue.parquet -start 1980-01-01 -end 2021-08-31 -type Temperature -trail 12 -save_plot figures/kotzebue_t.png
+noaaplotter plot-monthly -infile data/kotzebue.parquet -start 1980-01-01 -end 2021-08-31 -type Temperature -trail 12 -save_plot figures/kotzebue_monthly_t.png
 
 # Anomaly from climate (1981-2010)
-noaaplotter plot-monthly -infile data/kotzebue.parquet -start 1980-01-01 -end 2021-08-31 -type Precipitation -trail 12 -anomaly -save_plot figures/kotzebue_p_anomaly.png
+noaaplotter plot-monthly -infile data/kotzebue.parquet -start 1980-01-01 -end 2021-08-31 -type Precipitation -trail 12 -save_plot figures/kotzebue_monthly_p.png
 ```
 
 | Option | Meaning |
@@ -189,6 +194,22 @@ Entire year 1 January until 31 December (e.g. 1992):
 
 ![Kotzebue daily 1992 — temperature (top) vs. climate ±1σ, precipitation (bottom) with 7-day rolling sum](figures/kotzebue_daily_1992.png)
 
+### Daily plot with wind (ERA5 sources)
+
+NOAA station data has no wind columns, so the wind row only appears for
+ERA5-backed inputs (`--source open_meteo` / `cds`), which also deliver
+`WSPD`/`WDIR`. The wind row draws one dot per day placed by wind direction
+(hover shows the 16-point compass name, e.g. `247° (WSW)`) plus a wind-speed
+line on a right-hand axis:
+
+`noaaplotter plot-daily --input-file data/NTaymyr_ERA5_75.6_98.7.parquet --start-date 2020-01-01 --end-date 2020-12-31 --save-plot figures/NTaymyr_ERA5_75.6_98.7_daily.png`
+
+![Daily plot with wind row — North Taymyr, ERA5, 2020](figures/NTaymyr_ERA5_75.6_98.7_daily.png)
+
+Interactive (plotly) version of the same figure:
+
+`noaaplotter plot-daily --input-file data/NTaymyr_ERA5_75.6_98.7.parquet --engine plotly --start-date 2020-01-01 --end-date 2020-12-31 --save-plot figures/NTaymyr_ERA5_75.6_98.7_daily.html`
+
 ### Monthly aggregates
 Temperature, absolute (12-month trailing mean):
 
@@ -250,5 +271,5 @@ from noaaplotter import NOAAPlotter
 n = NOAAPlotter("data/kotzebue.parquet", location="Kotzebue", climate_filtersize=7)
 fig = n.plot_weather_series(start_date="1992-01-01", end_date="1992-12-31",
                             show_plot=False, return_plot=True, engine="plotly")
-fig.write_html("figures/kotzebue_1992.html")
+fig.write_html("figures/kotzebue_daily_1992.html")
 ```

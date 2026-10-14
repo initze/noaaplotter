@@ -5,6 +5,15 @@ Newer entries are added here automatically by the release workflow.
 
 ## Unreleased
 
+- **Redesigned wind row in the daily plot.** The wind row now shows one dot
+  per day placed by wind direction (dots coloured by speed) plus a wind-speed
+  line on a right-hand secondary axis, replacing the old colour-ribbon
+  rendering. Plotly hover shows the direction as degrees plus a 16-point
+  compass name (N, NNE, NE, ...) and the speed in m/s. Row heights are shared
+  between engines (temperature / precipitation / wind ≈ 0.41 / 0.27 / 0.21).
+  Example figures regenerated via `scripts/gen_docs_figures.py` (offline,
+  from the checked-in parquet files); run that script after any plotting
+  change and commit the refreshed `figures/` + `docs/` mirrors.
 - **Bugfix — daily wind ribbon on ERA5 data with missing wind days.**
   `plot_weather_series(engine="plotly")` crashed with a plotly ValidationError
   (`Invalid element(s) received for the 'color' property of scatter.marker`)

@@ -5,6 +5,15 @@
 > — the single source of truth (the release workflow appends there). This page
 > mirrors the two most recent releases.
 
+## Unreleased (target 1.2.0)
+
+- **Redesigned wind row in the daily plot.** One dot per day placed by wind
+  direction (dots coloured by speed) plus a wind-speed line on a right-hand
+  secondary axis, replacing the colour-ribbon rendering. Plotly hover shows
+  the direction in degrees + 16-point compass name (N, NNE, NE, ...) and the
+  speed in m/s. Example figures regenerate offline via
+  `scripts/gen_docs_figures.py` after any plotting change.
+
 ## 0.6.3
 
 - **Publishing:** added MIT `LICENSE`, real PyPI metadata (license classifier,
