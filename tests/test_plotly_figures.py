@@ -185,23 +185,25 @@ def test_wind_row_present_when_wspd_wdir_exist_matplotlib(tmp_path):
         engine="matplotlib", show_plot=False, plot_extrema=False,
         return_plot=True, show_snow_accumulation=False,
     )
-    # exactly 3 axes: temperature, precipitation, wind — NO colorbar axis
-    # (the speed scale lives in a small legend inside the wind panel, so no
-    # extra axis steals width from the wind panel)
-    assert len(fig.axes) == 3, f"expected exactly 3 axes, got {len(fig.axes)}"
-    # find the wind axis by its "Direction" ylabel (not just "last")
+    # 4 axes in the wind layout: temperature, precipitation, wind direction
+    # (primary), wind speed (twinned secondary axis). No colorbar axis.
+    assert len(fig.axes) == 4, f"expected 4 axes, got {len(fig.axes)}"
+    # find the wind direction axis by its "Direction" ylabel
     wind_ax = next(
         ax for ax in fig.axes if ax.get_ylabel() == "Direction"
     )
     ticks = {t.get_text() for t in wind_ax.get_yticklabels()}
     assert {"N", "S", "E", "W"} <= ticks
-    # speed-scale legend inside the wind panel (landscape, bin labels in m/s)
-    leg = wind_ax.get_legend()
-    assert leg is not None, "wind speed legend missing inside the wind panel"
-    assert leg.get_title().get_text() == "Wind speed (m/s)"
-    lbls = [t.get_text() for t in leg.get_texts()]
-    assert lbls and all("-" in l for l in lbls)
-    assert leg._ncols > 1, "wind legend should be landscape (multi-column)"
+    # speed twin axis carries the m/s ylabel
+    spd_ax = next(ax for ax in fig.axes if ax.get_ylabel() == "Wind speed in m/s")
+    assert spd_ax is not wind_ax
+    # direction dots: scatter collection with offsets, no line segments and
+    # no per-dot colour encoding (single flat colour)
+    coll = wind_ax.collections
+    assert coll, "direction dots missing"
+    assert not wind_ax.get_lines(), "direction must be dots WITHOUT a line"
+    # speed line exists on the twin axis
+    assert spd_ax.get_lines(), "wind speed line missing"
     # headroom: (inverted) ylim spans beyond the compass range so extreme dots
     # clear the axis edge
     lo, hi = wind_ax.get_ylim()
@@ -242,28 +244,38 @@ def test_wind_row_present_when_wspd_wdir_exist(tmp_path):
         engine="plotly", show_plot=False, plot_extrema=True,
     )
     names = [t.name for t in fig.data]
-    assert "WIND" in names, f"missing wind trace, got {names}"
-    # legend removed entirely; the wind trace carries no colorscale/colorbar
+    assert "Wind direction" in names, f"missing wind trace, got {names}"
+    assert "Wind speed" in names, f"missing speed trace, got {names}"
+    # legend removed entirely; no colorscale anywhere on the wind traces
     assert fig.layout.showlegend is False
-    wind = next(t for t in fig.data if t.name == "WIND")
+    wind = next(t for t in fig.data if t.name == "Wind direction")
+    spd = next(t for t in fig.data if t.name == "Wind speed")
     assert getattr(wind.marker, "colorscale", None) in (None, False, "")
-    # direction axis (the WIND row's y-axis) carries compass tick text and
-    # ylim headroom beyond the compass range
+    # direction dots: on yaxis3 (row 3 primary) with compass tick text and
+    # ylim headroom beyond the compass range; markers-only (no line)
+    assert wind.mode == "markers"
     assert getattr(wind, "yaxis", "") == "y3"
     compass_axis = fig.layout.yaxis3
     ticks = list(getattr(compass_axis, "ticktext", []) or [])
     assert "N" in ticks and "S" in ticks and "E" in ticks
     rng = [float(v) for v in (getattr(compass_axis, "range", []) or [])]
     assert rng and max(rng) > 360 and min(rng) < 0, f"no wind ylim headroom: {rng}"
-    # per-dot rgb fill colours (speed encoded as colour, not colour scale)
-    assert str(wind.marker.color[0]).startswith("rgb(")
+    # speed line overlays on its own axis (y4), single colour
+    assert spd.mode == "lines"
+    assert getattr(spd, "yaxis", "") == "y4"
+    assert str(spd.line.color).startswith("rgba(")
+    # hover carries degrees AND the 16-point compass name
+    assert "customdata" in wind.hovertemplate
+    assert all(isinstance(c, (list, tuple)) for c in wind.customdata[:5])
+    assert list(wind.customdata[0])[1] in (
+        "N", "NNE", "NE", "ENE", "E", "ESE", "SE", "SSE",
+        "S", "SSW", "SW", "WSW", "W", "WNW", "NW", "NNW")
 
 
-def test_wind_gap_days_use_transparent_color(tmp_path):
-    # Regression: WSPD has null days (ERA5 windows). marker.color is a LIST,
-    # and plotly rejects None elements there ("Invalid element(s) received
-    # for the 'color' property of scatter.marker"). Missing-speed dots must
-    # use a fully transparent rgb colour instead, fill AND outline alike.
+def test_wind_gap_days_render_as_missing(tmp_path):
+    # Regression guard for the dots+line design: days without WSPD/WDIR must
+    # stay null (no dot / no line segment fabricated for them) — and the flat
+    # single-colour markers make the old None-in-color-list failure impossible.
     import numpy as np
     import pandas as pd
 
@@ -290,16 +302,16 @@ def test_wind_gap_days_use_transparent_color(tmp_path):
     df.to_parquet(path)
 
     n = NOAAPlotter(str(path), location="Synthetic")
-    # before the fix this raised a plotly ValidationError on None colours
     fig = n.plot_weather_series(
         start_date="2009-01-01", end_date="2010-12-31",
         engine="plotly", show_plot=False, plot_extrema=True,
     )
-    wind = next(t for t in fig.data if t.name == "WIND")
-    colors = list(wind.marker.color)
-    assert "rgba(0,0,0,0)" in colors, "null-wind days must render transparent"
-    assert all(c is not None for c in colors)
-    assert None not in list(wind.marker.line.color)
+    wind = next(t for t in fig.data if t.name == "Wind direction")
+    spd = next(t for t in fig.data if t.name == "Wind speed")
+    # null days stay NaN (no fabricated values, no interpolation)
+    import numpy as _np
+    assert _np.isnan(spd.y).sum() >= 9, "speed nulls must stay null"
+    assert _np.isnan(wind.y).any(), "direction nulls must stay null"
 
 
 def test_no_wind_row_when_source_lacks_wind(tmp_path):
@@ -327,7 +339,7 @@ def test_no_wind_row_when_source_lacks_wind(tmp_path):
         engine="plotly", show_plot=False, plot_extrema=True,
     )
     names = [t.name for t in fig.data]
-    assert "WIND" not in names
+    assert "Wind direction" not in names and "Wind speed" not in names
 
 
 def test_download_cli_runs_without_token(tmp_path, monkeypatch):
