@@ -382,13 +382,11 @@ class NOAAPlotter(object):
             fig.subplots_adjust(
                 left=0.09, right=0.985, top=0.90, bottom=0.18)
         if has_wind_mpl:
-            # explicit vertical bands: temp, gap, precip, small gap, wind
-            # (hspace 0 — every gap comes from a spacer row; the wind panel
-            # no longer carries a legend row, so the lower gap is a plain
-            # hairline separator)
+            # explicit vertical bands: temp, gap, precip, gap, wind
+            # (hspace 0 — every gap comes a spacer row)
             gs = fig.add_gridspec(
                 5, 1,
-                height_ratios=[0.46, 0.05, 0.31, 0.05, 0.13],
+                height_ratios=[0.41, 0.05, 0.27, 0.05, 0.21],
                 hspace=0.0,
             )
             ax_t = fig.add_subplot(gs[0, 0])

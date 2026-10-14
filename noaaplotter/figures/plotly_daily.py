@@ -28,7 +28,7 @@ C_HIGH = "#d6604d"
 C_LOW = "#4393c3"
 YEAR_BAND = "rgba(0,0,0,0.025)"  # light grey per calendar year (even years white)
 
-WIND_ROWS_HEIGHTS = {"2 rows": (0.6, 0.4), "3 rows": (0.5, 0.3, 0.2)}
+WIND_ROWS_HEIGHTS = {"2 rows": (0.6, 0.4), "3 rows": (0.41, 0.27, 0.21)}
 
 # 16-point compass rose (deg -> name via 22.5-degree bins centred on each card
 # in the list); index i covers the sector centred on i*22.5 from north CW.
