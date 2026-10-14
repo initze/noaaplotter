@@ -372,7 +372,15 @@ class NOAAPlotter(object):
         # the exact same width and every y-label sits at the same global x.
         # (tight_layout would re-derive margins per-label; legend/titles sit
         # outside the axes, so the margins are pinned explicitly instead.)
-        fig.subplots_adjust(left=0.09, right=0.985, top=0.90, bottom=0.18)
+        # the wind layout adds a RIGHT-side speed axis whose label + tick
+        # labels must fit: pin a wider right margin for it (the plain layout
+        # keeps the old tight one)
+        if has_wind_mpl:
+            fig.subplots_adjust(
+                left=0.09, right=0.90, top=0.90, bottom=0.18)
+        else:
+            fig.subplots_adjust(
+                left=0.09, right=0.985, top=0.90, bottom=0.18)
         if has_wind_mpl:
             # explicit vertical bands: temp, gap, precip, gap, wind (hspace 0 —
             # every gap comes from a spacer row, so the temp/precip gap stays

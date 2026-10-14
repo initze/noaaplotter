@@ -307,7 +307,7 @@ def make_daily_figure(df_obs, x_dates, x_dates_short, y_clim, y_clim_hi, y_clim_
             x=dates, y=list(pd.Series(wspd).where(pd.notna(wspd))),
             mode="lines", name="Wind speed",
             line=dict(width=1, color="rgba(214,96,77,0.85)"),
-            yaxis="y4",
+            yaxis="y4", xaxis="x3",
             hovertemplate="Speed: %{y:.1f} m/s<extra></extra>",
             showlegend=False))
         # headroom above N / below S (mirror of the static render) so extreme

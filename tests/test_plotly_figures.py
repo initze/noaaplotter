@@ -255,6 +255,10 @@ def test_wind_row_present_when_wspd_wdir_exist(tmp_path):
     # ylim headroom beyond the compass range; markers-only (no line)
     assert wind.mode == "markers"
     assert getattr(wind, "yaxis", "") == "y3"
+    # regression: the speed line MUST pin the wind row's x-axis explicitly
+    # (xaxis=x3). Without it plotly anchors the free-positioned y4 to its own
+    # default x-axis and the line renders in a phantom axis (blank panel).
+    assert getattr(spd, "xaxis", "") == "x3"
     compass_axis = fig.layout.yaxis3
     ticks = list(getattr(compass_axis, "ticktext", []) or [])
     assert "N" in ticks and "S" in ticks and "E" in ticks
