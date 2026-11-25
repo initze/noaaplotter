@@ -4,11 +4,18 @@
 #   docs    — install the package + .[docs] extra, run `mkdocs build --strict`,
 #             and assert the expected pages exist. This is the CI gate: it runs
 #             on every PR and push to master, so a broken docs build fails review.
-#   deploy  — pushes `site/` to the `gh-pages` branch on push to master.
+#   deploy  — publishes the built `site/` with the official GitHub Pages actions
+#             (configure-pages / upload-pages-artifact / deploy-pages). No
+#             `gh-pages` branch is written; Pages serves the Actions artifact
+#             (Settings → Pages → Source: "GitHub Actions").
 #
-#  GitHub Pages (Settings → Pages) is served from the `gh-pages` branch / root.
 #  The canonical URL is https://initze.github.io/noaaplotter/ (see `site_url`
 #  in mkdocs.yml and the "Documentation" link in pyproject.toml).
+#
+#  Release hook: `create-release` pushes its version bump with GITHUB_TOKEN,
+#  and such pushes do NOT trigger other workflows (GitHub's recursion guard).
+#  The `workflow_run` trigger below re-builds and re-deploys the docs after a
+#  release completes, so the published site matches the released version.
 #
 #  Local:
 #      uv venv --python 3.11 && uv pip install ".[docs]"
@@ -25,10 +32,14 @@ on:
     branches: [master, main]
   pull_request:
     branches: [master, main]
+  # Re-deploy after a release, whose GITHUB_TOKEN push cannot trigger us.
+  workflow_run:
+    workflows: ["create-release"]
+    types: [completed]
 
+# Default least privilege; the deploy job adds the Pages scopes it needs.
 permissions:
-  # deploy pushes the built site to the `gh-pages` branch (peaceiris action)
-  contents: write
+  contents: read
 
 env:
   PYTHON_VERSION: "3.11"
@@ -76,22 +87,36 @@ jobs:
         retention-days: 3
 
   deploy:
-    name: Publish to GitHub Pages
+    name: Deploy to GitHub Pages
     needs: docs
-    if: github.event_name == 'push' && github.ref == 'refs/heads/master'
+    # push to master, or a successful create-release run
+    if: >
+      (github.event_name == 'push' && github.ref == 'refs/heads/master') ||
+      (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success')
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    # Serialize deploys only (PR builds stay independent).
+    concurrency:
+      group: pages
+      cancel-in-progress: false
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    permissions:
+      pages: write       # publish the artifact to Pages
+      id-token: write    # OIDC token required by deploy-pages
     steps:
     - name: Download built site
       uses: actions/download-artifact@v4
       with:
         name: docs-site
         path: site
-    - name: Publish to gh-pages (GitHub Pages)
-      uses: peaceiris/actions-gh-pages@v4
+    - name: Configure Pages
+      uses: actions/configure-pages@v5
+    - name: Upload Pages artifact
+      uses: actions/upload-pages-artifact@v3
       with:
-        github_token: ${{ secrets.GITHUB_TOKEN }}
-        publish_dir: ./site
-        publish_branch: gh-pages
-        force_orphan: true
-        keep_history: false
+        path: site
+    - name: Deploy to GitHub Pages
+      id: deployment
+      uses: actions/deploy-pages@v4
