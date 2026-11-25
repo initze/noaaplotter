@@ -1,9 +1,19 @@
 # Changelog
 
 All notable changes to `noaaplotter` are documented here.
-Newer entries are added here automatically by the release workflow.
+Add new entries under `## Unreleased`; `scripts/fold_changelog.py` (run by the
+release workflow) folds that section into the new version's heading on release.
 
 ## Unreleased
+
+_Nothing yet._
+
+## 1.1.4 — 2026-11-25
+
+- Dependency updates only (`certifi` 2026.10.18, `pillow` 13.0.0). No
+  user-facing changes.
+
+## 1.1.3 — 2026-10-14
 
 - **Redesigned wind row in the daily plot.** The wind row now shows one dot
   per day placed by wind direction (dots coloured by speed) plus a wind-speed
@@ -11,15 +21,34 @@ Newer entries are added here automatically by the release workflow.
   rendering. Plotly hover shows the direction as degrees plus a 16-point
   compass name (N, NNE, NE, ...) and the speed in m/s. Row heights are shared
   between engines (temperature / precipitation / wind ≈ 0.41 / 0.27 / 0.21).
-  Example figures regenerated via `scripts/gen_docs_figures.py` (offline,
-  from the checked-in parquet files); run that script after any plotting
-  change and commit the refreshed `figures/` + `docs/` mirrors.
+- **Docs:** new "Daily plot with wind (ERA5)" example (North Taymyr 2020,
+  static + interactive) and `scripts/gen_docs_figures.py`, which regenerates
+  every README/MkDocs gallery figure offline from `data/*.parquet` in one
+  command. Example figures regenerated at the current styling.
+
+## 1.1.2 — 2026-10-13
+
 - **Bugfix — daily wind ribbon on ERA5 data with missing wind days.**
   `plot_weather_series(engine="plotly")` crashed with a plotly ValidationError
   (`Invalid element(s) received for the 'color' property of scatter.marker`)
   whenever WSPD had null days: the per-dot marker-colour LIST contained
   `None` entries. Null-speed dots now use a fully transparent colour
   (`rgba(0,0,0,0)`) for fill and outline alike.
+
+## 1.1.1 — 2026-10-13
+
+- **CI:** the release workflow now stages `CITATION.cff` in the version
+  commit (it was being rewritten but left uncommitted, so the citation
+  silently drifted); `CITATION.cff` synced to 1.1.0.
+
+## 1.1.0 — 2026-10-13
+
+- **Daily plot:** wind-ribbon panel layout polish and legend rework.
+- **CI:** fixed an unescaped double quote in the release workflow's README
+  badge update (bash `unexpected EOF` aborted the bump).
+
+## 1.0.2 — 2026-10-09
+
 - **New feature — daily wind (ERA5 sources only).** The `open_meteo` and
   `cds` sources now also return two canonical columns:
   `WSPD` (daily mean 10 m wind speed, m/s) and `WDIR` (daily dominant
@@ -44,6 +73,9 @@ Newer entries are added here automatically by the release workflow.
   point and window (Potsdam, 15 Jan – 28 Feb 2022): TAVG within ~0.4 °C
   RMS, PRCP within ~1.6 mm RMS — consistent with inter-grid differences
   for two ERA5 re-griddings.
+
+## 1.0.1 — 2026-09-22
+
 - **New plot types — warming stripes & activity heatmap.** Two new anomaly
   figures, both available as temperature or precipitation:
   - `plot_warming_stripes` / `plot-stripes` — one horizontal band, a stripe
@@ -69,6 +101,12 @@ Newer entries are added here automatically by the release workflow.
   (earliest and latest dates, span in days), the types of information
   available (which of TAVG/TMAX/TMIN, PRCP, SNOW are present), the row count,
   and the full column list. Useful for a quick sanity check before plotting.
+- **Publishing:** README badges (PyPI version, CI, docs), `uv.lock` synced to
+  the released version, and the `publish_existing` dispatch input quoted so
+  YAML 1.1 does not read `yes`/`no` as booleans.
+
+## 1.0.0 — 2026-09-16
+
 - **NOAA source is now keyless.** The NOAA downloader already used NOAA's
   public **NCEI Access Data Service**
   ([`…/access/services/data/v1`](https://www.ncei.noaa.gov/access/search/documentation/data-service)),
@@ -84,6 +122,9 @@ Newer entries are added here automatically by the release workflow.
   `plot-monthly`, so the CLI and the Python API agree at print quality
   (a plain `plot-daily ... -save_plot x.png` now yields 2700×1800 px, not
   900×600). Shipped example figures regenerated at the new default.
+- **Publishing:** PyPI publication preparation (metadata, `LICENSE`), the
+  MkDocs Material documentation site, and the GitHub Pages deploy with the
+  strict-build CI gate.
 
 ## 0.6.3
 
