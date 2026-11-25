@@ -35,3 +35,8 @@ examples/out/
 # scratch / diagnostics
 scratch_*.py
 .hermes/
+
+# ── local-only artifacts ───────────────────────────────────────────────────────
+# personal helper scripts and regenerable previews; never part of the package
+*.bat
+figures/barrow_*.png
