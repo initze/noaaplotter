@@ -6,7 +6,17 @@ release workflow) folds that section into the new version's heading on release.
 
 ## Unreleased
 
-_Nothing yet._
+- **Docs:** GitHub Pages is now deployed with the official Actions flow
+  (`configure-pages` / `upload-pages-artifact` / `deploy-pages`) instead of a
+  `gh-pages` branch, and the documentation rebuilds automatically after each
+  release. (The published site had been returning 404 because Pages was not
+  enabled on the repository.)
+- **Changelog:** `scripts/fold_changelog.py` files the `Unreleased` entries
+  under the released version at release time; entries that had been stuck
+  under `Unreleased` since 1.0.0 are now attributed to the releases that
+  actually shipped them.
+- **Housekeeping:** local-only helper scripts (`*.bat`) and mockup renders
+  (`figures/barrow_*.png`) are gitignored.
 
 ## 1.1.4 — 2026-11-25
 

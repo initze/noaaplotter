@@ -23,6 +23,7 @@ from pathlib import Path
 CHANGELOG = Path(__file__).resolve().parents[1] / "CHANGELOG.md"
 HEADING = "## Unreleased"
 PLACEHOLDERS = {"", "_nothing yet._", "_nothing yet_", "<!-- add entries here -->"}
+CRLF = chr(13) + chr(10)  # spelled out so editors/tools cannot mangle the escape
 
 
 def fold(text: str, version: str, date: str) -> tuple[str, bool]:
@@ -47,6 +48,18 @@ def fold(text: str, version: str, date: str) -> tuple[str, bool]:
     return text[: m.start()] + new_section + text[body_end:], True
 
 
+def fold_file(path: Path, version: str, date: str) -> bool:
+    """Fold ``path`` in place, preserving its original line endings."""
+    raw = path.read_bytes().decode("utf-8")
+    uses_crlf = CRLF in raw
+    new_text, changed = fold(raw.replace(CRLF, "\n"), version, date)
+    if not changed:
+        return False
+    out = new_text.replace("\n", CRLF) if uses_crlf else new_text
+    path.write_bytes(out.encode("utf-8"))
+    return True
+
+
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("version", help="version being released, e.g. 1.2.0")
@@ -56,14 +69,11 @@ def main() -> int:
     args = ap.parse_args()
 
     path = Path(args.file)
-    text = path.read_text(encoding="utf-8")
-    new_text, changed = fold(text, args.version, args.date)
-    if not changed:
+    if not fold_file(path, args.version, args.date):
         print("CHANGELOG.md: nothing under '## Unreleased' — not modified.")
         return 0
 
-    path.write_text(new_text, encoding="utf-8", newline="\n")
-    heads = re.findall(r"^## .+$", new_text, re.MULTILINE)
+    heads = re.findall(r"^## .+$", path.read_text(encoding="utf-8"), re.MULTILINE)
     print(f"CHANGELOG.md: folded into '## {args.version} — {args.date}'")
     print("headings now:", ", ".join(h.lstrip("# ").strip() for h in heads[:4]))
     return 0
