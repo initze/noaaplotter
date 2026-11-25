@@ -6,6 +6,10 @@ release workflow) folds that section into the new version's heading on release.
 
 ## Unreleased
 
+_Nothing yet._
+
+## 1.1.5 — 2026-11-25
+
 - **Docs:** GitHub Pages is now deployed with the official Actions flow
   (`configure-pages` / `upload-pages-artifact` / `deploy-pages`) instead of a
   `gh-pages` branch, and the documentation rebuilds automatically after each
