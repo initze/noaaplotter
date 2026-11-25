@@ -88,3 +88,41 @@ def test_repo_changelog_is_foldable_or_empty():
     if changed:
         # entries were pending: the fold must have produced a version heading
         assert "## 9.9.9" in _
+
+
+CRLF = chr(13) + chr(10)
+
+
+def test_fold_file_preserves_crlf(tmp_path):
+    """A CRLF working copy must not be rewritten to LF (whole-file diff)."""
+    p = tmp_path / "CHANGELOG.md"
+    p.write_bytes(SAMPLE.replace("\n", CRLF).encode("utf-8"))
+
+    assert fold_changelog.fold_file(p, "1.2.0", "2026-12-01")
+
+    data = p.read_bytes()
+    assert data.count(CRLF.encode()) == data.count(b"\n")   # no bare LF
+    assert b"## 1.2.0" in data
+
+
+def test_fold_file_preserves_lf(tmp_path):
+    p = tmp_path / "CHANGELOG.md"
+    p.write_text(SAMPLE, encoding="utf-8", newline="\n")
+
+    assert fold_changelog.fold_file(p, "1.2.0", "2026-12-01")
+
+    data = p.read_bytes()
+    assert chr(13).encode() not in data
+    assert b"## 1.2.0" in data
+
+
+def test_fold_file_noop_keeps_file_byte_identical(tmp_path):
+    p = tmp_path / "CHANGELOG.md"
+    text = SAMPLE.replace(
+        "- **A new thing.** Does stuff.\n- **Another thing.** More stuff.\n",
+        "_Nothing yet._\n")
+    p.write_bytes(text.replace("\n", CRLF).encode("utf-8"))
+    before = p.read_bytes()
+
+    assert fold_changelog.fold_file(p, "1.2.1", "2026-12-02") is False
+    assert p.read_bytes() == before
