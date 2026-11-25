@@ -2,36 +2,23 @@
 
 > Full history lives in the repository's
 > [`CHANGELOG.md`](https://github.com/initze/noaaplotter/blob/master/CHANGELOG.md)
-> — the single source of truth (the release workflow appends there). This page
-> mirrors the two most recent releases.
+> — the single source of truth (the release workflow folds each release's
+> entries there). This page mirrors the two most recent releases.
 
-## Unreleased (target 1.2.0)
+## 1.1.4 — 2026-11-25
+
+- Dependency updates only (`certifi` 2026.10.18, `pillow` 13.0.0). No
+  user-facing changes.
+
+## 1.1.3 — 2026-10-14
 
 - **Redesigned wind row in the daily plot.** One dot per day placed by wind
   direction (dots coloured by speed) plus a wind-speed line on a right-hand
   secondary axis, replacing the colour-ribbon rendering. Plotly hover shows
   the direction in degrees + 16-point compass name (N, NNE, NE, ...) and the
-  speed in m/s. Example figures regenerate offline via
-  `scripts/gen_docs_figures.py` after any plotting change.
+  speed in m/s. Row heights are shared between engines
+  (temperature / precipitation / wind ≈ 0.41 / 0.27 / 0.21).
+- **Docs:** new "Daily plot with wind (ERA5)" example (North Taymyr 2020,
+  static + interactive) and `scripts/gen_docs_figures.py`, which regenerates
+  every gallery figure offline from `data/*.parquet` in one command.
 
-## 0.6.3
-
-- **Publishing:** added MIT `LICENSE`, real PyPI metadata (license classifier,
-  `project.urls`, keywords), clean public API
-  (`from noaaplotter import NOAAPlotter`, `noaaplotter.__version__`).
-- **Dropped the GEE/geemap/EarthEngine path** (dead code — unreachable from
-  any live entry point); `uv.lock` shrank ~1000 lines.
-- **Docs:** MkDocs Material site (API + CLI + examples reference), served from
-  GitHub Pages at <https://initze.github.io/noaaplotter/>.
-- **CI:** all GitHub Actions bumped to Node-24 majors; flake8 gate fixed for
-  both repos.
-
-## 0.6.2
-
-- **Interactive daily plot** (Plotly engine): full-series vs. windowed mode
-  (`--full-series`), proper y-limits, year bands.
-- **Record extrema** computed over the entire observed record (not just the
-  plotted window), then cropped to the window.
-- **7-day rolling precipitation sum** in the daily plot.
-- Typer CLI: `noaaplotter download-data | plot-daily | plot-monthly`
-  (`--source noaa|open_meteo|cds`, `-t_range`/`-p_range` multi-value options).
